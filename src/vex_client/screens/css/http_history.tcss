@@ -1,0 +1,61 @@
+#main-container {
+    margin: 1 1; 
+}
+
+#http-table {
+    width: 1fr;
+    height: 1fr;
+    border: wide $foreground;
+    margin: 1 0 0 0;
+    
+    &:focus {
+        background: $surface;
+        background-tint: $surface;
+        border: wide $primary;
+    }
+    
+    &:empty {
+    }
+    
+}
+
+#test {
+    hatch: right $surface-lighten-1 70%;
+}
+
+#request-area {
+    width: 1fr;
+    border: wide $foreground;
+    margin: 0 1 0 0;
+    
+    &:empty {
+    }
+    
+    &:focus {
+        border: wide $primary;
+    }
+    
+    & .text-area--cursor-line {
+       background: $surface;
+    }
+
+}
+
+#response-area {
+    width: 1fr;
+    border: wide $foreground;
+    margin: 0 0 0 1;
+    
+    &:empty {
+    }
+
+    &:focus {
+        border: wide $primary;
+    }
+    
+    & .text-area--cursor-line {
+       background: $surface;
+    }
+
+
+}

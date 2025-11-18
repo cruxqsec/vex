@@ -1,0 +1,46 @@
+Screen {
+    align: center middle;
+    background: $background;
+}
+
+#banner-container {
+    height: 1fr; 
+}
+#main-container {
+    height: 1fr; 
+}
+
+#banner {
+    height: 2fr;
+    width: 1fr;
+    content-align: center middle;
+    background: $background;
+    color: $accent;
+}
+
+#info {
+    height: 1fr;
+    margin-top: 2;
+}
+
+#version {
+    width: auto;
+    content-align: center middle;
+    background: $background-lighten-2;
+    color: $accent;
+    padding: 0 2;
+}
+
+#website-link {
+    content-align: center middle;
+    background: $accent-muted;
+    color: $text-accent;
+    padding: 0 2;
+}
+
+#proxy-list {
+    width: 1fr;
+    border: tab $foreground;
+    background: $background;
+    margin: 0 20 4 20;
+}

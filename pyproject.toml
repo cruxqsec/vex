@@ -1,0 +1,30 @@
+[project]
+name = "vex"
+version = "0.1.0"
+description = "A minimalist security toolkit in your terminal."
+dependencies = [
+    "aiosqlite==0.21.0",
+    "fastapi==0.121.1",
+    "mitmproxy==11.0.2",
+    "pydantic==2.12.4",
+    "SQLAlchemy==2.0.44",
+    "sqlmodel==0.0.27",
+    "uvicorn==0.38.0",
+    "httpx==0.28.1",
+    "psutil==7.1.2",
+    "textual[syntax]==6.2.0",
+    "textual_autocomplete==4.0.6",
+]
+requires-python = ">= 3.11"
+
+[dependency-groups]
+test = [
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "pytest-mock==3.15.1",
+    "textual-dev==1.7.0",
+]
+
+[project.scripts]
+vex-cli = "vex_cli.__main__:cli"
+vex = "vex_client.__main__:main"

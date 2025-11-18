@@ -1,0 +1,61 @@
+Screen {
+    background: $background;
+}
+
+#main-container {
+    margin: 1 2;
+}
+
+#send-request-bar {
+    height: auto;
+}
+
+#method-select {
+    height: 1;
+    border: none !important;
+    padding: 0;
+    margin: 0;
+}
+
+#request-input {
+    width: 6fr;
+    height: 1;
+    margin: 0;
+    padding: 0 1;
+    border: none;
+}
+
+#request-area {
+    width: 1fr;
+    border: wide $foreground;
+    margin: 0 1 0 0;
+    
+    &:empty {
+    }
+    
+    &:focus {
+        border: wide $primary;
+    }
+    
+    & .text-area--cursor-line {
+       background: $surface;
+    }
+
+}
+
+#response-area {
+    width: 1fr;
+    border: wide $foreground;
+    margin: 0 0 0 1;
+    
+    &:empty {
+    }
+
+    &:focus {
+        border: wide $primary;
+    }
+    
+    & .text-area--cursor-line {
+       background: $surface;
+    }
+}

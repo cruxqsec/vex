@@ -1,0 +1,50 @@
+#Screen {
+    background: $background;
+}
+
+#main-container {
+    margin: 1 2;
+}
+
+#scope-list {
+   width: 1fr; 
+   height: 1fr;
+   border: wide $foreground;
+   
+   margin: 0 1 0 0;
+}
+
+#in-out-container {
+   width: 3fr; 
+   height: 1fr;
+
+   margin: 0 0 0 1;
+}
+
+#name-input {
+   width: 1fr;
+   height: 3;
+   
+   margin: 0;
+   padding: 0 1;
+   border: wide $foreground;
+}
+
+#in-scope-area {
+   width: 1fr;
+   height: 1fr;
+   border: wide $foreground;
+   
+   margin: 0 1 0 0;
+}
+
+#out-of-scope-area {
+   width: 1fr;
+   height: 1fr;
+   border: wide $foreground;
+   margin: 0 0 0 1;
+}
+
+#btn-area {
+    height: 0.5fr; 
+}

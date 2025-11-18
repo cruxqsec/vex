@@ -1,0 +1,20 @@
+#Screen {
+    background: $background;
+}
+
+#main-container {
+    margin: 1 4;
+}
+
+#intercept-table {
+    width: 1fr;
+    height: 1fr;
+    border: wide $foreground;
+}
+
+#intercept-req-area {
+    width: 1fr;
+    height: 1fr;
+    border: wide $foreground;
+}
+

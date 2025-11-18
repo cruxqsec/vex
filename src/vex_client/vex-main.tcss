@@ -1,0 +1,21 @@
+$empty-hatch: right $surface-lighten-1 70%;
+
+.func-btn {
+    padding: 0 1;
+    width: auto;
+    height: 1;
+    border: none;
+    margin: 0 0 0 1;
+
+    background: $accent-muted;
+    color: $text-accent;
+    text-style: b;
+    &:hover {
+        background-tint: $text-accent 10%;
+    }
+    
+    &:focus {
+        background-tint: $text-accent 30%;
+    }
+
+}
