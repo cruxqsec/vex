@@ -12,7 +12,7 @@ from textual.widgets import (
     Button
 )
 
-from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 
 class ScopeInput(Input, can_focus=True):
     """

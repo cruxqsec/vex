@@ -1,74 +1,26 @@
-Screen {
+VexProjectsScreen {
     background: $background;
-}
 
-#main-container {
-    margin: 1 4;
-}
+    #main-container {
+        margin: 1 4;
+    }
 
-#active-project {
-    width: 1fr;
-    height: 0.15fr;
-}
+    #active-project {
+        width: 1fr;
+        height: 1fr;
+    }
 
-#navigation-bar {
-    width: 1fr;
-    height: 1fr;
-}
+    #navigation-bar {
+        width: 1fr;
+        height: 1fr;
+    }
 
-#projects-bar {
-    height: 1;
-}
+    #projects-table{
+        width: 1fr;
+        height: 8fr;
+        border: wide $foreground;
+        margin: 1 0;
+    }
 
-#projects-table{
-    width: 1fr;
-    height: 1fr;
-    border: wide $foreground;
-    margin: 1 0;
+    
 }
-
-CreateProjectScreen {
-    align: center middle;
-    background: $background 60%;
-}
-
-#create-modal {
-    width: 60;
-    height: 11;
-    border: thick $foreground;
-    background: $background;
-}
-
-#modal-input {
-    margin: 1 1 0 1;
-}
-
-#modal-btns {
-    margin: 0 1 0 1;
-}
-
-#title {
-    width: 1fr;
-    height: 1;
-    content-align: left middle;
-    background: $background-lighten-2;
-    margin: 1;
-    padding-left: 1;
-}
-
-#name {
-    width: auto;
-    height: 0.15fr;
-}
-
-#input {
-    width: 1fr;
-    height: 1;
-    border: none;
-}
-
-#cancel {
-    background: $error-muted !important;
-    color: $text-error !important;
-}
-

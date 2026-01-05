@@ -1,3 +1,4 @@
+import asyncio
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,25 +14,43 @@ async def start_fastapi(app_state: VexState):
     app = create_app() 
     app.state.vex_state = app_state
     
-    proxy_info = app_state.get_proxy_info()
-    server_address = proxy_info.server_address
-    api_port = proxy_info.api_port
+    server_info = app_state.get_server_info()
+    server_address = server_info.server_address
+    api_port = server_info.api_port
 
-    config = uvicorn.Config(app, host=server_address, port=api_port)
+    config = uvicorn.Config(
+        app,
+        host=server_address,
+        port=api_port,
+        access_log=False,
+        #log_config=None
+    )
     server = uvicorn.Server(config)
-    await server.serve()
+        
+    try:
+        logger.info(f"Starting FastAPI on {server_address}:{api_port}")
+        await server.serve()
+    except asyncio.CancelledError:
+        logger.info("FastAPI server shutdown requested.")
+    finally:
+        try:
+            await server.shutdown()
+        except Exception as e:
+            logger.error(f"Error during FastAPI cleanup: {e}")
 
+"""
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: When the uvicorn servers starts 
     yield
     # Shutdown: Cleanup state
     await app.state.vex_state.shutdown()
+"""
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Vex API",
-        lifespan=lifespan
+        #lifespan=lifespan
     )
     
     @app.exception_handler(AppException)
@@ -57,6 +76,7 @@ def create_app() -> FastAPI:
             content={"error": "InternalServerError", "message": "Something went wrong"}
         )
 
+    from vex_cli.api.health_routes import health_router
     from vex_cli.api.websockets import websocket_router
     from vex_cli.api.projects_routes import projects_router
     from vex_cli.api.request_summary_routes import request_summary_router
@@ -64,6 +84,7 @@ def create_app() -> FastAPI:
     from vex_cli.api.raw_request_routes import raw_request_router
     from vex_cli.api.raw_response_routes import raw_response_router
     
+    app.include_router(health_router)
     app.include_router(websocket_router, prefix="/ws")
     app.include_router(projects_router, prefix="/api")
     app.include_router(request_summary_router, prefix="/api")

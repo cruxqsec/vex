@@ -3,8 +3,8 @@ from textual.screen import Screen
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Placeholder
 
-from vex_client.widgets.http_table import VexHTTPTable
-from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.history.history_table import VexHTTPTable
+from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.request_area import RequestArea
 from vex_client.widgets.response_area import ResponseArea
 
@@ -36,9 +36,7 @@ class VexInterceptScreen(Screen):
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Vertical(id="main-container"):
-            yield VexHTTPTable("Intercepted requests",
-                               display_req=True, display_res=False,
-                               empty_message="Intercepted requests will be displayed here.",
+            yield VexHTTPTable( empty_message="Intercepted requests will be displayed here.",
                                id="intercept-table")
             yield RequestArea(empty_message="No requests intercepted.",
                               id="intercept-req-area")

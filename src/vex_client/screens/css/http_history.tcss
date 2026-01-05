@@ -1,12 +1,11 @@
 #main-container {
-    margin: 1 1; 
+    margin: 0 1; 
 }
 
 #http-table {
     width: 1fr;
     height: 1fr;
     border: wide $foreground;
-    margin: 1 0 0 0;
     
     &:focus {
         background: $surface;
@@ -17,10 +16,6 @@
     &:empty {
     }
     
-}
-
-#test {
-    hatch: right $surface-lighten-1 70%;
 }
 
 #request-area {

@@ -4,31 +4,19 @@ Screen {
 }
 
 #banner-container {
-    height: 1fr; 
+    align: center middle;
 }
+
 #main-container {
-    height: 1fr; 
+    align: center middle;
 }
 
 #banner {
-    height: 2fr;
+    height: 1fr;
     width: 1fr;
     content-align: center middle;
     background: $background;
     color: $accent;
-}
-
-#info {
-    height: 1fr;
-    margin-top: 2;
-}
-
-#version {
-    width: auto;
-    content-align: center middle;
-    background: $background-lighten-2;
-    color: $accent;
-    padding: 0 2;
 }
 
 #website-link {
@@ -36,11 +24,76 @@ Screen {
     background: $accent-muted;
     color: $text-accent;
     padding: 0 2;
+    margin-bottom: 1;
+}
+
+#version {
+    width: auto;
+    height: auto;
+    content-align: center middle;
+    background: $background-lighten-2;
+    color: $accent;
+    padding: 0 2;
+    margin-bottom: 3;
+    text-style: bold;
 }
 
 #proxy-list {
     width: 1fr;
     border: tab $foreground;
     background: $background;
-    margin: 0 20 4 20;
+    margin-left: 20;
+    margin-right: 20;
+    margin-bottom: 2;
+    
+        
+}
+
+VexProxyListItem {
+    align: center middle;
+    height:3 !important;
+    max-height: 3 !important;
+}
+
+Horizontal {
+    margin-left: 1;
+    margin-right: 1;
+    margin-bottom: 1;
+    margin-top: 1;
+}
+
+#item-row {
+    align: center middle;
+    height:3 !important;
+    max-height: 3 !important;
+    width: 1fr;
+    padding: 1;
+}
+
+.status-dot {
+    width: auto;
+    color: red;
+    content-align: left middle;
+    background: $background-lighten-2;
+    padding: 0 2;
+}
+
+.instance-data {
+    width: 6fr;
+    content-align: center middle;
+    background: $primary-darken-3;
+    margin-left: 2;
+    margin-right: 2;
+}
+
+.status {
+    width: auto;
+    content-align: right middle;
+    background: $background-lighten-2;
+    margin-left: 2;
+    margin-right: 2;
+    padding: 0 2;
+}
+.active {
+    color: green;
 }

@@ -10,12 +10,15 @@ from vex_cli.database import ProjectsDatabase
 from vex_cli.dependencies import  get_projects_db, get_state_object
 from vex_cli.models import Project, ResponseStatus
 
+import logging
+logger = logging.getLogger(__name__)
+
 projects_router = APIRouter()
 
 # ==================== basic CRUD routes ====================
 
 @projects_router.get("/projects/", response_model=List[Project], status_code=200)
-async def gel_all_projects(
+async def get_all_projects(
     projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
 ):
     return await projects_db.get_all(Project)
@@ -33,10 +36,10 @@ async def create_project(
     projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
 ):
     """
-    Create the project directory (under APP_ROOT/projects/) and the project
+    Create the project directory (under APP_DIR/projects/) and the project
     Returns the created object
     """
-    project = Project.model_validate(project.model_dump()) # we have to validate ourselves!
+    project = Project.model_validate(project) # we have to validate ourselves!
     path = vex_projects_directory() / str(project.id)
     path.mkdir(exist_ok=True)
     return await projects_db.create(project)
@@ -47,10 +50,10 @@ async def update_project(
     projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
 ):
     """
-    Update a project from a given project
+    Update a project from a given project.
     """
     # TODO check if the project being updated is an active project
-    project = Project.model_validate(project.model_dump()) # we have to validate ourselves!
+    project = Project.model_validate(project) # we have to validate ourselves!
     await projects_db.update(Project, project)
 
     return ResponseStatus(status="Success", msg="Object updated")
@@ -114,7 +117,7 @@ async def active_project(
     state_obj: Annotated[VexState, Depends(get_state_object)]
 ):
     """
-    Returns the active project
+    Returns the active project or None.
     """
     return state_obj.get_active_project()
     

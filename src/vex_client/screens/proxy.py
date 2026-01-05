@@ -1,23 +1,27 @@
 from typing import cast, TYPE_CHECKING
-
-from textual.app import ComposeResult
-from textual.screen import Screen
-from textual.widgets import Static, Footer, ListView, ListItem, Label, Link, Rule
-from textual.containers import Container, Horizontal, Center, Vertical
-from textual.binding import Binding
-from textual.reactive import reactive
+from pydantic import ValidationError
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-from vex_cli.models import ProxyInfo
-from vex_client.version import VERSION
-from vex_client.widgets.center_middle import CenterMiddle
+from textual import on
+from textual.app import ComposeResult
+from textual.screen import Screen
+from textual.widgets import Static, Footer, ListView
+from textual.containers import Container, Center, Vertical
+from textual.binding import Binding
 
+from vex_cli.models import VexServerInfo 
+from vex_cli.locations import vex_pid_file
+from vex_cli.pid_func import is_process_running, read_pid_file
+
+from vex_client.version import VERSION
+from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
+from vex_client.screens.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
+from vex_client.api.health_check import check_health_retries, check_health_pid
 
 import logging
 logger = logging.getLogger(__name__)
-
 
 banner = """
 ░██    ░██                       
@@ -30,123 +34,19 @@ banner = """
         
 """
 website = "https://vex.sh"
-github_repo = "https://github.com/b/vex"
 
-class VexLink(Link, can_focus=False):
-    """Non focusable Link"""
-
-class Status(Static):
-    status = reactive("Shutdown")
-    
-    def running(self):
-        self.status = "Running"
-
-    def shutdown(self):
-        self.status = "Shutdown"
-
-    def render(self):
-        return self.status
-
-class VexProxyList(ListView, can_focus=True):
-    """
-    Vex proxy list for adding and selecting VexCLI proxy info.
-    """
-    BORDER_TITLE = "Vex proxies"
-
-    BINDINGS = [
-        Binding("enter", "select_cursor", "Start instance", show=True),
-        Binding("k", "cursor_up", "🡅", show=True),
-        Binding("j", "cursor_down", "🡇", show=True),
-    ]
-    
-class VexProxyListItem(ListItem):
-    """
-    Proxy list item with a status_dot.
-    """
-    
-    DEFAULT_CSS = """
-        VexProxyListItem Horizontal {
-            width: 1fr;
-            height: auto;
-            padding: 1;
-        }
-
-        .status-dot {
-            width: 1fr;
-            content-align: left middle;
-            color: red;
-            padding: 0 2;
-        }
-    
-        .instance-data {
-            width: 6fr;
-            content-align: center middle;
-            margin: 0 2 0 2;
-        }
-        
-        .status {
-            width: auto;
-            content-align: right middle;
-            background: $background-lighten-2;
-            margin: 0 2 0 4;
-            padding: 0 2;
-        }
-        .active {
-            color: green;
-        }
-        .inactive {
-            color: red;
-        }
-    """
-    
-    def __init__(self, instance_name: str, proxy_info: ProxyInfo) -> None:
-        super().__init__()
-        self.instance_name = instance_name
-        self.proxy_info = proxy_info
-        
-        self.proxy_info_str = f"""{proxy_info.server_address} proxy:{proxy_info.proxy_port} api:{proxy_info.api_port}"""
-    
-    @property
-    def status_dot(self) -> Static:
-        return self.query_one(".status-dot", Static)
-    
-    @property
-    def status(self) -> Status:
-        return self.query_one(".status", Status)
-        
-    def active(self):
-        self.status.running()
-        status_dot = self.status_dot
-        status_dot.remove_class("inactive")
-        status_dot.add_class("active")
-
-    def inactive(self):
-        self.status.shutdown()
-        status_dot = self.status_dot
-        status_dot.remove_class("active")
-        status_dot.add_class("inactive")
-
-    
-    def compose(self) -> ComposeResult:
-        with Horizontal(classes="item-row"):
-            yield Static("⬤", classes="status-dot inactive")
-            yield Label(f"{self.instance_name} {self.proxy_info_str}", classes="instance-data")
-            yield Status(classes="status")
 
 class VexProxyScreen(Screen):
 
     CSS_PATH="css/proxy.tcss"
     
     BINDINGS = [
-        Binding("ctrl+a", "","Add instance"),
-        Binding("ctrl+c", "app.quit", "Quit", show=True),
+        Binding("c", "add_instance","Add instance"),
+        Binding("u", "update_instance","Update instance"),
+        Binding("ctrl+s", "stop_instance","Stop instance", show=True),
+        Binding("ctrl+c", "app.quit", "Quit", show=False),
     ]
-    
-    @property
-    def app(self) -> VexApp:
-        """For the static type."""
-        return self.app
-       
+           
     @property
     def proxy_list(self) -> VexProxyList:
         return self.query_one("#proxy-list", VexProxyList)
@@ -154,34 +54,142 @@ class VexProxyScreen(Screen):
     def compose(self) -> ComposeResult:
         with Vertical(id="banner-container"):
             yield Static(banner, id="banner")
-            with Container(id="info"):
-                yield Center(VexLink("vex.sh", url=website, id="website-link"))
-                yield Rule("vertical")
-                yield Center(Static(f"Version: {VERSION}", id="version"))
+            #yield Center(VexLink("vex.sh", url=website, id="website-link"))
+            yield Center(Static(f"Version: {VERSION}", id="version"))
         with Container(id="main-container"):
             yield VexProxyList(id="proxy-list")
         yield Footer()
         
-    def on_mount(self):
+    async def on_mount(self):
         # append the default proxy
-        self.proxy_list.append(VexProxyListItem("Local instance", 
-                                                ProxyInfo("127.0.0.1", 8080, 9000)))
+        self.proxy_list.append(
+            VexProxyListItem("Local instance", VexServerInfo("127.0.0.1", 8080, 9000))
+        )
         self.proxy_list.index = 0
+        self.item_to_update : VexProxyListItem | None = None
+        
+        await self.check_for_running_instance()
         
     def action_add_instance(self):
-        # start a new screen
-        # get returned data from screen
-        # append to proxy_list
-        pass
-        
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        selected_proxy: VexProxyListItem = cast(VexProxyListItem, event.item)
+        """Add instance created in the modal screen to the proxy list"""
 
-        if not self.app.proxy_running: 
-            selected_proxy.active()
-            self.app.set_proxy_info(selected_proxy.proxy_info) 
-            self.app.proxy_running = True 
-        else:
-            # on second select we go into the main app
-            self.app.switch_screen("projects-screen")
+        def create_instance(instance_data: InstanceData):
+            server_info = VexServerInfo(
+                instance_data.address,
+                instance_data.proxy_port,
+                instance_data.api_port
+            )
+            item = VexProxyListItem(instance_data.name, server_info)
+            self.proxy_list.append(item)
         
+        self.app.push_screen(CreateUpdateProxyScreen(None), create_instance) # type: ignore
+
+    def action_update_instance(self):
+        """Allow the user to change the instance data."""
+        selected_instance = self.proxy_list.highlighted_child 
+        if selected_instance is None:
+            return
+        
+        # cast for the typer
+        selected_instance = cast(VexProxyListItem, selected_instance)
+        self.item_to_update = selected_instance
+        
+        instance_data = InstanceData(
+            selected_instance.instance_name, 
+            selected_instance.server_info.server_address,
+            selected_instance.server_info.proxy_port,
+            selected_instance.server_info.api_port
+        )
+
+        def update_instance(instance_data: InstanceData):
+            if self.item_to_update is None:
+                return
+            self.item_to_update.update_item(instance_data)
+            self.item_to_update = None
+
+        self.app.push_screen(CreateUpdateProxyScreen(instance_data), update_instance) # type: ignore
+        
+    @on(ListView.Selected)
+    async def start_enter_vex(self, event: ListView.Selected) -> None:
+        """Start vex-cli and on second select enter the main app with selected proxy."""
+        selected_instance: VexProxyListItem = cast(VexProxyListItem, event.item)
+        app = cast("VexApp", self.app)
+        
+        if app.is_vex_cli_running:
+            # this should happen on second select or if proxy is already running
+            # before we switch we should try a health check
+            health_check_complete = await check_health_retries(
+                retries=10,
+                host=selected_instance.server_info.server_address,
+                port=selected_instance.server_info.api_port
+            )
+
+            if health_check_complete:
+                app.switch_screen("projects-screen")
+            else:
+                self.notify("Couldn't connect to the server", severity="error")
+            return
+            
+        successful_startup = app.start_vex_cli(selected_instance.server_info)
+        
+        if successful_startup:
+            selected_instance.toggle_active()
+        
+    def action_stop_instance(self):
+        # we have to work with the highlighted element
+        selected_instance = self.proxy_list.highlighted_child 
+        if selected_instance is None:
+            return
+        
+        # cast for the typer
+        selected_instance = cast(VexProxyListItem, selected_instance)
+        app = cast("VexApp", self.app)
+
+        if app.is_vex_cli_running:
+            selected_instance.toggle_active()
+            app.stop_vex_cli()
+    
+    async def check_for_running_instance(self):
+        pid_file = vex_pid_file()
+        
+        if not pid_file.exists():
+            return
+        
+        try:
+            pid_data = read_pid_file(pid_file)
+
+            if not is_process_running(pid_data.pid):
+                # stale pid file
+                return
+
+            server_info = VexServerInfo(
+                server_address=pid_data.host,
+                proxy_port=pid_data.proxy_port,
+                api_port=pid_data.api_port
+            )
+
+            app = cast("VexApp", self.app)
+            instance = self.proxy_list.does_instance_exist(server_info)
+            
+            if instance is None:
+                # create new
+                instance = VexProxyListItem("Running instance", server_info)
+                self.proxy_list.append(instance)
+            
+            health_check_pid_result = await check_health_pid(
+                host=instance.server_info.server_address,
+                port=instance.server_info.api_port,
+            )
+
+            if health_check_pid_result == pid_data.pid:
+                app.set_server_info(server_info)
+                app.set_vex_pid(pid_data.pid)
+                app.set_vex_running(True)
+                self.call_after_refresh(instance.toggle_active)
+
+
+        except (OSError, ValidationError):
+            self.notify("Error reading vex.pid file.", severity="error")
+
+        
+

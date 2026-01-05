@@ -13,7 +13,6 @@ def vex_projects_directory() -> Path:
     vex_projects_dir.mkdir(exist_ok=True)
     return vex_projects_dir
 
-
 def vex_log_directory() -> Path:
     """Directory where logs are stored."""
     vex_log_dir: Path = vex_data_directory() / "logs"
@@ -21,8 +20,10 @@ def vex_log_directory() -> Path:
     return vex_log_dir
 
 def vex_projects_db_path() -> Path:
-    """The path to projects.db"""
-    vex_projects_db_path: Path = vex_data_directory() / "projects.db"
-    return vex_projects_db_path
+    """Path to projects.db"""
+    return vex_data_directory() / "projects.db"
 
+def vex_pid_file() -> Path:
+    """Path to the vex-cli pid file."""
+    return vex_data_directory() / "vex.pid"
 

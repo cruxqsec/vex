@@ -1,38 +1,46 @@
+import psutil
+
 from textual.app import App
+from textual.screen import ModalScreen
 from textual.binding import Binding
 from textual.reactive import reactive
 from textual import log
 
-from subprocess import Popen, DEVNULL, TimeoutExpired
-import socket
+from vex_cli.models import VexServerInfo, Project
+from vex_cli.bind import try_bind_ports
 
-from vex_cli.models import ProxyInfo
 from vex_client.screens.proxy import VexProxyScreen
 from vex_client.screens.scope import VexScopeScreen
 from vex_client.screens.http_history import VexHTTPHistoryScreen
 from vex_client.screens.intercept import VexInterceptScreen
 from vex_client.screens.replay import VexReplayScreen
-from vex_client.screens.projects import VexProjectsScreen
+from vex_client.screens.project import VexProjectsScreen
 from vex_client.settings import Settings
+from vex_client.process import (
+    start_detached_process,
+    terminate_process,
+    kill_process,
+    INACTIVE_PROCESS
+)
 
 import logging
 logger = logging.getLogger(__name__)
 
 class VexApp(App[str]):
     
-    CSS_PATH = "vex-main.tcss"
+    CSS_PATH = "vex.tcss"
     
     BINDINGS = [
         Binding("ctrl+q", "switch('history-screen')", "Navigate to HTTP History screen",
-                show=True, priority=True, group=Binding.Group("Navigation")),
+                show=False, priority=True, group=Binding.Group("Navigation")),
         Binding("ctrl+w", "switch('intercept-screen')", "Navigate to Intercept screen",
-                show=True, priority=True, group=Binding.Group("Navigation")),
+                show=False, priority=True, group=Binding.Group("Navigation")),
         Binding("ctrl+e", "switch('replay-screen')", "Navigate to Replay screen",
-                show=True, priority=True, group=Binding.Group("Navigation")),
+                show=False, priority=True, group=Binding.Group("Navigation")),
         Binding("ctrl+r", "switch('scope-screen')","Navigate to Scope screen",
-                show=True, priority=True,  group=Binding.Group("Navigation")),
+                show=False, priority=True,  group=Binding.Group("Navigation")),
         Binding("ctrl+t", "switch('projects-screen')", "Navigate to Projects screen",
-                show=True, priority=True, group=Binding.Group("Navigation")),
+                show=False, priority=True, group=Binding.Group("Navigation")),
         Binding("ctrl+c", "switch('proxy-screen')", "Quit", show=True, priority=True),
     ]
     
@@ -44,97 +52,123 @@ class VexApp(App[str]):
        "replay-screen": VexReplayScreen,
        "projects-screen": VexProjectsScreen,
     }
-    
-    proxy_running = reactive(False)
-    proxy_process: Popen | None = None
-    
-    def get_proxy_info(self) -> ProxyInfo | None:
-        return self.proxy_info
-    
-    def set_proxy_info(self, proxy_info: ProxyInfo):
-        self.proxy_info = proxy_info
+
+    is_project_active = reactive(False, always_update=True, init=False)
     
     def on_mount(self) -> None:
+        self.server_info: VexServerInfo | None = None
+        self.vex_cli_pid: int = INACTIVE_PROCESS
+        self.vex_cli_running: bool = False
+        self.vex_active_project: Project | None = None
+        
         self.settings: Settings = Settings()
-        self.proxy_info: ProxyInfo | None = None
         self.theme = self.settings.theme
 
         # Start with the proxy selection screen
         self.push_screen("proxy-screen")
+    
+    def set_active_project(self, active_project: Project | None) -> None:
+        self.vex_active_project = active_project
+        if self.vex_active_project is not None:
+            self.is_project_active = True
+        else:
+            self.is_project_active = False
+    
+    def get_active_project(self) -> Project | None:
+        return self.vex_active_project
+    
+    @property
+    def is_vex_cli_running(self) -> bool:
+        return self.vex_cli_running
+    
+    def set_vex_running(self, running: bool) -> None:
+        self.vex_cli_running = running
+    
+    def set_vex_pid(self, pid: int) -> None:
+        self.vex_cli_pid = pid
+    
+    def get_server_info(self) -> VexServerInfo | None:
+        return self.server_info
+    
+    def set_server_info(self, server_info: VexServerInfo | None):
+        self.server_info = server_info
         
+    def get_api_info(self) -> tuple[str, int] | tuple[()]:
+        if self.server_info is None:
+            return ()
+
+        return (self.server_info.server_address, self.server_info.api_port)
+       
     def action_switch(self, screen_name: str) -> None:
         self.switch_screen(screen_name)
     
     def check_action(
         self, action: str, parameters: tuple[object, ...]
     ) -> bool | None:  
-        """Check if the switch screen may run"""
-        if action == "switch" and isinstance(self.screen, VexProxyScreen):
+        """Check if we can switch screen."""
+        if (
+            action == "switch" 
+            and (self.screen.is_modal or isinstance(self.screen, VexProxyScreen))
+        ):
+            return False
+        elif (
+            action == "switch" 
+            and len(parameters) == 1
+            and parameters[0] not in {"proxy-screen", "projects-screen"}
+            and not self.is_project_active 
+        ):
             return False
         return True
-    
 
-    def can_bind_ports(self, proxy_info: ProxyInfo) -> bool:
-        """Check if we can bind to both ports"""
-        address = proxy_info.server_address
-        to_check = [(address, proxy_info.proxy_port),
-                    (address, proxy_info.api_port)]
-        for address, port in to_check:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind((address, port))
-            except OSError:
-                self.notify(title="Port already in use!",
-                            message=f"Port {port} on {address} is already in use!",
-                            severity="error")
-                return False
+    def start_vex_cli(self, server_info: VexServerInfo) -> bool:
+        
+        can_bind, port = try_bind_ports(server_info)         
+        address = server_info.server_address
+
+        if not can_bind: 
+            self.notify(
+                title="ERROR",
+                message=f"Port {port} on {address} is already in use!",
+                severity="error"
+            )
+            return False
+        
+        cmd = ["vex-cli", "start", "--address", server_info.server_address,
+               "--proxy-port", str(server_info.proxy_port),
+               "--api-port", str(server_info.api_port)
+        ]
+
+        pid = start_detached_process(cmd) 
+        
+        if pid == INACTIVE_PROCESS:
+            self.notify(title="FAILED TO START INSTANCE", message="Failed to start instance. Check logs.")
+            self.set_vex_pid(INACTIVE_PROCESS)
+            return False
+        
+        message = (
+            f"API server:{server_info.server_address}:{server_info.api_port}\n"
+            f"Proxy server:{server_info.server_address}:{server_info.proxy_port}"
+        )
+        self.notify(title="INSTANCE STARTED", message=message, timeout=5.0)
+        self.set_vex_running(True)
+        self.set_server_info(server_info)
+        self.set_vex_pid(pid)
+        
         return True
+
+    def stop_vex_cli(self):
+        if self.vex_cli_pid == INACTIVE_PROCESS:
+            return
         
+        terminated = terminate_process(self.vex_cli_pid)
+        
+        if terminated and not psutil.pid_exists(self.vex_cli_pid):
+            self.notify(title="INSTANCE SHUTDOWN", message="Proxy instance has shutdown")
+            return
+        
+        # if graceful termination doesn't work then we kill it
+        kill_process(self.vex_cli_pid)
+        self.notify(title="INSTANCE SHUTDOWN", message="Proxy instance has shutdown")
     
-    def watch_proxy_running(self, running: bool):
-        if running:
-            self.start_proxy()
-        else:
-            self.stop_proxy()
-        
-    def start_proxy(self):
-        if self.proxy_info is not None:
-            if not self.can_bind_ports(self.proxy_info):
-                return
-
-            try:
-                self.proxy_process = Popen(
-                    ["vex-cli", "start", "--address", self.proxy_info.server_address,
-                     "--proxy-port", str(self.proxy_info.proxy_port),
-                     "--api-port", str(self.proxy_info.api_port)],
-                    stdout=DEVNULL,
-                    stderr=DEVNULL,
-                )
-                message = f"""
-                API server:{self.proxy_info.server_address}:{self.proxy_info.api_port}
-                Proxy server: {self.proxy_info.server_address}:{self.proxy_info.proxy_port}
-                """
-                self.notify(title="Vex proxy started", message=message)
-            except FileNotFoundError:
-                logger.error("vex-cli could not be found in $PATH.")
-            except PermissionError:
-                logger.error("No permission to execute vex-cli.")
-            except Exception as e:
-                logger.error(f"Unexpected exception occurred trying to run vex-cli {e}")
-        
-
-    def stop_proxy(self):
-        if self.proxy_process is not None:
-            try:
-                self.proxy_process.terminate()
-                self.proxy_process.wait(timeout=3.0)
-            except TimeoutExpired:
-                logger.warning("Could not terminate vex-cli gracefully. Attempting to kill.")
-                self.proxy_process.kill()
-                self.proxy_process.wait(timeout=1.0) 
-            finally:
-                self.notify(title="Proxy shutdown!", message="Vex has shutdown.")
-                
-    def on_onmount(self):
-        self.stop_proxy()
-
+        self.set_vex_pid(INACTIVE_PROCESS)
+        self.set_server_info(None)

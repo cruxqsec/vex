@@ -5,8 +5,6 @@ from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.models import RequestSummary, ResponseSummary, RawRequest, RawResponse
-from vex_cli.errors import ProxyException
-
 from vex_cli.state import VexState
 from vex_cli.flow_history import FlowHistory
 from vex_cli.database import DatabaseManager, SummariesDatabase, RawDatabase
@@ -53,7 +51,6 @@ class VexCapture:
 
         except Exception as e:
             logger.error(f"Proxy error in request processing: {e}")
-            raise ProxyException(f"Proxy error in request processing: {e}")
 
     async def response(self, flow: http.HTTPFlow):
         """Called when response is received"""
@@ -73,7 +70,6 @@ class VexCapture:
 
         except Exception as e:
             logger.error(f"Proxy error in response processing: {e}")
-            raise ProxyException(f"Proxy error in response processing: {e}")
 
     async def error(self, flow: http.HTTPFlow):
         """Called when request errors and no response is captured"""
@@ -81,11 +77,11 @@ class VexCapture:
     
 
 async def start_proxy(app_state:VexState):
-    proxy_info = app_state.get_proxy_info()
+    server_info = app_state.get_server_info()
 
     opts = Options(
-        listen_host=proxy_info.server_address,
-        listen_port=proxy_info.proxy_port,
+        listen_host=server_info.server_address,
+        listen_port=server_info.proxy_port,
         http2=True
     )
     
@@ -93,17 +89,13 @@ async def start_proxy(app_state:VexState):
     
     addon = VexCapture(app_state)
     master.addons.add(addon)
-
+    
     try:
         await master.run()
     except asyncio.CancelledError as e:
-        logger.info(f"Proxy was shutdown by user.")
-        if master is not None:
-            master.shutdown() # type: ignore
-        raise ProxyException(f"Proxy was shutdown.") # reraise for asyncio.gather
-    except Exception as e:
-        logger.error(f"Error in proxy_master: {e}")
-        if master is not None:
-            master.shutdown() # type:ignore
-        raise ProxyException(f"Proxy error: {e}") # reraise for asyncio.gather
-
+        logger.info(f"Proxy server shutdown requested.")
+    finally:
+        try:
+            master.shutdown() 
+        except Exception as e:
+            logger.error(f"Error during proxy cleanup: {e}")

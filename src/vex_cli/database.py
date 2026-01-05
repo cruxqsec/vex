@@ -85,7 +85,6 @@ class BaseDatabase:
             except IntegrityError as e:
                 await s.rollback()
                 logger.error(f"Integrity error: {e}")
-                logger.exception("Unexpected error2")  # Logs full traceback
                 error_msg = str(e.orig).lower()
                 if 'unique' in error_msg or 'duplicate' in error_msg:
                     raise ValidationError("Record already exists")
@@ -96,7 +95,6 @@ class BaseDatabase:
             except SQLAlchemyError as e:
                 await s.rollback()
                 logger.error(f"Database error: {e}")
-                logger.exception("Unexpected error3")  # Logs full traceback
                 raise DatabaseError("Database operation failed")
             
     async def create(self, obj: T) -> T:

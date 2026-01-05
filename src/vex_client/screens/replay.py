@@ -1,9 +1,9 @@
 from textual.app import ComposeResult
 from textual.screen import Screen
-from textual.containers import Container, Vertical, Horizontal
+from textual.containers import Container, Horizontal
 from textual.widgets import Footer, Select, Input, Button
 
-from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.request_area import RequestArea
 from vex_client.widgets.response_area import ResponseArea
 
@@ -22,7 +22,6 @@ class MethodSelect(Select, can_focus=True):
             compact=True,
             **kwargs
         )
-
 
 class VexReplayScreen(Screen):
     
@@ -62,3 +61,4 @@ class VexReplayScreen(Screen):
         
     def on_mount(self):
         self.set_navigation_btn_color()
+    

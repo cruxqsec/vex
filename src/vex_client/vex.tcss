@@ -5,7 +5,6 @@ $empty-hatch: right $surface-lighten-1 70%;
     width: auto;
     height: 1;
     border: none;
-    margin: 0 0 0 1;
 
     background: $accent-muted;
     color: $text-accent;
@@ -18,4 +17,14 @@ $empty-hatch: right $surface-lighten-1 70%;
         background-tint: $text-accent 30%;
     }
 
+}
+
+ScopeSelect > SelectCurrent {
+    outline: thick transparent;
+    color: $foreground;
+    background: $surface;
+    width: 1fr;
+    height: 1fr;
+    padding: 0 2;
+    margin-top: 0 !important;
 }

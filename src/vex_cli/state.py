@@ -1,6 +1,6 @@
 import asyncio
 
-from vex_cli.models import Project, ProxyInfo
+from vex_cli.models import Project, VexServerInfo
 from vex_cli.database import DatabaseManager
 from vex_cli.flow_history import FlowHistory
 from vex_cli.locations import vex_log_directory
@@ -14,8 +14,8 @@ class VexState:
     Vex server state.
     """
 
-    def __init__(self, proxy_info: ProxyInfo):
-        self.proxy_info = proxy_info
+    def __init__(self, server_info: VexServerInfo):
+        self.server_info = server_info
 
         self._db_initialized: bool = False
         self._active_project: Project | None = None
@@ -39,8 +39,8 @@ class VexState:
     def is_db_initialized(self) -> bool:
         return bool(self._db_initialized)
 
-    def get_proxy_info(self) -> ProxyInfo:
-        return self.proxy_info
+    def get_server_info(self) -> VexServerInfo:
+        return self.server_info
 
     def set_initialized(self, value: bool) -> None:
         self._initialized = value
