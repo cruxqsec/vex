@@ -54,8 +54,6 @@ class VexNavigationBar(Widget):
             width: 20;
             height: 1fr;
         }
-        
-        
         """
     
     def __init__(self, dock_position: str, **kwargs):
@@ -99,11 +97,13 @@ class VexNavigationBar(Widget):
         yield InterceptButton("", compact=True) 
 
     def on_mount(self):
-        self.watch(self.app, "is_project_active", self.on_project_active)
-        self.set_bar_position(self.dock_position)
-
         app = cast("VexApp", self.app)
+
+        self.set_bar_position(self.dock_position)
+        self.set_navigation_btn_color()
+
         # all buttons except the project one are disabled until a project is picked
+        self.watch(app, "is_project_active", self.on_project_active)
         self.buttons_disabled(not app.is_project_active)
 
     def set_bar_position(self, position: str = "top") -> None:
@@ -120,7 +120,29 @@ class VexNavigationBar(Widget):
             
     def buttons_disabled(self, enabled: bool) -> None:
         for button in self.query(Button):
+            # all except the Project button
             if button.id == "project-nav-btn":
                 continue
             button.disabled = enabled
+        
+    def set_navigation_btn_color(self) -> None:
+        """Sets the corresponding button color of the page we're on"""
+        color = self.app.get_css_variables()["primary-darken-3"]
+        
+        app = cast("VexApp", self.app)
+        screen_name = app.get_screen_name()
+                
+        if screen_name == "history-screen":
+            self.history_nav_btn.styles.background = color
+        elif screen_name == "intercept-screen":
+            self.intercept_nav_btn.styles.background = color
+        elif screen_name == "replay-screen":
+            self.replay_nav_btn.styles.background = color
+        elif screen_name == "scope-screen":
+            self.scope_nav_btn.styles.background = color
+        elif screen_name == "projects-screen":
+            self.project_nav_btn.styles.background = color
+ 
+ 
+ 
  

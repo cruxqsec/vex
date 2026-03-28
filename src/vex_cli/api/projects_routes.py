@@ -1,6 +1,6 @@
 import uuid
 import shutil
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from typing import Annotated, List
 
 from vex_cli.state import VexState
@@ -19,9 +19,11 @@ projects_router = APIRouter()
 
 @projects_router.get("/projects/", response_model=List[Project], status_code=200)
 async def get_all_projects(
-    projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
+    projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)],
+    skip: int = Query(0, ge=0),
+    size: int = Query(10, ge=1, le=50),
 ):
-    return await projects_db.get_all(Project)
+    return await projects_db.get_all(Project, skip, size)
 
 @projects_router.get("/projects/{project_id}", response_model=Project, status_code=200)
 async def get_project_by_id(
