@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from sqlmodel import Field, SQLModel
-from pydantic import BaseModel, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
 from typing import Literal, Optional
 
 from mitmproxy import http
@@ -71,6 +71,7 @@ class RequestSummary(SQLModel, table=True):
     """A flow request summary created when the flow is captured"""
 
     __tablename__ = "requests"  # type: ignore
+    model_config = ConfigDict(validate_assignment=True) # type: ignore
 
     id: int = Field(default=None, primary_key=True)
     flow_id: uuid.UUID = Field(nullable=False, index=True, unique=True)
@@ -167,7 +168,7 @@ class RawResponse(SQLModel, table=True):
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow) -> RawResponse:
         return cls(
-            id=uuid.UUID(flow.id), data=flow_to_raw_response(flow)  # type: ignore
+            id=uuid.UUID(flow.id), data=flow_to_raw_response(flow) # type: ignore we check it's not None
         )
 
 
