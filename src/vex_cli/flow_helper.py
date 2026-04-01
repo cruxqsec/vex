@@ -1,8 +1,8 @@
-import re
 import os
+import re
+from urllib.parse import urlparse
 
 from mitmproxy import http
-from urllib.parse import urlparse
 
 
 def uses_tls(flow: http.HTTPFlow) -> bool:

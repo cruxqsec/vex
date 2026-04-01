@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from vex_cli.models import PIDData
+from vex_cli.models.pydantic import PIDData
 
 def is_process_running(pid: int) -> bool:
     """ Check if a process with given PID is running. """

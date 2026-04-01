@@ -1,6 +1,6 @@
 import asyncio
 
-from vex_cli.models import Project, VexServerInfo
+from vex_cli.models.pydantic import Project, VexServerInfo
 from vex_cli.database import DatabaseManager
 from vex_cli.flow_history import FlowHistory
 from vex_cli.locations import vex_log_directory
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class VexState:
     """
-    Vex server state.
+    Vex server state object.
     """
 
     def __init__(self, server_info: VexServerInfo):
@@ -41,9 +41,6 @@ class VexState:
 
     def get_server_info(self) -> VexServerInfo:
         return self.server_info
-
-    def set_initialized(self, value: bool) -> None:
-        self._initialized = value
 
     def get_active_project(self) -> Project | None:
         return self._active_project

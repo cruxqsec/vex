@@ -1,5 +1,5 @@
 import socket
-from vex_cli.models import VexServerInfo
+from vex_cli.models.pydantic import VexServerInfo
 
 def try_bind_ports(server_info: VexServerInfo) -> tuple[bool,int]:
     """Check if we can bind to both ports"""

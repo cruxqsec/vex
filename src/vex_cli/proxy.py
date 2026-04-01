@@ -1,13 +1,24 @@
 import asyncio
-
 from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
-from vex_cli.models import RequestSummary, ResponseSummary, RawRequest, RawResponse
 from vex_cli.state import VexState
 from vex_cli.flow_history import FlowHistory
 from vex_cli.database import DatabaseManager, SummariesDatabase, RawDatabase
+from vex_cli.models.pydantic import (
+    RequestSummary, 
+    ResponseSummary, 
+    RawRequest, 
+    RawResponse
+)
+from vex_cli.models.orm import (
+    RequestSummaryORM, 
+    ResponseSummaryORM, 
+    RawRequestORM, 
+    RawResponseORM
+)
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -42,10 +53,12 @@ class VexCapture:
             
             summary = RequestSummary.from_flow(flow)
             raw = RawRequest.from_flow(flow)
+            orm_summary = RequestSummaryORM(**summary.model_dump())
+            orm_raw = RawRequestORM(**raw.model_dump())
             
             if self.summaries_db is not None and self.raw_db is not None:
-                await self.summaries_db.create(summary)
-                await self.raw_db.create(raw)
+                await self.summaries_db.create(orm_summary)
+                await self.raw_db.create(orm_raw)
               
             await self._flow_history.broadcast_summary(summary)
 
@@ -60,11 +73,13 @@ class VexCapture:
 
             summary = ResponseSummary.from_flow(flow)
             raw = RawResponse.from_flow(flow)
+            orm_summary = ResponseSummaryORM(**summary.model_dump())
+            orm_raw = RawResponseORM(**raw.model_dump())
             
 
             if self.summaries_db is not None and self.raw_db is not None:
-                await self.summaries_db.create(summary)
-                await self.raw_db.create(raw)
+                await self.summaries_db.create(orm_summary)
+                await self.raw_db.create(orm_raw)
 
             await self._flow_history.broadcast_summary(summary)
 
