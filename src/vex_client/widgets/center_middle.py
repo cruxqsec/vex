@@ -1,5 +1,6 @@
 from textual.widget import Widget
 
+
 class CenterMiddle(Widget, inherit_bindings=False):
     """
     A container which aligns children on both axes.

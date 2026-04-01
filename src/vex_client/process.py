@@ -1,17 +1,19 @@
-import sys
+import logging
 import subprocess
-import psutil
+import sys
 from typing import Literal
 
-import logging
+import psutil
+
 logger = logging.getLogger(__name__)
 
 # Constant
 INACTIVE_PROCESS: Literal[-1] = -1
 
+
 def start_detached_process(cmd: list[str]) -> int:
     """
-    Spawns a completely new process (detached child) 
+    Spawns a completely new process (detached child)
     and return the PID or -1 if failed.
     """
     try:
@@ -20,8 +22,7 @@ def start_detached_process(cmd: list[str]) -> int:
             proc = subprocess.Popen(
                 cmd,
                 creationflags=(
-                    subprocess.DETACHED_PROCESS
-                    | subprocess.CREATE_NO_WINDOW
+                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
                 ),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -49,6 +50,7 @@ def start_detached_process(cmd: list[str]) -> int:
         logger.error(f"Unexpected exception occurred trying to run vex-cli {e}")
         return -1
 
+
 def terminate_process(pid: int):
     """Terminate the process with SIGTERM."""
     try:
@@ -65,6 +67,7 @@ def terminate_process(pid: int):
     except psutil.AccessDenied:
         logger.error(f"Could not terminate process with {pid} PID")
         return False
+
 
 def kill_process(pid: int):
     """Kill the process with SIGKILL."""

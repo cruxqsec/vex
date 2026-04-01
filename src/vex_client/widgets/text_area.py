@@ -1,5 +1,5 @@
 from textual.app import ComposeResult
-from textual.widgets import TextArea, Label
+from textual.widgets import Label, TextArea
 
 from vex_client.widgets.center_middle import CenterMiddle
 
@@ -8,7 +8,7 @@ class VexTextArea(TextArea, can_focus=True):
     """
     Custom text area that has an empty message.
     """
-    
+
     DEFAULT_CSS = """
     VexTextArea.empty {
         & #empty-message {
@@ -22,11 +22,10 @@ class VexTextArea(TextArea, can_focus=True):
         display: none;
     }
     """
-    
 
     def __init__(self, empty_message: str, **kwargs):
         self.empty_message = empty_message
-        
+
         super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:

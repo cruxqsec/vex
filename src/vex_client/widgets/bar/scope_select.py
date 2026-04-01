@@ -1,5 +1,6 @@
 from textual.widgets import Select
 
+
 class ScopeSelect(Select, can_focus=False):
     """Select the scope"""
 

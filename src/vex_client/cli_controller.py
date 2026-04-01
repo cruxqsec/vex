@@ -1,8 +1,6 @@
 import psutil
-import socket
 
-from vex_cli.models import VexServerInfo
-from vex_cli.bind import try_bind_ports
+from vex_cli.models.pydantic import VexServerInfo
 
 from vex_client.process import (
     start_detached_process,
@@ -38,20 +36,6 @@ class VexController():
     def set_pid(self, pid: int) -> None:
         self.cli_pid = pid
 
-    def try_bind_ports(self, server_info: VexServerInfo) -> tuple[bool,int]:
-        """Check if we can bind to both ports"""
-        address = server_info.server_address
-        to_check = [(address, server_info.proxy_port),
-                    (address, server_info.api_port)]
-
-        for address, port in to_check:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind((address, port))
-            except OSError:
-                return False, port
-        return True, -1
-        
     def start_vex_cli(self, server_info: VexServerInfo) -> bool:
         
         cmd = ["vex-cli", "start", "--address", server_info.server_address,
