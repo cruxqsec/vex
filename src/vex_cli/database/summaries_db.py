@@ -1,0 +1,56 @@
+from pathlib import Path
+from uuid import UUID
+
+from sqlalchemy import select
+
+from vex_cli.database.base_db import BaseDatabase
+from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
+
+
+class SummariesDatabase(BaseDatabase):
+    _orm_models = [RequestSummaryORM, ResponseSummaryORM]
+    _wal_mode = True
+
+    def __init__(self, db_path: Path):
+        super().__init__(db_path)
+        _exclude = {"id", "flow_id", "timestamp"}
+        # RequestSummary columns to select
+        self._req_cols = [
+            getattr(RequestSummaryORM, c.name)
+            for c in RequestSummaryORM.__table__.columns
+        ]
+        # ResponseSummary columns to select
+        self._res_cols = [
+            getattr(ResponseSummaryORM, c.name)
+            for c in ResponseSummaryORM.__table__.columns
+            if c.name not in _exclude
+        ]
+
+    async def get_full_summaries(self, skip: int, size: int) -> list:
+        """List of full summaries (Request/ResponseSummary)"""
+        async with self.session() as s:
+            statement = (
+                select(*self._req_cols, *self._res_cols)
+                .outerjoin(
+                    ResponseSummaryORM,
+                    RequestSummaryORM.flow_id == ResponseSummaryORM.flow_id,
+                )
+                .offset(skip)
+                .limit(size)
+            )
+            result = await s.execute(statement)
+            return list(result.mappings().all())
+
+    async def get_full_summary_by_id(self, flow_id: UUID) -> dict:
+        """Get a single summary (Request/ResponseSummary). TODO: Improve return type!"""
+        async with self.session() as s:
+            statement = (
+                select(*self._req_cols, *self._res_cols)
+                .outerjoin(
+                    ResponseSummaryORM,
+                    RequestSummaryORM.flow_id == ResponseSummaryORM.flow_id,
+                )
+                .where(RequestSummaryORM.flow_id == flow_id)
+            )
+            result = await s.execute(statement)
+            return result.mappings().first()  # type: ignore

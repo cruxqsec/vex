@@ -1,11 +1,13 @@
 import socket
+
 from vex_cli.models.pydantic import VexServerInfo
 
-def try_bind_ports(server_info: VexServerInfo) -> tuple[bool,int]:
+
+def try_bind_ports(server_info: VexServerInfo) -> tuple[bool, int]:
     """Check if we can bind to both ports"""
     to_check = [
         (server_info.server_address, server_info.proxy_port),
-        (server_info.server_address, server_info.api_port)
+        (server_info.server_address, server_info.api_port),
     ]
 
     for address, port in to_check:
