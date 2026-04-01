@@ -1,47 +1,46 @@
 import asyncio
 from uuid import UUID
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, cast
 from contextlib import asynccontextmanager
 
-from sqlmodel import SQLModel, select, text, MetaData
-
-# from sqlalchemy import select, MetaData
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Table, select, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, async_sessionmaker
 
-from vex_cli.models import (
-    RequestSummary,
-    ResponseSummary,
-    Project,
-    RawRequest,
-    RawResponse,
-)
 from vex_cli.locations import vex_projects_db_path
 from vex_cli.errors import DatabaseError, ValidationError, NotFoundError
+from vex_cli.models.orm import (
+    Base,
+    RequestSummaryORM,
+    ResponseSummaryORM,
+    ProjectORM,
+    RawRequestORM,
+    RawResponseORM,
+)
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Generic
-T = TypeVar("T", bound=SQLModel)
-
+T = TypeVar("T", bound=Base)
 
 class BaseDatabase:
     """
-    Simple database class with generic CRUD operations
-    All the model tables are passed in as subclasses
+    Generic database class with CRUD operations
     """
 
-    def __init__(self, db_path: Path, models: list[type[SQLModel]]):
+    # where we declare which models will be used for which database
+    _orm_models: list[type[Base]] = []
+    _wal_mode: bool = False
+
+    def __init__(self, db_path: Path):
         self.db_path: Path = db_path
-        self.models: list[type[SQLModel]] = models
         self._lock = asyncio.Lock()
 
         self.engine: AsyncEngine | None = None
-        self.session_maker: sessionmaker | None = None
+        self._session_maker: async_sessionmaker | None = None
 
     async def initialize(self) -> None:
         """Connect to database and create tables"""
@@ -52,28 +51,37 @@ class BaseDatabase:
 
                 self.engine = create_async_engine(f"sqlite+aiosqlite:///{self.db_path}")
 
-                self.session_maker = sessionmaker(
-                    bind=self.engine,  # type: ignore
+                self.session_maker = async_sessionmaker(
+                    bind=self.engine,
                     class_=AsyncSession,
                     expire_on_commit=False,
-                )  # type: ignore
-                await self.create_tables_if_not_created()
+                )
+
+                await self._create_tables()
+
+                if self._wal_mode:
+                    self._enable_wal
+
             except SQLAlchemyError as e:
                 logger.error(f"Database error: {e}")
                 raise DatabaseError("Error initializing database")
 
-    async def create_tables_if_not_created(self) -> None:
-        metadata = MetaData()
-        for model in self.models:
-            table = getattr(model, "__table__", None)
-            if table is not None:
-                table.tometadata(metadata)
+    async def _create_tables(self) -> None:
+        """Creates specific table based on ORM modles specified in subclass."""
+        if not self.engine:
+            raise DatabaseError("Engine not initialized")
 
+        tables = [cast(Table, model.__table__) for model in self._orm_models]
+
+        async with self.engine.begin() as conn:
+            await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables))
+
+    async def _enable_wal(self) -> None:
         if not self.engine:
             raise DatabaseError("Engine not initialized")
 
         async with self.engine.begin() as conn:
-            await conn.run_sync(metadata.create_all)
+            await conn.execute(text("PRAGMA journal_mode=WAL;")) 
 
     @asynccontextmanager
     async def session(self):
@@ -144,43 +152,32 @@ class BaseDatabase:
 
 
 class ProjectsDatabase(BaseDatabase):
-    def __init__(self, db_path: Path):
-        super().__init__(db_path, [Project])
+    _orm_models = [ProjectORM]
+    _wal_mode = False
 
 
 class SummariesDatabase(BaseDatabase):
+    _orm_models = [RequestSummaryORM, ResponseSummaryORM]
+    _wal_mode = True
+
     def __init__(self, db_path: Path):
-        super().__init__(db_path, [RequestSummary, ResponseSummary])
-        self._set_fetch_column_variables()
-
-    def _set_fetch_column_variables(self) -> None:
-        exclude = {"id", "flow_id", "timestamp"}
-        self.req_summary_columns = [
-            getattr(RequestSummary, col.name)
-            for col in RequestSummary.__table__.columns  # type: ignore
+        super().__init__(db_path)
+        _exclude = {"id", "flow_id", "timestamp"}
+        self._req_cols = [
+            getattr(RequestSummaryORM, c.name) for c in RequestSummaryORM.__table__.columns
         ]
-        self.res_summary_columns = [
-            getattr(ResponseSummary, col.name)
-            for col in ResponseSummary.__table__.columns  # type: ignore
-            if col.name not in exclude
+        self._res_cols = [
+            getattr(ResponseSummaryORM, c.name) 
+            for c in ResponseSummaryORM.__table__.columns if c.name not in _exclude
         ]
-
-    async def initialize(self):
-        await super().initialize()
-
-        if not self.engine:
-            raise DatabaseError("Engine not initialized")
-
-        # Enable WAL (Write after logging)
-        async with self.engine.begin() as conn:
-            await conn.execute(text("PRAGMA journal_mode=WAL;"))
 
     async def get_full_summaries(self, skip: int, size: int) -> list:
+        """List of full summaries (Request/ResponseSummary)"""
         async with self.session() as s:
             statement = (
-                select(*self.req_summary_columns, *self.res_summary_columns)
+                select(*self._req_cols, *self._res_cols)
                 .outerjoin(
-                    ResponseSummary, RequestSummary.flow_id == ResponseSummary.flow_id
+                    ResponseSummaryORM, RequestSummaryORM.flow_id == ResponseSummaryORM.flow_id
                 )
                 .offset(skip)
                 .limit(size)
@@ -189,32 +186,23 @@ class SummariesDatabase(BaseDatabase):
             return list(result.mappings().all())
 
     async def get_full_summary_by_id(self, flow_id: UUID) -> dict:
+        """Get a single summary (Request/ResponseSummary). TODO: Improve return type!"""
         async with self.session() as s:
             statement = (
-                select(*self.req_summary_columns, *self.res_summary_columns)
+                select(*self._req_cols, *self._res_cols)
                 .outerjoin(
-                    ResponseSummary, RequestSummary.flow_id == ResponseSummary.flow_id
+                    ResponseSummaryORM, RequestSummaryORM.flow_id == ResponseSummaryORM.flow_id
                 )
-                .where(RequestSummary.flow_id == flow_id)
+                .where(RequestSummaryORM.flow_id == flow_id)
             )
             result = await s.execute(statement)
-            return result.mappings().first()
+            return result.mappings().first() # type: ignore
 
 
 class RawDatabase(BaseDatabase):
-    def __init__(self, db_path: Path):
-        super().__init__(db_path, [RawRequest, RawResponse])
-
-    async def initialize(self):
-        await super().initialize()
-
-        if not self.engine:
-            raise DatabaseError("Engine not initialized")
-
-        # Enable WAL (Write after logging)
-        async with self.engine.begin() as conn:
-            await conn.execute(text("PRAGMA journal_mode=WAL;"))
-
+    _orm_models = [RawRequestORM, RawResponseORM]
+    _wal_mode = True
+        
 
 class DatabaseManager:
     """
@@ -227,43 +215,51 @@ class DatabaseManager:
     """
 
     def __init__(self):
-        self._projectsDB: ProjectsDatabase = ProjectsDatabase(vex_projects_db_path())
-        self._summariesDB: SummariesDatabase | None = None
-        self._rawDB: RawDatabase | None = None
         self._lock = asyncio.Lock()
 
-    def get_raw_db(self) -> RawDatabase | None:
-        return self._rawDB
+        self._projects_db: ProjectsDatabase = ProjectsDatabase(vex_projects_db_path())
+        self._summaries_db: SummariesDatabase | None = None
+        self._raw_db: RawDatabase | None = None
 
-    def get_summaries_db(self) -> SummariesDatabase | None:
-        return self._summariesDB
+    def get_projects_db(self) -> ProjectsDatabase:
+        if self._summaries_db is None:
+            raise DatabaseError("No projects database — projects database not initialized")
+        return self._projects_db 
 
-    def get_projects_db(self) -> ProjectsDatabase | None:
-        return self._projectsDB
-
+    def get_summaries_db(self) -> SummariesDatabase:
+        if self._summaries_db is None:
+            raise DatabaseError("No active project — summaries database not initialized")
+        return self._summaries_db
+ 
+    def get_raw_db(self) -> RawDatabase:
+        if self._raw_db is None:
+            raise DatabaseError("No active project — raw database not initialized")
+        return self._raw_db
+ 
     async def initialize(self):
         """Initializes the projects databases and create tables if they don't exist."""
-        await self._projectsDB.initialize()
+        await self._projects_db.initialize()
 
     async def switch_project_databases(self, new_db_path: Path):
         """
         Switches and initializes another project database.
         """
         async with self._lock:
-            if self._summariesDB:
-                await self._summariesDB.close()
-            if self._rawDB:
-                await self._rawDB.close()
+            if self._summaries_db:
+                await self._summaries_db.close()
+            if self._raw_db:
+                await self._raw_db.close()
 
-            self._summariesDB = SummariesDatabase(new_db_path / "main.db")
-            self._rawDB = RawDatabase(new_db_path / "raw.db")
+            self._summaries_db = SummariesDatabase(new_db_path / "main.db")
+            self._raw_db = RawDatabase(new_db_path / "raw.db")
 
-            await self._summariesDB.initialize()
-            await self._rawDB.initialize()
+            await self._summaries_db.initialize()
+            await self._raw_db.initialize()
 
     async def close(self) -> None:
+        """Close all databases."""
         tasks = []
-        for db in [self._projectsDB, self._rawDB, self._summariesDB]:
+        for db in [self._projects_db, self._raw_db, self._summaries_db]:
             if db:
                 tasks.append(db.close())
         if tasks:

@@ -1,17 +1,32 @@
 import asyncio
+import logging
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 
-from vex_cli.state import VexState
+from vex_cli.api.health_routes import health_router
+from vex_cli.api.projects_routes import projects_router
+from vex_cli.api.raw_routes import (
+    raw_request_router,
+    raw_response_router,
+    raw_router,
+)
+from vex_cli.api.summary_routes import (
+    request_summary_router,
+    response_summary_router,
+    summary_router,
+)
+from vex_cli.api.websockets import websocket_router
 from vex_cli.errors import AppException
+from vex_cli.state import VexState
 
-import logging
 logger = logging.getLogger(__name__)
 
+
 async def start_fastapi(app_state: VexState):
-    app = create_app() 
+    """Start Uvicorn ASGI server and inject VexState object into FastAPI state."""
+    app = create_app()
     app.state.vex_state = app_state
 
     server_info = app_state.get_server_info()
@@ -23,7 +38,7 @@ async def start_fastapi(app_state: VexState):
         host=server_address,
         port=api_port,
         access_log=False,
-        #log_config=None
+        # log_config=None
     )
     server = uvicorn.Server(config)
 
@@ -38,19 +53,12 @@ async def start_fastapi(app_state: VexState):
         except Exception as e:
             logger.error(f"Error during FastAPI cleanup: {e}")
 
-"""
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: When the uvicorn servers starts 
-    yield
-    # Shutdown: Cleanup state
-    await app.state.vex_state.shutdown()
-"""
 
 def create_app() -> FastAPI:
+    """Creates app object, registers exception handlers and adds all routes."""
     app = FastAPI(
         title="Vex API",
-        #lifespan=lifespan
+        # lifespan=lifespan
     )
 
     @app.exception_handler(AppException)
@@ -64,7 +72,7 @@ def create_app() -> FastAPI:
 
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": exc.__class__.__name__, "message": exc.message}
+            content={"error": exc.__class__.__name__, "message": exc.message},
         )
 
     @app.exception_handler(Exception)
@@ -73,25 +81,8 @@ def create_app() -> FastAPI:
         logger.exception("Unexpected error")  # Logs full traceback
         return JSONResponse(
             status_code=500,
-            content={"error": "InternalServerError", "message": "Something went wrong"}
+            content={"error": "InternalServerError", "message": "Something went wrong"},
         )
-
-    from vex_cli.api.health_routes import health_router
-    from vex_cli.api.websockets import websocket_router
-    from vex_cli.api.projects_routes import projects_router
-
-    from vex_cli.api.summary_routes import (
-        summary_router, request_summary_router, response_summary_router
-    )
-    from vex_cli.api.raw_routes import (
-        raw_request_router, raw_response_router, raw_router
-    )
-
-    #from vex_cli.api.request_summary_routes import request_summary_router
-    #from vex_cli.api.response_summary_routes import response_summary_router
-
-    #from vex_cli.api.raw_request_routes import raw_request_router
-    #from vex_cli.api.raw_response_routes import raw_response_router
 
     app.include_router(health_router)
     app.include_router(websocket_router, prefix="/ws")
@@ -102,5 +93,5 @@ def create_app() -> FastAPI:
     app.include_router(raw_request_router, prefix="/api")
     app.include_router(raw_response_router, prefix="/api")
     app.include_router(raw_router, prefix="/api")
-    
+
     return app

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Set
-from vex_cli.models import RequestSummary, ResponseSummary
 
+from vex_cli.models.pydantic import RequestSummary, ResponseSummary
 import logging
 logger = logging.getLogger(__name__)
 

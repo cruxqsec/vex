@@ -10,7 +10,7 @@ from vex_cli.app import start_fastapi
 from vex_cli.bind import try_bind_ports
 from vex_cli.proxy import start_proxy
 from vex_cli.state import VexState
-from vex_cli.models import VexServerInfo
+from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.locations import vex_pid_file
 from vex_cli.pid_func import (
     read_pid_file,
@@ -47,7 +47,7 @@ async def main(server_info: VexServerInfo) -> int:
 
     # if not we create a new one
     write_pid_file(
-        server_info.server_address,
+        str(server_info.server_address),
         server_info.proxy_port, 
         server_info.api_port,
         pid_file
@@ -122,7 +122,11 @@ async def main(server_info: VexServerInfo) -> int:
 )
 def start(address: str, proxy_port: int, api_port: int) -> int:
     """Start both the FastAPI and proxy servers."""
-    server_info = VexServerInfo(address, proxy_port, api_port)
+    server_info = VexServerInfo(
+        server_address=address,
+        proxy_port=proxy_port,
+        api_port=api_port
+    )
     can_bind, port = try_bind_ports(server_info)
 
     if not can_bind:
