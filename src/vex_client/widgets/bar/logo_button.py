@@ -1,5 +1,6 @@
 from textual.widgets import Button
 
+
 class LogoButton(Button, can_focus=False):
     """
     Logo button that goes to vex.sh
@@ -15,4 +16,3 @@ class LogoButton(Button, can_focus=False):
             max-width: 20;
         }
     """
-

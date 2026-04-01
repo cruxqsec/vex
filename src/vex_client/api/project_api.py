@@ -1,23 +1,28 @@
-import httpx
+import logging
 from typing import List
 
-from vex_cli.models import Project
+import httpx
 
-import logging
+from vex_cli.models.pydantic import Project
+
 logger = logging.getLogger(__name__)
+
 
 async def get_all_projects(host: str, port: int) -> List[Project]:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"http://{host}:{port}/api/projects/")
             if response.status_code == 200:
-                result = [Project.model_validate(project) for project in response.json()]
+                result = [
+                    Project.model_validate(project) for project in response.json()
+                ]
                 return result
     except httpx.TimeoutException as e:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     return []
+
 
 async def get_project(id: str, host: str, port: int) -> Project | None:
     try:
@@ -31,11 +36,14 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
         logger.error(f"Request failed: {e}")
     return None
 
+
 async def create_project(project: Project, host: str, port: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"http://{host}:{port}/api/projects/",
-                                         json=project.model_dump(mode="json"))
+            response = await client.post(
+                f"http://{host}:{port}/api/projects/",
+                json=project.model_dump(mode="json"),
+            )
             if response.status_code == 201:
                 return True
     except httpx.TimeoutException as e:
@@ -44,11 +52,14 @@ async def create_project(project: Project, host: str, port: int) -> bool:
         logger.error(f"Request failed: {e}")
     return False
 
+
 async def update_project(project: Project, host: str, port: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.put(f"http://{host}:{port}/api/projects/",
-                                        json=project.model_dump(mode="json"))
+            response = await client.put(
+                f"http://{host}:{port}/api/projects/",
+                json=project.model_dump(mode="json"),
+            )
             if response.status_code == 202:
                 return True
     except httpx.TimeoutException as e:
@@ -57,8 +68,9 @@ async def update_project(project: Project, host: str, port: int) -> bool:
         logger.error(f"Request failed: {e}")
     return False
 
+
 async def delete_project(id: str, host: str, port: int) -> bool:
-    try: 
+    try:
         async with httpx.AsyncClient() as client:
             response = await client.delete(f"http://{host}:{port}/api/projects/{id}")
             if response.status_code == 202:
@@ -73,7 +85,9 @@ async def delete_project(id: str, host: str, port: int) -> bool:
 async def select_project(id: str, host: str, port: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://{host}:{port}/api/projects/select/{id}")
+            response = await client.get(
+                f"http://{host}:{port}/api/projects/select/{id}"
+            )
             if response.status_code == 202:
                 return True
     except httpx.TimeoutException as e:
@@ -81,6 +95,7 @@ async def select_project(id: str, host: str, port: int) -> bool:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     return False
+
 
 async def get_active_project(host: str, port: int) -> Project | None:
     try:

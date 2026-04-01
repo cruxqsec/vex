@@ -1,7 +1,7 @@
 import asyncio
 
 from vex_cli.models.pydantic import Project, VexServerInfo
-from vex_cli.database import DatabaseManager
+from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.flow_history import FlowHistory
 from vex_cli.locations import vex_log_directory
 

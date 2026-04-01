@@ -1,10 +1,11 @@
 from textual.widgets import Button
 
+
 class NavigationButton(Button, can_focus=False):
     """
-        The sidebar button for switching between screens.
+    The sidebar button for switching between screens.
     """
-    
+
     DEFAULT_CSS = """
         NavigationButton {
             text-align: left;
@@ -14,5 +15,4 @@ class NavigationButton(Button, can_focus=False):
             height: 1fr;
             max-height: 3;
         }    
-    """ 
-
+    """

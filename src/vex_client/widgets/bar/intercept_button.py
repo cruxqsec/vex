@@ -1,10 +1,11 @@
 from textual.widgets import Button
 
-class InterceptButton(Button, can_focus = False):
+
+class InterceptButton(Button, can_focus=False):
     """
     Button for interception. Can be in 2 states. Forwarding and intercepting.
     """
-    
+
     DEFAULT_CSS = """
     
         InterceptButton {
@@ -39,8 +40,8 @@ class InterceptButton(Button, can_focus = False):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_active = True
-        self.toggle() # Toggle it to be forwarding by default
-    
+        self.toggle()  # Toggle it to be forwarding by default
+
     def toggle(self):
         self.is_active = not self.is_active
         if self.is_active:
@@ -49,7 +50,6 @@ class InterceptButton(Button, can_focus = False):
         else:
             self.remove_class("intercepting")
             self.label = "⏩ Forwarding"
-        
+
     def on_button_pressed(self):
         self.toggle()
-

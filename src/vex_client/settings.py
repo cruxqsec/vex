@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class Settings(BaseModel):
     navigation_position: str = Field(default="top")
     """Navigation bar position."""

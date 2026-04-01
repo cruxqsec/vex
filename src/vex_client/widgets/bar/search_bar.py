@@ -1,12 +1,11 @@
 from textual.app import ComposeResult
-from textual.widgets import Input, Button
 from textual.containers import Horizontal
 from textual.widget import Widget
-
+from textual.widgets import Button, Input
 from textual_autocomplete import AutoComplete, DropdownItem
 
+
 class VexSearchBar(Widget):
-    
     DEFAULT_CSS = """
         
         SearchBar {
@@ -30,13 +29,13 @@ class VexSearchBar(Widget):
         }
 
     """
-    
+
     def __init__(self, **kwargs):
         self.search_bar = Input(placeholder="Search...", id="search-bar")
-        self.auto_complete = AutoComplete(self.search_bar, candidates=[]) 
+        self.auto_complete = AutoComplete(self.search_bar, candidates=[])
         super().__init__(**kwargs)
-    
+
     def compose(self) -> ComposeResult:
-        with Horizontal(): 
+        with Horizontal():
             yield Button("🔍", id="search-icon", compact=True, disabled=True)
             yield self.search_bar
