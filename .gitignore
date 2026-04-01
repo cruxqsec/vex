@@ -9,9 +9,9 @@ wheels/
 # venv
 .venv
 
-# tests
-tests/
+# random test code
 test-ground/
+.coverage
 
 # editor
 .vscode/

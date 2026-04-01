@@ -3,9 +3,10 @@ from vex_cli.models import VexServerInfo
 
 def try_bind_ports(server_info: VexServerInfo) -> tuple[bool,int]:
     """Check if we can bind to both ports"""
-    address = server_info.server_address
-    to_check = [(address, server_info.proxy_port),
-                (address, server_info.api_port)]
+    to_check = [
+        (server_info.server_address, server_info.proxy_port),
+        (server_info.server_address, server_info.api_port)
+    ]
 
     for address, port in to_check:
         try:
