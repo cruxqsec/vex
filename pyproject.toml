@@ -14,6 +14,7 @@ dependencies = [
     "psutil==7.1.2",
     "textual[syntax]==6.2.0",
     "textual_autocomplete==4.0.6",
+    "websockets>=16.0",
 ]
 requires-python = ">= 3.11"
 
@@ -28,3 +29,6 @@ test = [
 [project.scripts]
 vex-cli = "vex_cli.__main__:cli"
 vex = "vex_client.__main__:main"
+
+[tool.uv]
+package = true

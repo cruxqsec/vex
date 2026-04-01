@@ -6,11 +6,14 @@ from typing import Literal
 import logging
 logger = logging.getLogger(__name__)
 
+# Constant
 INACTIVE_PROCESS: Literal[-1] = -1
 
 def start_detached_process(cmd: list[str]) -> int:
-    """Spawns a completely new process (detached child) and return the PID or -1 if failed."""
-    
+    """
+    Spawns a completely new process (detached child) 
+    and return the PID or -1 if failed.
+    """
     try:
         if sys.platform == "win32":
             # Windows-only kwargs
@@ -33,7 +36,7 @@ def start_detached_process(cmd: list[str]) -> int:
                 stderr=subprocess.DEVNULL,
                 stdin=subprocess.DEVNULL,
             )
-        
+
         return proc.pid
 
     except FileNotFoundError:
@@ -45,7 +48,7 @@ def start_detached_process(cmd: list[str]) -> int:
     except Exception as e:
         logger.error(f"Unexpected exception occurred trying to run vex-cli {e}")
         return -1
-    
+
 def terminate_process(pid: int):
     """Terminate the process with SIGTERM."""
     try:
@@ -62,7 +65,7 @@ def terminate_process(pid: int):
     except psutil.AccessDenied:
         logger.error(f"Could not terminate process with {pid} PID")
         return False
-    
+
 def kill_process(pid: int):
     """Kill the process with SIGKILL."""
     try:

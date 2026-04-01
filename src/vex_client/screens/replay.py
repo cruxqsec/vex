@@ -40,11 +40,6 @@ class VexReplayScreen(Screen):
     def method_select(self) -> Select:
         return self.query_one("#method-select", Select)
 
-    def set_navigation_btn_color(self) -> None:
-        """Sets the corresponding button color of the page"""
-        color = self.app.get_css_variables()["primary-darken-3"]
-        self.navigation_bar.replay_nav_btn.styles.background = color
-
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
@@ -60,5 +55,5 @@ class VexReplayScreen(Screen):
         yield Footer()
         
     def on_mount(self):
-        self.set_navigation_btn_color()
+        self.navigation_bar.set_navigation_btn_color()
     

@@ -74,11 +74,6 @@ class VexScopeScreen(Screen):
     def out_of_scope_area(self) -> OutOfScopeArea:
         return self.query_one("#out-of-scope-area", OutOfScopeArea)
 
-    def set_navigation_btn_color(self) -> None:
-        """Sets the corresponding button color of the page"""
-        color = self.app.get_css_variables()["primary-darken-3"]
-        self.navigation_bar.scope_nav_btn.styles.background = color
-
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Horizontal(id="main-container"):
@@ -101,5 +96,5 @@ class VexScopeScreen(Screen):
         
     
     def on_mount(self):
-        self.set_navigation_btn_color()
+        self.navigation_bar.set_navigation_btn_color()
 

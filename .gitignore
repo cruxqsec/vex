@@ -9,6 +9,10 @@ wheels/
 # venv
 .venv
 
+# tests
+tests/
+test-ground/
+
 # editor
 .vscode/
 .idea/
