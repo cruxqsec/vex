@@ -5,6 +5,8 @@ from vex_cli.models.pydantic import PIDData
 
 def is_process_running(pid: int) -> bool:
     """ Check if a process with given PID is running. """
+    if pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
         return True
