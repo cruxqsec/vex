@@ -28,7 +28,7 @@ class DatabaseManager:
         self._raw_db: RawDatabase | None = None
 
     def get_projects_db(self) -> ProjectsDatabase:
-        if self._summaries_db is None:
+        if self._projects_db is None:
             raise DatabaseError(
                 "No projects database — projects database not initialized"
             )
@@ -55,8 +55,10 @@ class DatabaseManager:
         async with self._lock:
             if self._summaries_db:
                 await self._summaries_db.close()
+                self._summaries_db = None
             if self._raw_db:
                 await self._raw_db.close()
+                self._raw_db = None
 
             self._summaries_db = SummariesDatabase(new_db_path / "main.db")
             self._raw_db = RawDatabase(new_db_path / "raw.db")
