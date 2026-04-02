@@ -2,7 +2,7 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock
 from pathlib import Path
-from sqlalchemy import String, Uuid, LargeBinary, DateTime, inspect, text
+from sqlalchemy import String, Uuid, LargeBinary, DateTime, inspect, text, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,6 +26,7 @@ class _TestModelORM(Base):
 # Concrete subclass of BaseDatabase 
 class _TestModelDB(BaseDatabase):
     _orm_models = [_TestModelORM]
+    _wal_mode = True
 
 @pytest.fixture
 def mock_test_model() -> _TestModelORM:
@@ -253,7 +254,7 @@ async def test_close_without_initialize_does_nothing(tmp_path):
 
 @pytest.mark.asyncio
 async def test_engine_pool_closed_after_close(db):
-    engine = db._engine  # grab reference before close nulls anything
+    engine = db._engine 
 
     await db.close()
 
@@ -267,3 +268,27 @@ async def test_operations_fail_after_close(db, mock_test_model):
 
     with pytest.raises(DatabaseError):
         await db.create(mock_test_model)
+
+
+@pytest.mark.asyncio
+async def test_session_raises_validation_error_on_duplicate(db, make_test_model):
+    shared_uuid = uuid4()
+    await db.create(make_test_model(uuid=shared_uuid))
+
+    with pytest.raises(ValidationError, match="Record already exists"):
+        await db.create(make_test_model(uuid=shared_uuid))
+
+@pytest.mark.asyncio
+async def test_wal_enabled_after_initialize(tmp_path):
+    database = _TestModelDB(db_path=tmp_path / "test.db")  # _wal_mode = True
+    await database.initialize()
+
+    if database._engine is None:
+        return
+
+    async with database._engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA journal_mode;"))
+        mode = result.scalar()
+
+    await database.close()
+    assert mode == "wal"
