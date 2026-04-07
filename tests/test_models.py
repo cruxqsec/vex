@@ -4,12 +4,11 @@ from datetime import datetime
 from mitmproxy import http
 from mitmproxy.test import tflow, tutils
 
-from vex_cli.models import (
+from vex_cli.models.pydantic import (
     RequestSummary,
     ResponseSummary,
     RawRequest,
-    RawResponse,
-    Project
+    RawResponse
 )
 
 @pytest.fixture
@@ -56,9 +55,6 @@ def mock_flow() -> http.HTTPFlow:
 
     return flow
 
-def test_project(mock_flow: http.HTTPFlow):
-    pass
-
 def test_request_summary(mock_flow: http.HTTPFlow):
     summary = RequestSummary.from_flow(mock_flow)
     now = datetime.timestamp(datetime.now())
@@ -68,7 +64,7 @@ def test_request_summary(mock_flow: http.HTTPFlow):
     assert summary.method == "GET"
     assert summary.path == "/path/to/content.php"
     assert summary.request_size == 96
-    assert summary.is_tls == False
+    assert not summary.is_tls
     assert summary.query == "query=test&query2=test2"
     assert summary.file_extension == ".php"
 
@@ -85,7 +81,7 @@ def test_response_summary(mock_flow: http.HTTPFlow):
     assert summary.response_size == 530
     assert summary.mime == "text/html"
     assert summary.http_title == "Example title"
-    assert summary.has_cookie_set == True
+    assert summary.has_cookie_set
     assert summary.duration_ms == 50000
 
     # we round the timestamp to an int
@@ -100,7 +96,7 @@ def test_req_summary_serialize(mock_flow: http.HTTPFlow):
     # then the summary is sent over the network and recieved
     recieved_summary = RequestSummary.model_validate_json(json_str)
 
-    assert type(summary.flow_id) == type(recieved_summary.flow_id)
+    assert type(recieved_summary.flow_id) is UUID
 
 
 def test_res_summary_serialize(mock_flow: http.HTTPFlow):

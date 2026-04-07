@@ -5,7 +5,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, Query
 
-from vex_cli.database import ProjectsDatabase
+from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
 from vex_cli.errors import DatabaseError
 from vex_cli.locations import vex_projects_directory

@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from vex_cli.database import RawDatabase
+from vex_cli.database.raw_db import RawDatabase
 from vex_cli.dependencies import get_raw_db
 from vex_cli.models.orm import RawRequestORM, RawResponseORM
 from vex_cli.models.pydantic import RawRequest, RawResponse, ResponseStatus

@@ -1,9 +1,10 @@
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import RowMapping, select
 
 from vex_cli.database.base_db import BaseDatabase
+from vex_cli.errors import NotFoundError
 from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
 
 
@@ -53,4 +54,7 @@ class SummariesDatabase(BaseDatabase):
                 .where(RequestSummaryORM.flow_id == flow_id)
             )
             result = await s.execute(statement)
-            return result.mappings().first()  # type: ignore
+            row: RowMapping | None = result.mappings().first()
+            if row is None:
+                raise NotFoundError("Summary not found")
+            return dict(row)

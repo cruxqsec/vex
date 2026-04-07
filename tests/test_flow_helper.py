@@ -3,20 +3,21 @@ from mitmproxy import http
 from mitmproxy.test import tflow, tutils
 
 from vex_cli.flow_helper import (
-    uses_tls,
-    extract_url_path,
+    calculate_response_time_ms,
     extract_extension,
+    extract_http_title,
     extract_mime,
+    extract_query,
+    extract_url_path,
+    flow_to_raw_request,
+    flow_to_raw_response,
+    get_status_text,
+    has_cookies,
     request_total_size,
     response_total_size,
-    extract_http_title,
-    extract_query,
-    has_cookies,
-    calculate_response_time_ms,
-    get_status_text,
-    flow_to_raw_request,
-    flow_to_raw_response
+    uses_tls,
 )
+
 
 # --- Fixtures for Mock HTTPFlow ---
 @pytest.fixture
@@ -63,6 +64,7 @@ def mock_flow() -> http.HTTPFlow:
 
     return flow
 
+
 @pytest.fixture
 def mock_flow_no_resp() -> http.HTTPFlow:
     req = tutils.treq(
@@ -80,38 +82,50 @@ def mock_flow_no_resp() -> http.HTTPFlow:
 
 
 def test_uses_tls(mock_flow: http.HTTPFlow):
-    assert uses_tls(mock_flow) == False
+    assert not uses_tls(mock_flow)
+
 
 def test_extract_url_path(mock_flow: http.HTTPFlow):
     assert extract_url_path(mock_flow) == "/path/to/content.php"
+
+
 def test_extract_extension_with_extension(mock_flow):
     assert extract_extension(mock_flow) == ".php"
+
 
 def test_extract_mime_with_charset(mock_flow: http.HTTPFlow):
     assert extract_mime(mock_flow) == "text/html"
 
+
 def test_extract_mime_no_content_type(mock_flow: http.HTTPFlow):
-    mock_flow.response.headers = {} # type: ignore
-    assert extract_mime(mock_flow) == None
+    mock_flow.response.headers = {}  # type: ignore
+    assert extract_mime(mock_flow) is None
+
 
 def test_extract_mime_no_response(mock_flow_no_resp: http.HTTPFlow):
-    assert extract_mime(mock_flow_no_resp) == None
+    assert extract_mime(mock_flow_no_resp) is None
+
 
 def test_request_total_size(mock_flow: http.HTTPFlow):
     assert request_total_size(mock_flow) == 96
 
+
 def test_response_total_size(mock_flow: http.HTTPFlow):
     assert response_total_size(mock_flow) == 530
 
+
 def test_response_total_size_no_response(mock_flow: http.HTTPFlow):
     mock_flow.response = None
-    assert response_total_size(mock_flow) == 0 
+    assert response_total_size(mock_flow) == 0
+
 
 def test_extract_http_title_found(mock_flow: http.HTTPFlow):
     assert extract_http_title(mock_flow) == "Example title"
 
+
 def test_extract_http_title_no_res(mock_flow_no_resp: http.HTTPFlow):
-    assert extract_http_title(mock_flow_no_resp) == None
+    assert extract_http_title(mock_flow_no_resp) is None
+
 
 def test_extract_http_title_no_title(mock_flow: http.HTTPFlow):
     no_title_html = b"""<!doctype html>
@@ -126,23 +140,29 @@ def test_extract_http_title_no_title(mock_flow: http.HTTPFlow):
     </body>
     </html>"""
 
-    mock_flow.response.content = no_title_html # type: ignore
-    assert extract_http_title(mock_flow) == None
+    mock_flow.response.content = no_title_html  # type: ignore
+    assert extract_http_title(mock_flow) is None
+
 
 def test_extract_query_found(mock_flow: http.HTTPFlow):
     assert extract_query(mock_flow) == "query=test&query2=test2"
 
+
 def test_has_cookies_true(mock_flow: http.HTTPFlow):
-    assert has_cookies(mock_flow) == True
+    assert has_cookies(mock_flow)
+
 
 def test_has_cookies_no_res(mock_flow_no_resp: http.HTTPFlow):
-    assert has_cookies(mock_flow_no_resp) == False
+    assert not has_cookies(mock_flow_no_resp)
+
 
 def test_calculate_response_time_ms(mock_flow: http.HTTPFlow):
     assert calculate_response_time_ms(mock_flow) == 50000
 
+
 def test_calculate_response_time_ms_no_res(mock_flow_no_resp: http.HTTPFlow):
     assert calculate_response_time_ms(mock_flow_no_resp) == 0
+
 
 def test_calculate_response_time_ms_no_end_time(mock_flow: http.HTTPFlow):
     mock_flow.request.timestamp_end = None
@@ -153,6 +173,7 @@ def test_get_status_text_known_code(mock_flow: http.HTTPFlow):
     assert get_status_text(200) == "OK"
     assert get_status_text(404) == "Not Found"
     assert get_status_text(500) == "Internal Server Error"
+
 
 def test_get_status_text_unknown_code(mock_flow: http.HTTPFlow):
     assert get_status_text(999) == "Unknown"
@@ -166,6 +187,7 @@ def test_flow_to_raw_req(mock_flow: http.HTTPFlow):
     )
 
     assert flow_to_raw_request(mock_flow) == result
+
 
 def test_flow_to_raw_res(mock_flow: http.HTTPFlow):
     html = b"""<!doctype html>
@@ -188,10 +210,8 @@ def test_flow_to_raw_res(mock_flow: http.HTTPFlow):
         b"Vary: Accept-Encoding\r\n"
         b"Set-Cookie: test_token=random-test-cookie\r\n"
         b"Content-Length: 338\r\n"
-        b"Connection: keep-alive\r\n\r\n"
-        + html
+        b"Connection: keep-alive\r\n\r\n" + html
     )
     raw_res = flow_to_raw_response(mock_flow)
 
     assert raw_res == result
-     

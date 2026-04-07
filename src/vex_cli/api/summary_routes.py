@@ -3,7 +3,7 @@ from typing import List, Annotated
 from fastapi import APIRouter, Depends, Query
 
 from vex_cli.dependencies import get_summaries_db
-from vex_cli.database import SummariesDatabase
+from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.models.pydantic import ResponseSummary, RequestSummary, ResponseStatus
 from vex_cli.models.orm import ResponseSummaryORM, RequestSummaryORM
 

@@ -22,7 +22,7 @@ async def history_websocket(
         while True:
             summary: RequestSummary | ResponseSummary = await client_queue.get()
             await websocket.send_text(summary.model_dump_json())
-    except WebSocketDisconnect as e:
+    except WebSocketDisconnect:
         logger.info("Flow history client disconnected")
     except Exception as e:
         logger.error(f"Error in websocket: {e}")
