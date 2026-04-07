@@ -28,26 +28,28 @@ class DatabaseManager:
         self._raw_db: RawDatabase | None = None
 
     def get_projects_db(self) -> ProjectsDatabase:
-        if self._projects_db is None:
-            raise DatabaseError(
-                "No projects database — projects database not initialized"
-            )
         return self._projects_db
 
-    def get_summaries_db(self) -> SummariesDatabase:
+    @property
+    def summaries_db(self) -> SummariesDatabase:
         if self._summaries_db is None:
             raise DatabaseError(
                 "No active project — summaries database not initialized"
             )
         return self._summaries_db
 
-    def get_raw_db(self) -> RawDatabase:
+    @property
+    def raw_db(self) -> RawDatabase:
         if self._raw_db is None:
             raise DatabaseError("No active project — raw database not initialized")
         return self._raw_db
 
+    @property
+    def is_project_active(self) -> bool:
+        return self._raw_db is not None and self._summaries_db is not None
+
     async def initialize(self):
-        """Initializes the projects databases and create tables if they don't exist."""
+        """Initializes the ProjectsDatabase and create tables if they don't exist."""
         await self._projects_db.initialize()
 
     async def switch_project_databases(self, new_db_path: Path):
@@ -63,8 +65,9 @@ class DatabaseManager:
             self._summaries_db = SummariesDatabase(new_db_path / "main.db")
             self._raw_db = RawDatabase(new_db_path / "raw.db")
 
-            await self._summaries_db.initialize()
-            await self._raw_db.initialize()
+            await asyncio.gather(
+                self._summaries_db.initialize(), self._raw_db.initialize()
+            )
 
     async def close(self) -> None:
         """Close all databases."""

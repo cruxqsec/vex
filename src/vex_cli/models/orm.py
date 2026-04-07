@@ -6,14 +6,6 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, Float, Index, Integer, LargeBinary, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from vex_cli.models.pydantic import (
-    RequestSummary,
-    ResponseSummary,
-    RawRequest,
-    RawResponse,
-    Project,
-)
-
 
 class Base(DeclarativeBase):
     pass
@@ -32,10 +24,6 @@ class ProjectORM(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-
-    @classmethod
-    def from_pydantic(cls, pydantic_object: Project) -> ProjectORM:
-        return cls(**pydantic_object.model_dump())
 
 
 class RequestSummaryORM(Base):
@@ -60,10 +48,6 @@ class RequestSummaryORM(Base):
         Index("ix_requests_timestamp", "timestamp"),
     )
 
-    @classmethod
-    def from_pydantic(cls, pydantic_object: RequestSummary) -> RequestSummaryORM:
-        return cls(**pydantic_object.model_dump())
-
 
 class ResponseSummaryORM(Base):
     """A flow response summary created when the flow is captured."""
@@ -86,10 +70,6 @@ class ResponseSummaryORM(Base):
         Index("ix_responses_timestamp", "timestamp"),
     )
 
-    @classmethod
-    def from_pydantic(cls, pydantic_object: ResponseSummary) -> ResponseSummaryORM:
-        return cls(**pydantic_object.model_dump())
-
 
 class RawRequestORM(Base):
     """Raw HTTP request bytes keyed by flow_id."""
@@ -99,10 +79,6 @@ class RawRequestORM(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)  # flow_id
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
-    @classmethod
-    def from_pydantic(cls, pydantic_object: RawRequest) -> RawRequestORM:
-        return cls(**pydantic_object.model_dump())
-
 
 class RawResponseORM(Base):
     """Raw HTTP response bytes keyed by flow_id."""
@@ -111,7 +87,3 @@ class RawResponseORM(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)  # flow_id
     data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-
-    @classmethod
-    def from_pydantic(cls, pydantic_object: RawResponse) -> RawResponseORM:
-        return cls(**pydantic_object.model_dump())

@@ -28,6 +28,12 @@ from vex_cli.flow_helper import (
     response_total_size,
     uses_tls,
 )
+from vex_cli.models.orm import (
+    RawRequestORM,
+    RawResponseORM,
+    RequestSummaryORM,
+    ResponseSummaryORM,
+)
 
 # For Pydantic->ORM conversion
 _orm_config = ConfigDict(from_attributes=True)
@@ -120,6 +126,9 @@ class RequestSummary(BaseModel):
             timestamp=datetime.timestamp(datetime.now()),
         )
 
+    def to_orm(self) -> RequestSummaryORM:
+        return RequestSummaryORM(**self.model_dump())
+
 
 class ResponseSummary(BaseModel):
     """A flow response summary created when the flow is captured."""
@@ -149,6 +158,9 @@ class ResponseSummary(BaseModel):
             timestamp=datetime.timestamp(datetime.now()),
         )
 
+    def to_orm(self) -> ResponseSummaryORM:
+        return ResponseSummaryORM(**self.model_dump())
+
 
 class RawRequest(BaseModel):
     """Raw HTTP request bytes."""
@@ -161,6 +173,9 @@ class RawRequest(BaseModel):
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow) -> RawRequest:
         return cls(id=UUID(flow.id), data=flow_to_raw_request(flow))
+
+    def to_orm(self) -> RawRequestORM:
+        return RawRequestORM(**self.model_dump())
 
 
 class RawResponse(BaseModel):
@@ -177,3 +192,6 @@ class RawResponse(BaseModel):
             id=UUID(flow.id),
             data=flow_to_raw_response(flow),  # type: ignore — caller ensures response exists
         )
+
+    def to_orm(self) -> RawResponseORM:
+        return RawResponseORM(**self.model_dump())
