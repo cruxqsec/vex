@@ -6,15 +6,7 @@ from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
-from vex_cli.database.raw_db import RawDatabase
-from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.flow_history import FlowHistory
-from vex_cli.models.orm import (
-    RawRequestORM,
-    RawResponseORM,
-    RequestSummaryORM,
-    ResponseSummaryORM,
-)
 from vex_cli.models.pydantic import (
     RawRequest,
     RawResponse,
@@ -38,21 +30,10 @@ class VexCapture:
         self._flow_history: FlowHistory = app_state.get_flow_history()
         self._db_manager: DatabaseManager = app_state.get_db_manager()
 
-    @property
-    def summaries_db(self) -> SummariesDatabase | None:
-        return self._db_manager.get_summaries_db()
-
-    @property
-    def raw_db(self) -> RawDatabase | None:
-        return self._db_manager.get_raw_db()
-
     async def request(self, flow: http.HTTPFlow):
         """Called when request is captured"""
         try:
-            if (
-                not self._app_state.is_db_initialized
-                or not self._app_state.is_project_active
-            ):
+            if not self._app_state.is_project_active:
                 return
 
             flow.request.headers.pop(
@@ -62,14 +43,8 @@ class VexCapture:
 
             summary = RequestSummary.from_flow(flow)
             raw = RawRequest.from_flow(flow)
-            orm_summary = RequestSummaryORM(**summary.model_dump())
-            orm_raw = RawRequestORM(**raw.model_dump())
 
-            if self.summaries_db is not None and self.raw_db is not None:
-                await self.summaries_db.create(orm_summary)
-                await self.raw_db.create(orm_raw)
-
-            await self._flow_history.broadcast_summary(summary)
+            await self._save_and_broadcast(summary, raw)
 
         except Exception as e:
             logger.error(f"Proxy error in request processing: {e}")
@@ -77,22 +52,13 @@ class VexCapture:
     async def response(self, flow: http.HTTPFlow):
         """Called when response is received"""
         try:
-            if (
-                not self._app_state.is_db_initialized
-                or not self._app_state.is_project_active
-            ):
+            if not self._app_state.is_project_active:
                 return
 
             summary = ResponseSummary.from_flow(flow)
             raw = RawResponse.from_flow(flow)
-            orm_summary = ResponseSummaryORM(**summary.model_dump())
-            orm_raw = RawResponseORM(**raw.model_dump())
 
-            if self.summaries_db is not None and self.raw_db is not None:
-                await self.summaries_db.create(orm_summary)
-                await self.raw_db.create(orm_raw)
-
-            await self._flow_history.broadcast_summary(summary)
+            await self._save_and_broadcast(summary, raw)
 
         except Exception as e:
             logger.error(f"Proxy error in response processing: {e}")
@@ -100,6 +66,18 @@ class VexCapture:
     async def error(self, flow: http.HTTPFlow):
         """Called when request errors and no response is captured"""
         pass
+
+    async def _save_and_broadcast(
+        self,
+        summary: RequestSummary | ResponseSummary,
+        raw: RawRequest | RawResponse,
+    ):
+        await asyncio.gather(
+            self._db_manager.summaries_db.create(summary.to_orm()),
+            self._db_manager.raw_db.create(raw.to_orm()),
+        )
+
+        await self._flow_history.broadcast_summary(summary)
 
 
 async def start_proxy(app_state: VexState):
