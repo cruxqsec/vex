@@ -33,6 +33,7 @@ from vex_cli.models.orm import (
     RawResponseORM,
     RequestSummaryORM,
     ResponseSummaryORM,
+    ProjectORM,
 )
 
 # For Pydantic->ORM conversion
@@ -89,9 +90,11 @@ class Project(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    def to_orm(self) -> ProjectORM:
+        return ProjectORM(**self.model_dump())
 
 class ProjectCreate(BaseModel):
-    """Used when creating a new project — id and timestamps are DB-generated."""
+    """Used when creating or updating a project — id and timestamps are DB-generated."""
 
     name: str
 

@@ -9,7 +9,7 @@ from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.orm import ProjectORM
-from vex_cli.models.pydantic import Project, ResponseStatus
+from vex_cli.models.pydantic import Project, ProjectCreate, ResponseStatus
 from vex_cli.state import VexState
 
 logger = logging.getLogger(__name__)
@@ -38,28 +38,32 @@ async def get_project_by_id(
 
 @projects_router.post("/projects/", response_model=Project, status_code=201)
 async def create_project(
-    project: Project, projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
+    project: ProjectCreate,
+    projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)],
 ):
     """
     Create the project directory (under APP_DIR/projects/) and the project
     Returns the created object
     """
     project_orm = ProjectORM(**project.model_dump())
-    path = vex_projects_directory() / str(project.id)
+    created_project = await projects_db.create(project_orm)
+
+    path = vex_projects_directory() / str(created_project.id)
     path.mkdir(exist_ok=True)
-    return await projects_db.create(project_orm)
+
+    return created_project
 
 
 @projects_router.put("/projects/", response_model=ResponseStatus, status_code=202)
 async def update_project(
-    project: Project, projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)]
+    project: Project,
+    projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)],
 ):
     """
     Update a project from a given project.
     """
     # TODO check if the project being updated is an active project
-    project_orm = ProjectORM(**project.model_dump())
-    await projects_db.update(ProjectORM, project_orm)
+    await projects_db.update(ProjectORM, project.to_orm())
 
     return ResponseStatus(status="Success", msg="Object updated")
 

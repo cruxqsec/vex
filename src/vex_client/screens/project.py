@@ -10,7 +10,7 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer
 
-from vex_cli.models.pydantic import Project
+from vex_cli.models.pydantic import Project, ProjectCreate
 from vex_client.api.project_api import (
     create_project,
     delete_project,
@@ -64,7 +64,7 @@ class VexProjectsScreen(Screen):
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
-        self.call_after_refresh(self.projects_table.set_columns)
+        self.projects_table.set_columns(self.size)
         self.first_mount = False
 
     async def on_screen_resume(self):
@@ -74,6 +74,7 @@ class VexProjectsScreen(Screen):
         self.projects_table.set_loading(True)
         self.call_after_refresh(self.fetch_and_add_projects)
         self.call_after_refresh(self.check_active_project)
+        self.set_focus(self.projects_table)
 
     def action_create_project(self):
         """
@@ -83,12 +84,12 @@ class VexProjectsScreen(Screen):
 
         # callback
         async def create(project_name: str):
-            new_project = Project(name=project_name)  # type: ignore
+            new_project = ProjectCreate(name=project_name)
             host, port = self.app.get_api_info()  # type: ignore
-            successfully_created = await create_project(new_project, host, port)
+            created_project = await create_project(new_project, host, port)
 
-            if successfully_created:
-                self.projects_table.insert(new_project)
+            if created_project:
+                self.projects_table.insert(created_project)
                 self.projects_table.update_empty_class()
             else:
                 self.notify("Error creating project.", severity="error")

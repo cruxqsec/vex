@@ -62,7 +62,7 @@ class VexHTTPHistoryScreen(Screen):
 
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
-        self.call_after_refresh(self.http_table.set_columns)
+        self.http_table.set_columns(self.size)
         self.history_websocket_manager()
 
     def parse_summary_message(self, raw_data: str):
@@ -77,9 +77,9 @@ class VexHTTPHistoryScreen(Screen):
     async def history_websocket_manager(self):
         app = cast("VexApp", self.app)
 
-        self.notify("History manager started")
         while True:
             await app.is_project_active_event.wait()  # waits if not set (cleared)
+            self.notify("History manager activated")
             await self.handle_history_connection()
 
             self.notify(

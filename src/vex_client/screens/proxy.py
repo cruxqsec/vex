@@ -56,7 +56,7 @@ class VexProxyScreen(Screen):
         with Vertical(id="banner-container"):
             yield Static(banner, id="banner")
             # yield Center(VexLink("vex.sh", url=website, id="website-link"))
-            yield Center(Static(f"Version: {VERSION}", id="version"))
+            #yield Center(Static(f"Version: {VERSION}", id="version"))
         with Container(id="main-container"):
             yield VexProxyList(id="proxy-list")
         yield Footer()
