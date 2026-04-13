@@ -7,17 +7,29 @@ from vex_cli.locations import vex_projects_directory
 from vex_cli.models.pydantic import Project
 from vex_client.get_size import get_directory_size, human_readable
 from vex_client.widgets.table import VexDataTable
+from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 
-class VexProjectsTable(VexDataTable, can_focus=True):
-    """
-    Table containing project information.
-    """
+class VexProjectTableContainer(EmptyMessageWidget):
+    """Container that holds VexProjectTable"""
 
     BORDER_TITLE = "Projects"
 
     def __init__(self, **kwargs):
-        empty_message = "No projects found. Create a new one to start."
+        self.table = VexProjectTable(cursor_type="row", zebra_stripes=True)
+        super().__init__(
+            widget=self.table,
+            empty_message="No projects found. Create a new one to begin.",
+            **kwargs,
+        )
+
+
+class VexProjectTable(VexDataTable, can_focus=True):
+    """
+    Table containing project information.
+    """
+
+    def __init__(self, **kwargs):
         # column with percent ration, have to add to 100 for proper display
         projects_columns = (
             ("Name", 40),
@@ -27,7 +39,7 @@ class VexProjectsTable(VexDataTable, can_focus=True):
         )
         # parent constructor
         super().__init__(
-            empty_message=empty_message, percent_columns=projects_columns, **kwargs
+            percent_columns=projects_columns, **kwargs
         )
 
     def insert(self, project: Project):
@@ -41,9 +53,9 @@ class VexProjectsTable(VexDataTable, can_focus=True):
                 project.updated_at.strftime("%H:%M %d %B %Y"),
                 key=str(project.id),
             )
+            self.post_message(VexDataTable.RowAdded())
         except ValueError:
             self.notify("Error inserting project into table!", severity="error")
-
 
     def get_project(self, project_id: str) -> Project | None:
         try:

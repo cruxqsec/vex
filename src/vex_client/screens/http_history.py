@@ -17,7 +17,7 @@ from textual.widgets import Footer
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
-from vex_client.widgets.history.history_table import VexHTTPTable
+from vex_client.widgets.history.history_table import VexHTTPTable, VexHTTPTableContainer
 from vex_client.widgets.request_area import RequestArea
 from vex_client.widgets.response_area import ResponseArea
 
@@ -39,7 +39,7 @@ class VexHTTPHistoryScreen(Screen):
 
     @property
     def http_table(self) -> VexHTTPTable:
-        return self.query_one("#http-table", VexHTTPTable)
+        return self.query_one(VexHTTPTable)
 
     @property
     def request_area(self) -> RequestArea:
@@ -52,7 +52,7 @@ class VexHTTPHistoryScreen(Screen):
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
-            yield VexHTTPTable(cursor_type="row", zebra_stripes=True, id="http-table")
+            yield VexHTTPTableContainer(id="http-table")
             # with Horizontal():
             #    yield RequestArea(empty_message="Select a row to display the request.",
             #                      read_only=True, tab_behavior="focus", id="request-area")

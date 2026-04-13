@@ -5,5 +5,6 @@ class Settings(BaseModel):
     navigation_position: str = Field(default="top")
     """Navigation bar position."""
 
-    theme: str = Field(default="textual-dark")
+    # atom-one-dark
+    theme: str = Field(default="solarized-dark")
     """The name of the theme to use."""

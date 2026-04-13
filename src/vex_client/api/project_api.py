@@ -20,6 +20,8 @@ async def get_all_projects(host: str, port: int) -> list[Project]:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return []
 
 
@@ -33,6 +35,8 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return None
 
 
@@ -43,7 +47,7 @@ async def create_project(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"http://{host}:{port}/api/projects/",
-                json=new_project.model_dump_json(),
+                json=new_project.model_dump(),
             )
             if response.status_code == 201:
                 return Project.model_validate(response.json())
@@ -51,6 +55,8 @@ async def create_project(
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return None
 
 
@@ -61,7 +67,7 @@ async def update_project(
         async with httpx.AsyncClient() as client:
             response = await client.put(
                 f"http://{host}:{port}/api/projects/",
-                json=updated_project.model_dump_json(),
+                json=updated_project.model_dump(mode="json"),
             )
             if response.status_code == 202:
                 return True
@@ -69,6 +75,8 @@ async def update_project(
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return False
 
 
@@ -82,6 +90,8 @@ async def delete_project(id: str, host: str, port: int) -> bool:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return False
 
 
@@ -97,6 +107,8 @@ async def select_project(id: str, host: str, port: int) -> bool:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return False
 
 
@@ -111,4 +123,6 @@ async def get_active_project(host: str, port: int) -> Project | None:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
+    except Exception as e:
+        logger.error(f"{response.json()}\n {e}")
     return None

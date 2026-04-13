@@ -1,26 +1,33 @@
 VexProjectsScreen {
     background: $background;
+}
 
-    #main-container {
-        margin: 1 4;
-    }
+#main-container {
+    margin: 1 4;
+}
 
-    #active-project {
-        width: 1fr;
-        height: 1fr;
-    }
+#active-project {
+    width: 1fr;
+    height: 1fr;
+}
 
-    #navigation-bar {
-        width: 1fr;
-        height: 1fr;
-    }
+#navigation-bar {
+    width: 1fr;
+    height: 1fr;
+}
 
-    #projects-table{
-        width: 1fr;
-        height: 8fr;
-        border: wide $foreground;
-        margin: 1 0;
-    }
+#projects-table {
+    background: transparent;
+    width: 1fr;
+    height: 8fr;
+    border: round $foreground;
+    margin: 1 0;
+}
 
-    
+#projects-table:hover {
+    border: round $accent;
+}
+
+#projects-table.inner-focused {
+    border: round $primary;
 }

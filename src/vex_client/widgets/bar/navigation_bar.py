@@ -88,7 +88,8 @@ class VexNavigationBar(Widget):
             action="app.switch('history-screen')",
         )
         yield NavigationButton(
-            "🎯 Intercept",
+            #🎯
+            "󰓾 Intercept",
             compact=True,
             id="intercept-nav-btn",
             action="app.switch('intercept-screen')",

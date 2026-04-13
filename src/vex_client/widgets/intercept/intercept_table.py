@@ -39,5 +39,5 @@ class VexHTTPInterceptTable(VexDataTable, can_focus=True):
 
         # parent constructor
         super().__init__(
-            empty_message=empty_message, percent_columns=intercept_columns, **kwargs
+            percent_columns=intercept_columns, **kwargs
         )
