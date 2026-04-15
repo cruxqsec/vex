@@ -1,4 +1,6 @@
 from typing import Any, Tuple
+from dataclasses import dataclass
+from rich.text import Text
 
 from textual import events, on
 from textual.geometry import Size
@@ -10,11 +12,23 @@ from textual.message import Message
 from vex_client.widgets.empty_message_widget import EmptyStateChanged
 
 
+@dataclass
+class IconColumnCell:
+    icon: Text
+    name: str
+
+
 class VexDataTable(DataTable, can_focus=True):
     """
     Extended DataTable with extra functionality like empty display message
     and columns that support percent ratio.
     """
+
+    class RowAdded(Message):
+        pass
+
+    class RowRemoved(Message):
+        pass
 
     class Focused(Message):
         pass
@@ -28,12 +42,6 @@ class VexDataTable(DataTable, can_focus=True):
     def _on_blur(self, event: events.Blur) -> None:
         self.post_message(self.Blurred())
 
-    class RowAdded(Message):
-        pass
-
-    class RowRemoved(Message):
-        pass
-
     BINDINGS = [
         Binding("k", "cursor_up", "Cursor up", show=False),
         Binding("j", "cursor_down", "Cursor down", show=False),
@@ -46,7 +54,7 @@ class VexDataTable(DataTable, can_focus=True):
     ]
 
     def __init__(
-        self, percent_columns: Tuple[Tuple[str, int], ...], **kwargs
+        self, percent_columns: Tuple[Tuple[str | IconColumnCell, int], ...], **kwargs
     ):
         self.percent_columns = (
             percent_columns  # custom columns with (name, percent_ratio)
@@ -79,8 +87,7 @@ class VexDataTable(DataTable, can_focus=True):
     @on(RowAdded)
     def _on_rows_added_removed(self, event: RowAdded | RowRemoved) -> None:
         self.post_message(EmptyStateChanged(is_empty=self.row_count == 0))
-        #self.set_class(self.row_count == 0, "empty")
-
+        # self.set_class(self.row_count == 0, "empty")
 
     def on_resize(self, event: events.Resize) -> None:
         """Resize while keeping the percentage ratios."""
@@ -106,6 +113,9 @@ class VexDataTable(DataTable, can_focus=True):
         total_padding = 2 * (self.cell_padding * len(self.percent_columns))
         one_percent = (total_width - total_padding) / 100
 
-        for name, percent_width in self.percent_columns:
+        for column, percent_width in self.percent_columns:
             width = round(percent_width * one_percent)
-            self.add_column(label=name, width=width, key=name)
+            if isinstance(column, IconColumnCell):
+                self.add_column(label=column.icon, width=width, key=column.name)
+            else:
+                self.add_column(label=column, width=width, key=column)

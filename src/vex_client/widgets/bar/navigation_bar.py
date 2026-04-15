@@ -89,7 +89,7 @@ class VexNavigationBar(Widget):
         )
         yield NavigationButton(
             #🎯
-            "󰓾 Intercept",
+            "󰓾  Intercept",
             compact=True,
             id="intercept-nav-btn",
             action="app.switch('intercept-screen')",

@@ -1,30 +1,50 @@
-#main-container {
-    margin: 0 1; 
-}
-
 #http-table {
     width: 1fr;
     height: 1fr;
     background: transparent;
     border: round $foreground;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 #http-table:hover {
-    border: round $accent;
+    border: round $primary;
 }
 
 #http-table.inner-focused {
     border: round $primary;
 }
 
+#text-areas {
+    display: block;
+}
+
+#text-areas.empty {
+    display: none;
+}
+
 #request-area {
     width: 1fr;
     border: round $foreground;
-    margin: 0 1 0 0;
+}
+
+#request-area:hover {
+    border: round $primary;
+}
+
+#request-area.inner-focused {
+    border: round $primary;
 }
 
 #response-area {
     width: 1fr;
     border: round $foreground;
-    margin: 0 0 0 1;
+}
+
+#response-area:hover {
+    border: round $primary;
+}
+
+#response-area.inner-focused {
+    border: round $primary;
 }

@@ -54,12 +54,12 @@ async def get_all_request_summaries(
 # -------------------------------------------------------------------
 
 
-@request_summary_router.get("/summary/request/{id}", response_model=RequestSummary)
-async def get_request_summary(
-    id: UUID | int,
+@request_summary_router.get("/summary/request/{flow_id}", response_model=RequestSummary)
+async def get_request_summary_by_flow_id(
+    flow_id: UUID,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    return await summaries_db.get(RequestSummaryORM, id)
+    return await summaries_db.get_by_flow_id(RequestSummaryORM, flow_id)
 
 
 # -------------------------------------------------------------------
@@ -72,7 +72,7 @@ async def create_request_summary(
     req_summary: RequestSummary,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    return await summaries_db.create(RequestSummaryORM.from_pydantic(req_summary))
+    return await summaries_db.create(req_summary.to_orm())
 
 
 # -------------------------------------------------------------------
@@ -85,9 +85,7 @@ async def update_request_summary(
     req_summary: RequestSummary,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    await summaries_db.update(
-        RequestSummaryORM, RequestSummaryORM.from_pydantic(req_summary)
-    )
+    await summaries_db.update(RequestSummaryORM, req_summary.to_orm())
     return ResponseStatus(status="Success", msg="Object updated")
 
 
@@ -123,13 +121,13 @@ async def get_all_response_summaries(
 
 
 @response_summary_router.get(
-    "/summary/response/{id}", response_model=ResponseSummary, status_code=200
+    "/summary/response/{flow_id}", response_model=ResponseSummary, status_code=200
 )
 async def get_response_summary(
-    id: UUID | int,
+    flow_id: UUID,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    return await summaries_db.get(ResponseSummaryORM, id)
+    return await summaries_db.get_by_flow_id(ResponseSummaryORM, flow_id)
 
 
 # -------------------------------------------------------------------
@@ -142,7 +140,7 @@ async def create_response_summary(
     res_summary: ResponseSummary,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    return await summaries_db.create(ResponseSummaryORM.from_pydantic(res_summary))
+    return await summaries_db.create(res_summary.to_orm())
 
 
 # -------------------------------------------------------------------
@@ -155,9 +153,7 @@ async def update_response_summary(
     res_summary: ResponseSummary,
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
-    await summaries_db.update(
-        ResponseSummaryORM, ResponseSummaryORM.from_pydantic(res_summary)
-    )
+    await summaries_db.update(ResponseSummaryORM, res_summary.to_orm())
     return ResponseStatus(status="Success", msg="Object updated")
 
 

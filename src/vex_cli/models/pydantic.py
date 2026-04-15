@@ -164,6 +164,29 @@ class ResponseSummary(BaseModel):
     def to_orm(self) -> ResponseSummaryORM:
         return ResponseSummaryORM(**self.model_dump())
 
+# for querying the full summaries from db
+class FlowSummary(BaseModel):
+    model_config = _orm_config
+
+    # from RequestSummary (all fields)
+    id: int
+    flow_id: UUID
+    host: str
+    method: str
+    path: str
+    request_size: int
+    is_tls: bool
+    query: str | None
+    file_extension: str | None
+    timestamp: float
+
+    # from ResponseSummary (excluding id, flow_id, timestamp)
+    status_code: int | None = None   
+    response_size: int | None = None
+    mime: str | None = None
+    http_title: str | None = None
+    has_cookie_set: bool | None = None
+    duration_ms: int | None = None
 
 class RawRequest(BaseModel):
     """Raw HTTP request bytes."""

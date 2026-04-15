@@ -37,14 +37,14 @@ async def get_raw_request(
 async def create_raw_request(
     raw_req: RawRequest, raw_db: Annotated[RawDatabase, Depends(get_raw_db)]
 ):
-    return await raw_db.create(RawRequestORM.from_pydantic(raw_req))
+    return await raw_db.create(raw_req.to_orm())
 
 
 @raw_request_router.put("/raw/request/", response_model=ResponseStatus, status_code=202)
 async def update_raw_request(
     raw_req: RawRequest, raw_db: Annotated[RawDatabase, Depends(get_raw_db)]
 ):
-    await raw_db.update(RawRequestORM, RawRequestORM.from_pydantic(raw_req))
+    await raw_db.update(RawRequestORM, raw_req.to_orm())
     return ResponseStatus(status="Success", msg="Object updated")
 
 
@@ -85,7 +85,7 @@ async def get_raw_response(
 async def create_raw_response(
     raw_res: RawResponse, raw_db: Annotated[RawDatabase, Depends(get_raw_db)]
 ):
-    return await raw_db.create(RawResponseORM.from_pydantic(raw_res))
+    return await raw_db.create(raw_res.to_orm())
 
 
 @raw_response_router.put(
@@ -94,7 +94,7 @@ async def create_raw_response(
 async def update_raw_response(
     raw_res: RawResponse, raw_db: Annotated[RawDatabase, Depends(get_raw_db)]
 ):
-    await raw_db.update(RawResponseORM, RawResponseORM.from_pydantic(raw_res))
+    await raw_db.update(RawResponseORM, raw_res.to_orm())
     return ResponseStatus(status="Success", msg="Object updated")
 
 

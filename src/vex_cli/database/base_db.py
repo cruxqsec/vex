@@ -116,6 +116,7 @@ class BaseDatabase:
             await s.refresh(obj)
             return obj
 
+    # accepts both because some models have int and others UUID as PK!
     async def get(self, model: type[T], id: UUID | int) -> T | None:
         async with self.session() as s:
             obj = await s.get(model, id)

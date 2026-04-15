@@ -28,3 +28,8 @@ ScopeSelect > SelectCurrent {
     padding: 0 2;
     margin-top: 0 !important;
 }
+
+VexDataTable {
+    overflow-x: hidden;
+    margin: 0;
+}

@@ -58,6 +58,13 @@ class EmptyMessageWidget(Widget, can_focus=False):
     def on_vex_data_table_blurred(self) -> None:
         self.remove_class("inner-focused")
 
+    def on_vex_text_area_focused(self) -> None:
+            self.add_class("inner-focused")
+
+    def on_vex_text_area_blurred(self) -> None:
+        self.remove_class("inner-focused")
+
+
     @on(EmptyStateChanged)
     def empty_state_changed(self, event: EmptyStateChanged):
         self.set_class(event.is_empty, "empty")

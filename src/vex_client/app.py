@@ -92,13 +92,19 @@ class VexApp(App[str]):
         # Start with the proxy selection screen
         self.push_screen("proxy-screen")
 
-    def set_active_project(self, active_project: Project | None) -> None:
+    async def set_active_project(self, active_project: Project | None) -> None:
+        """
+        Sets the active project, fires the event that controls managers and fetches
+        all the other project related information. If set to None also performs cleanup.
+        """
         self.vex_active_project = active_project
         if self.vex_active_project is None:
             self.is_project_active = False
             self.is_project_active_event.clear()  # set flag to off -> workers wait
+            await self.project_switch_cleanup()
         else:
             self.is_project_active = True
+            await self.project_switch_startup()
             self.is_project_active_event.set()  # set flag to on -> workers can work
 
     def get_active_project(self) -> Project | None:
@@ -153,3 +159,16 @@ class VexApp(App[str]):
         ):
             return False
         return True
+
+    async def project_switch_cleanup(self) -> None:
+        self.notify("Performing cleanup")
+        http_screen = self.get_screen("history-screen", VexHTTPHistoryScreen)
+        http_screen.http_table.clear(columns=False)
+    
+    async def project_switch_startup(self) -> None:
+        await self.project_switch_cleanup()
+        self.notify("Performing fetch")
+        fetch_all_summaries_worker = self.get_screen(
+            "history-screen", VexHTTPHistoryScreen
+        ).fetch_all_summaries()
+        await fetch_all_summaries_worker.wait()

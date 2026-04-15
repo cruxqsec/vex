@@ -22,7 +22,10 @@ from vex_client.api.project_api import (
 from vex_client.screens.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.project.active_project import ActiveProject
-from vex_client.widgets.project.project_table import VexProjectTableContainer, VexProjectTable
+from vex_client.widgets.project.project_table import (
+    VexProjectTableContainer,
+    VexProjectTable,
+)
 from vex_client.widgets.table import VexDataTable
 
 
@@ -72,13 +75,85 @@ class VexProjectsScreen(Screen):
             return
 
         self.projects_table.set_loading(True)
-        self.fetch_and_add_projects()
-        self.check_active_project()
+        self._fetch_all_projects()
+        self._check_active_project()
 
         self.set_focus(self.projects_table)
 
-    def action_test(self):
-        self.notify(str(self.projects_table.classes))
+    @on(DataTable.RowSelected)
+    async def select_project(self, event: DataTable.RowSelected) -> None:
+        """
+        Select a project and set it as active by calling vex-cli API.
+        If successful the is_project_active reactive in VexApp is set to True
+        and the rest of the interface becomes active
+        """
+        app = cast("VexApp", self.app)
+        project_id = event.row_key.value
+
+        if project_id is None:
+            return
+
+        host, port = app.get_api_info()
+
+        if host is None or port is None:
+            return
+
+        project = self.projects_table.get_project(project_id)
+        successfully_selected = await select_project(project_id, host, port)
+
+        if successfully_selected and project is not None:
+            self.active_project.set_active_project(project.name)
+            await app.set_active_project(project)
+        else:
+            self.notify("Project couldn't be selected", severity="error")
+
+    @work(name="fetch_projects")
+    async def _fetch_all_projects(self):
+        """
+        Worker function that fetches available projects through vex-cli API
+        and adds them to the table.
+        """
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        projects = await get_all_projects(host, port)
+
+        for project in projects:
+            if self.projects_table.row_exists(str(project.id)):
+                continue
+
+            self.projects_table.insert(project)
+
+        self.projects_table.set_loading(False)
+
+    @work(name="check_active_project")
+    async def _check_active_project(self):
+        """
+        Worker function that checks if any project is active,
+        if it is then we set it as active project
+        """
+        app = cast("VexApp", self.app)
+
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        fetched_active_project = await get_active_project(host, port)
+
+        if fetched_active_project is None:
+            return
+
+        # check if already set so we don't do startup/cleanup if it's the same
+        active_project = app.get_active_project()
+        if active_project and fetched_active_project.id == active_project.id:
+            return
+
+        self.active_project.set_active_project(fetched_active_project.name)
+        await app.set_active_project(fetched_active_project)
+
+    # ------------- BINDING ACTIONS -----------------
 
     def action_create_project(self):
         """
@@ -162,71 +237,4 @@ class VexProjectsScreen(Screen):
 
         if active_project and str(active_project.id) == project_id:
             self.active_project.set_active_project("")
-            app.set_active_project(None)
-
-    @on(DataTable.RowSelected)
-    async def select_project(self, event: DataTable.RowSelected) -> None:
-        """
-        Select a project and set it as active by calling vex-cli API.
-        If successful the is_project_active reactive in VexApp is set to True
-        and the rest of the interface becomes active
-        """
-        app = cast("VexApp", self.app)
-        project_id = event.row_key.value
-
-        if project_id is None:
-            return
-
-        host, port = app.get_api_info()
-
-        if host is None or port is None:
-            return
-
-        project = self.projects_table.get_project(project_id)
-        successfully_selected = await select_project(project_id, host, port)
-
-        if successfully_selected and project is not None:
-            self.active_project.set_active_project(project.name)
-            app.set_active_project(project)
-        else:
-            self.notify("Project couldn't be selected", severity="error")
-
-    @work(name="fetch_projects")
-    async def fetch_and_add_projects(self):
-        """
-        Worker function that fetches available projects through vex-cli API
-        and adds them to the table.
-        """
-        app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        if host is None or port is None:
-            return
-
-        projects = await get_all_projects(host, port)
-
-        for project in projects:
-            if self.projects_table.row_exists(str(project.id)):
-                continue
-
-            self.projects_table.insert(project)
-
-        self.projects_table.set_loading(False)
-
-    @work(name="check_active_project")
-    async def check_active_project(self):
-        """
-        Worker function that checks if any project is active,
-        if it is then we set it as active project
-        """
-        app = cast("VexApp", self.app)
-
-        host, port = app.get_api_info()
-        if host is None or port is None:
-            return
-
-        active_project = await get_active_project(host, port)
-
-        name = active_project.name if active_project is not None else ""
-
-        self.active_project.set_active_project(name)
-        app.set_active_project(active_project)
+            await app.set_active_project(None)
