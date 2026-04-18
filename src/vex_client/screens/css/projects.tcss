@@ -20,14 +20,14 @@ VexProjectsScreen {
     background: transparent;
     width: 1fr;
     height: 8fr;
-    border: round $foreground;
+    border: round $accent 40%;
     margin: 1 0;
 }
 
 #projects-table:hover {
-    border: round $accent;
+    border: round $accent 80%;
 }
 
 #projects-table.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }

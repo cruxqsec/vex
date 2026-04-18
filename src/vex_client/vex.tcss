@@ -31,5 +31,37 @@ ScopeSelect > SelectCurrent {
 
 VexDataTable {
     overflow-x: hidden;
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
     margin: 0;
+}
+
+VexTextArea {
+    background: $background;
+    
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
+
+    margin: 0;
+    padding: 0;
+    border: none;
+
+    border-subtitle-color: $foreground;
+    border-subtitle-background: $background;
+    border-subtitle-style: bold;
+    border-subtitle-align: left;
+
+    &.visual-mode {
+        border-subtitle-background: $accent;
+        border-subtitle-style: bold;
+    }
+    
+    &.text-area--selection {
+            background: $accent 60%;
+    }
+
+
+    &.insert-mode {
+
+    }
 }

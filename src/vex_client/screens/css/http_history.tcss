@@ -2,21 +2,23 @@
     width: 1fr;
     height: 1fr;
     background: transparent;
-    border: round $foreground;
-    margin: 0 !important;
+    border: round $accent 40%;
+    margin: 0 0 0 1 !important;
     padding: 0 !important;
+    display: block;
 }
 
-#http-table:hover {
-    border: round $primary;
+#http-table.empty {
+    display: none;
 }
 
 #http-table.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }
 
 #text-areas {
     display: block;
+    margin: 0 1 0 1;
 }
 
 #text-areas.empty {
@@ -25,26 +27,18 @@
 
 #request-area {
     width: 1fr;
-    border: round $foreground;
-}
-
-#request-area:hover {
-    border: round $primary;
+    border: round $accent 40%;
 }
 
 #request-area.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }
 
 #response-area {
     width: 1fr;
-    border: round $foreground;
-}
-
-#response-area:hover {
-    border: round $primary;
+    border: round $accent 40%;
 }
 
 #response-area.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }

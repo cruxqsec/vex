@@ -40,13 +40,15 @@ Screen {
 
 #proxy-list {
     width: 1fr;
-    border: round $foreground;
+    border: round $accent 40%;
     background: transparent;
     margin-left: 20;
     margin-right: 20;
     margin-bottom: 2;
-    
-        
+}
+
+#proxy-list:focus {
+    border: round $accent 100%;
 }
 
 VexProxyListItem {
@@ -94,6 +96,7 @@ Horizontal {
     margin-right: 2;
     padding: 0 2;
 }
+
 .active {
-    color: green;
+    color: $success;
 }

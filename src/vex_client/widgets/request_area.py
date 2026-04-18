@@ -10,12 +10,13 @@ class RequestAreaContainer(EmptyMessageWidget):
     BORDER_TITLE = "Request"
 
     def __init__(self, **kwargs):
-        self.table = VexTextArea(
+        self.text_area = VexTextArea(
             read_only=True,
             tab_behavior="focus",
         )
+        self.text_area.cursor_blink = False
         super().__init__(
-            widget=self.table,
+            widget=self.text_area,
             empty_message="No request to display.",
             **kwargs
         )

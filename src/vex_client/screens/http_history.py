@@ -1,5 +1,6 @@
 import asyncio
 import json
+from uuid import UUID
 from typing import TYPE_CHECKING, cast
 
 import websockets
@@ -8,12 +9,12 @@ from pydantic import ValidationError
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-from textual import work
+from textual import work, on
 from textual.binding import Binding
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Footer, Button
+from textual.widgets import Footer, DataTable
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
@@ -23,6 +24,7 @@ from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.api.summaries_api import get_all_summaries
 from vex_client.api.raw_api import get_raw_request, get_raw_response
+from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 
 class VexHTTPHistoryScreen(Screen):
@@ -30,16 +32,31 @@ class VexHTTPHistoryScreen(Screen):
 
     BINDINGS = [
         Binding(
-            "x",
+            "ctrl+x",
             "hide_show_req_res_areas",
             "Hide/show request and response area",
             show=True,
             priority=True,
         ),
+        Binding(
+            "ctrl+z",
+            "hide_show_http_table",
+            "Hide/show HTTP table",
+            show=True,
+            priority=True,
+        ),
+        Binding(
+            "ctrl+b",
+            "test",
+            "test",
+            show=True,
+            priority=True,
+        )
     ]
 
     def __init__(self, **kwargs) -> None:
-        self.hidden = True;
+        self._req_res_hidden = False
+        self._http_table_hidden = False
         # parent constructor
         super().__init__(**kwargs)
 
@@ -51,15 +68,17 @@ class VexHTTPHistoryScreen(Screen):
     def http_table(self) -> VexHTTPTable:
         return self.query_one(VexHTTPTable)
 
-    # TODO: determine the specific
     @property
     def request_area(self) -> VexTextArea:
-        return self.query_one(VexTextArea)
+        return self.query_one("#request-area", RequestAreaContainer).query_one(
+            VexTextArea
+        )
 
-    # TODO: determine the specific
     @property
     def response_area(self) -> VexTextArea:
-        return self.query_one(VexTextArea)
+        return self.query_one("#response-area", ResponseAreaContainer).query_one(
+            VexTextArea
+        )
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
@@ -159,8 +178,53 @@ class VexHTTPHistoryScreen(Screen):
         except json.JSONDecodeError:
             self.notify("Received data that wasn't even JSON!")
 
+    @on(DataTable.RowSelected)
+    async def select_summary(self, event: DataTable.RowSelected) -> None:
+        """
+        Select a summary and fetch the corresponding raw request/response.
+        Then display them in the text areas.
+        """
+        app = cast("VexApp", self.app)
+        summary_id = cast(UUID, event.row_key.value)
+
+        if summary_id is None:
+            return
+
+        host, port = app.get_api_info()
+
+        if host is None or port is None:
+            return
+
+        raw_request = await get_raw_request(summary_id, host, port)
+        raw_response = await get_raw_response(summary_id, host, port)
+
+        if raw_request:
+            self.request_area.text = raw_request.data.decode("utf-8")
+        else:
+            self.notify("Couldn't fetch request/response data!", severity="error")
+
+        if raw_response:
+            self.response_area.text = (
+                raw_response.data.decode("utf-8") if raw_response.data else ""
+            )
+
     # -------------- ACTIONS -----------------------
 
     def action_hide_show_req_res_areas(self) -> None:
-        self.hidden = not self.hidden
-        self.query_one("#text-areas", Horizontal).set_class(self.hidden, "empty")
+        self._req_res_hidden = not self._req_res_hidden
+        self.query_one("#text-areas", Horizontal).set_class(
+            self._req_res_hidden, "empty"
+        )
+
+    def action_hide_show_http_table(self) -> None:
+        self._http_table_hidden = not self._http_table_hidden
+        self.query_one("#http-table", VexHTTPTableContainer).set_class(
+            self._http_table_hidden, "empty"
+        )
+
+    def action_test(self) -> None:
+        self.log(self.query_one(EmptyMessageWidget).styles)
+        #self.log(self.request_area.styles)
+        #self.log(self.request_area.language)
+        #self.log(self.request_area.theme)
+        #self.log(self.response_area.theme)
