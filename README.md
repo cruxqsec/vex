@@ -10,41 +10,65 @@ This tool is still under development and many things may change.
 
 2. vex-cli - backend component that builds uppon mitmproxy and adds API endpoints and websockets to it
 
-## TODO
+# TODO
 
-### vex client
-* improve startup logic
+## vex (client)
 
-* implement history screen
-1. start websockets when a project is selected
-2. save in temporary cache the recieved requests
-3. get all summaries in an effiecient way
-4. imrove history layout (request/response pair can be maximized)
-5. responsivness
+### General widgets
 
-### vex-cli
-* implement scope functionality
-1. ability to add simple scopes (domains, ips, ipv6)
-2. ability to toggle scopes on and off
-3. add regex support and wildcard domains (*.google.com)
+- [ ] Implement custom footer
+- [ ] VexTextArea vim like status bar
+- [ ] Add help screens
 
-* implement replay functionality
-1. add the ability to replay a request
-2. save the new replays into a database and track changes
+### History screen
 
-* implement intercept functionality
-1. implement the ability to pause requests
-2. implement the ability for any client to forward/drop
-3. implement the ability to pause recieved responses
+- [ ] Add a search bar
+- [ ] Add copy helper
+- [ ] Sorting for History table
+- [x] Syntax highlighting for History table
+- [ ] Implement some sort of caching
+- [ ] Improve responsivness
+- [ ] Add resizable columns
 
-* improve performance
-1. deleting the cached responses from mitmproxy
-2. better database optimizations (indexing)
+### Projects screen
 
-* improve API
-1. pagination, limit support for getting all objects
-2. improve naming API scheme
-3. add functionality (delete all,...)
+- [ ] Improve layout (add buttons, search bar)
+- [ ] Sorting for Projects table
+
+### Intercept screen
+
+- [ ] Implement Request/Response intercept tables
+- [ ] Button to forward,drop
+- [ ] Wire with the global intercept button
+
+### Replay screen
+
+### Scope screen
+
+## vex-cli
+
+### Scope functionality
+- [ ] implement scope functionality
+- [ ] ability to add simple scopes (domains, ips, ipv6)
+- [ ] ability to toggle scopes on and off
+- [ ] add regex support and wildcard domains (*.google.com)
+
+### Replay functionality
+- [ ] add the ability to replay a request
+- [ ] save the new replays into a database and track changes
+
+### Intercept functionality
+- [ ] implement the ability to pause requests
+- [ ] implement the ability for any client to forward/drop
+- [ ] implement the ability to pause recieved responses
+
+### Improve performance
+- [ ] deleting the cached responses from mitmproxy
+- [ ] better database optimizations (indexing)
+
+### improve API
+- [ ] improve naming API scheme
+- [ ] add functionality (delete all,...)
 
 
 

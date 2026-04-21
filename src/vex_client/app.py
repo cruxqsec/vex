@@ -18,6 +18,7 @@ from vex_client.settings import Settings
 from vex_client.vex_builtin_themes import BUILTIN_THEMES
 from vex_client.vex_themes import VexTheme
 from vex_client.widgets.text_area import VexTextArea
+from vex_client.vex_themes import MethodStyles, FileStyle
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,30 @@ class VexApp(App[str]):
 
         for name, vex_theme in BUILTIN_THEMES.items():
             self.register_theme(vex_theme.to_textual_theme())
+
+    def get_theme_variable_defaults(self) -> dict[str, str]:
+        galaxy = BUILTIN_THEMES["nightfly"]
+        m = galaxy.method or MethodStyles()
+        f = galaxy.file_extension or FileStyle()
+        return {
+            "method-get": m.get or "#0ea5e9",
+            "method-post": m.post or "#22c55e",
+            "method-put": m.put or "#f59e0b",
+            "method-delete": m.delete or "#ef4444",
+            "method-patch": m.patch or "#14b8a6",
+            "method-options": m.options or "#8b5cf6",
+            "method-head": m.head or "#d946ef",
+            "ext-html": f.html or "#22c55e",
+            "ext-css": f.css or "#ef4444",
+            "ext-js": f.js or "#f5da0b",
+            "ext-ts": f.ts or "#0ea5e9",
+            "ext-php": f.php or "#00537a",
+            "ext-json": f.json_ext or "#d58317",
+            "ext-pdf": f.pdf or "#ff4646",
+            "ext-png": f.png or "#14b8a6",
+            "ext-jpg": f.jpg or "#8b5cf6",
+            "ext-svg": f.svg or "#d946ef",
+        } 
 
     async def set_active_project(self, active_project: Project | None) -> None:
         """

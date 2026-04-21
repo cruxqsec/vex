@@ -157,6 +157,15 @@ class VexTheme(BaseModel):
                 variables["ext-jpg"] = self.file_extension.jpg
             if self.file_extension.svg:
                 variables["ext-svg"] = self.file_extension.svg
+        
+        if self.success:
+            variables["cookies-yes"] = self.success
+            variables["status-success"] = self.success
+        if self.warning:
+            variables["status-redirect"] = self.warning
+        if self.error:
+            variables["cookies-no"] = self.error
+            variables["status-error"] = self.error
 
         theme_data = {k: v for k, v in theme_data.items() if v is not None}
         theme_data["variables"] = {k: v for k, v in variables.items() if v is not None}

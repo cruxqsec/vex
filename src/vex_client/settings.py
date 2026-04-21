@@ -6,5 +6,5 @@ class Settings(BaseModel):
     """Navigation bar position."""
 
     # atom-one-dark
-    theme: str = Field(default="nautilus")
+    theme: str = Field(default="nightfly")
     """The name of the theme to use."""
