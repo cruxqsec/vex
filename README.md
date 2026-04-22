@@ -26,7 +26,7 @@ This tool is still under development and many things may change.
 - [ ] Add copy helper
 - [ ] Sorting for History table
 - [x] Syntax highlighting for History table
-- [ ] Implement some sort of caching
+- [x] Implement some sort of caching
 - [ ] Improve responsivness
 - [ ] Add resizable columns
 
@@ -48,9 +48,9 @@ This tool is still under development and many things may change.
 ## vex-cli
 
 ### Scope functionality
-- [ ] implement scope functionality
-- [ ] ability to add simple scopes (domains, ips, ipv6)
-- [ ] ability to toggle scopes on and off
+- [x] implement scope functionality
+- [x] ability to add simple scopes (domains, ips, ipv6)
+- [x] ability to toggle scopes on and off
 - [ ] add regex support and wildcard domains (*.google.com)
 
 ### Replay functionality

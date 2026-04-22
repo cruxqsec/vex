@@ -5,12 +5,12 @@ from sqlalchemy import RowMapping, select
 
 from vex_cli.database.base_db import BaseDatabase, T
 from vex_cli.errors import NotFoundError
-from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
+from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM, ScopeORM
 from vex_cli.models.pydantic import FlowSummary
 
 
 class SummariesDatabase(BaseDatabase):
-    _orm_models = [RequestSummaryORM, ResponseSummaryORM]
+    _orm_models = [RequestSummaryORM, ResponseSummaryORM, ScopeORM]
     _wal_mode = True
 
     def __init__(self, db_path: Path):

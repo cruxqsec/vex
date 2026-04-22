@@ -54,6 +54,12 @@ def extract_query(flow: http.HTTPFlow) -> str | None:
     query = urlparse(flow.request.pretty_url).query
     return query if query is not None else None
 
+def extract_cookies(flow: http.HTTPFlow) -> str:
+    if flow.response is None:
+        return ""
+    if flow.response.cookies:
+        return "; ".join(f"{k}={v}" for k, v in flow.request.cookies.items())
+    return ""
 
 def has_cookies(flow: http.HTTPFlow) -> bool:
     if flow.response is None:
