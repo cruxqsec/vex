@@ -10,7 +10,7 @@ class FlowScope:
     def get_active_scope(self) -> Scope | None:
         return self._active_scope
 
-    def set_active_scope(self, scope: Scope) -> None:
+    def set_active_scope(self, scope: Scope | None) -> None:
         self._active_scope = scope
 
     def apply_scope(self, host: str) -> bool:

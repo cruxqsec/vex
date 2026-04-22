@@ -76,12 +76,16 @@ def test_response_summary(mock_flow: http.HTTPFlow):
     summary = ResponseSummary.from_flow(mock_flow)
     now = datetime.timestamp(datetime.now())
 
+    print("-----------")
+    print(summary.cookie)
+    print("-----------")
+
     assert type(summary.flow_id) is UUID
     assert summary.status_code == 200
     assert summary.response_size == 530
     assert summary.mime == "text/html"
     assert summary.http_title == "Example title"
-    assert summary.has_cookie_set
+    assert summary.cookie == "test_token=random-test-cookie"
     assert summary.duration_ms == 50000
 
     # we round the timestamp to an int

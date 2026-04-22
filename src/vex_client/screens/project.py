@@ -59,9 +59,9 @@ class VexProjectsScreen(Screen):
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
-            yield ActiveProject(id="active-project")
+            #yield ActiveProject(id="active-project")
             # with Horizontal(id="projects-bar"):
-            yield Button("+ Create project", classes="func-btn", id="create-btn")
+            #yield Button("+ Create project", classes="func-btn", id="create-btn")
             yield VexProjectTableContainer(id="projects-table")
             yield Footer(classes="vex-footer")
 

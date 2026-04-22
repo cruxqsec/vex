@@ -6,7 +6,8 @@ from vex_cli.models.pydantic import VexServerInfo
 
 @pytest.fixture
 def mock_vex_server_info():
-    return VexServerInfo(server_address="127.0.0.1", proxy_port=8080, api_port=8090)
+    # These ports actually have to be free for the test to pass
+    return VexServerInfo(server_address="127.0.0.1", proxy_port=8088, api_port=8098)
 
 
 def test_try_bind_ports(mock_vex_server_info):

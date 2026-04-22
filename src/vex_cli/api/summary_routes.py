@@ -35,9 +35,9 @@ Endpoints:
 
 """
 
-request_summary_router = APIRouter()
-response_summary_router = APIRouter()
-summary_router = APIRouter()
+request_summary_router = APIRouter(tags=["Request summaries"])
+response_summary_router = APIRouter(tags=["Response summaries"])
+summary_router = APIRouter(tags=["Full summaries"])
 
 # ==================== basic request CRUD routes ====================
 

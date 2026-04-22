@@ -8,7 +8,7 @@ from vex_cli.models.pydantic import RequestSummary, ResponseSummary
 
 logger = logging.getLogger(__name__)
 
-websocket_router = APIRouter()
+websocket_router = APIRouter(tags=["Websockets"])
 
 
 @websocket_router.websocket("/history")

@@ -13,7 +13,7 @@ from vex_cli.models.orm import ScopeORM
 logger = logging.getLogger(__name__)
 
 
-scope_router = APIRouter()
+scope_router = APIRouter(tags=["Scope"])
 
 # ==================== scope CRUD routes ====================
 
@@ -57,8 +57,8 @@ async def delete_scope(
 
 # ==================== scope other routes ====================
 
-@scope_router.get("/scope/select/{id}", response_model=ResponseStatus, status_code=202)
-async def select_scope(
+@scope_router.get("/scope/set/{id}", response_model=ResponseStatus, status_code=202)
+async def set_scope(
     id: int, flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
     scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)]
 ):
@@ -68,7 +68,14 @@ async def select_scope(
     flow_scope.set_active_scope(Scope.from_orm(scope))
     return ResponseStatus(status="Success", msg="Scope successfuly set!")
 
-@scope_router.get("/scope/active/{id}", response_model=Scope | None, status_code=202)
+@scope_router.get("/scope/unset/", response_model=ResponseStatus, status_code=202)
+async def unset_scope(
+    flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
+):
+    flow_scope.set_active_scope(None)
+    return ResponseStatus(status="Success", msg="Scope successfuly unset!")
+
+@scope_router.get("/scope/active/{id}", response_model=Scope | None, status_code=200)
 async def get_active_scope(
     id: int, flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
 ):

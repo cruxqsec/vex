@@ -1,14 +1,12 @@
 # Vex the web security toolkit that lives in your termianl
 
 ## Description
-Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the main features in the terminal.
-It is keyboard driven tool that utilizes vim keybindings and enables security researchers to speed up their research.
-This tool is still under development and many things may change.
+Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the main features in the terminal. It is keyboard driven tool that utilizes vim keybindings and enables security researchers to speed up their research. This tool is still under development and many things may change.
 
 ## Structure
-1. vex - client Terminal app built with Textual
+1. vex - client terminal app built with Textual
 
-2. vex-cli - backend component that builds uppon mitmproxy and adds API endpoints and websockets to it
+2. vex-cli - backend server that extends mitmproxy with the addon system adding database support for summaries and raw requests/responses, a scope system and a replay/intercept system with API endpoints and websockets to query/recieve the data and control it with commands
 
 # TODO
 
@@ -34,6 +32,7 @@ This tool is still under development and many things may change.
 
 - [ ] Improve layout (add buttons, search bar)
 - [ ] Sorting for Projects table
+- [ ] Importing/backuping projects
 
 ### Intercept screen
 
@@ -43,9 +42,17 @@ This tool is still under development and many things may change.
 
 ### Replay screen
 
+- [ ] Add request/response text areas
+- [ ] Allow requests to be forwarded to replay screen
+- [ ] Add numerical buttons for each replay we send
+
 ### Scope screen
 
-## vex-cli
+- [ ] Improve layout
+- [ ] Add the ability to add/remove/update scopes
+- [ ] Wire with global scope dropdown menu
+
+## vex-cli (server)
 
 ### Scope functionality
 - [x] implement scope functionality

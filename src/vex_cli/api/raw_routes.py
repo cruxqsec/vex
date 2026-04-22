@@ -8,9 +8,9 @@ from vex_cli.dependencies import get_raw_db
 from vex_cli.models.orm import RawRequestORM, RawResponseORM
 from vex_cli.models.pydantic import RawRequest, RawResponse, ResponseStatus
 
-raw_request_router = APIRouter()
-raw_response_router = APIRouter()
-raw_router = APIRouter()
+raw_request_router = APIRouter(tags=["Raw requests"])
+raw_response_router = APIRouter(tags=["Raw responses"])
+raw_router = APIRouter(tags=["Raw data"])
 
 # ==================== raw request CRUD routes ====================
 

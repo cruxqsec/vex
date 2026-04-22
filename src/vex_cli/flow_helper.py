@@ -58,7 +58,7 @@ def extract_cookies(flow: http.HTTPFlow) -> str:
     if flow.response is None:
         return ""
     if flow.response.cookies:
-        return "; ".join(f"{k}={v}" for k, v in flow.request.cookies.items())
+        return "; ".join(f"{k}={v[0]}" for k, v in flow.response.cookies.items())
     return ""
 
 def has_cookies(flow: http.HTTPFlow) -> bool:

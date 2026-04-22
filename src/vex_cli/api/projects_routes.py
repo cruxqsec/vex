@@ -14,7 +14,7 @@ from vex_cli.state import VexState
 
 logger = logging.getLogger(__name__)
 
-projects_router = APIRouter()
+projects_router = APIRouter(tags=["Projects"])
 
 # ==================== basic CRUD routes ====================
 
