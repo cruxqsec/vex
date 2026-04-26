@@ -10,9 +10,9 @@ import logging
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Center, Container, Vertical
+from textual.containers import Container, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, ListView, Static
+from textual.widgets import ListView, Static
 
 from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_pid_file
@@ -20,8 +20,9 @@ from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
 from vex_client.api.health_check import check_health_pid, check_health_retries
 from vex_client.screens.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
-from vex_client.version import VERSION
 from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
+from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.center_middle import CenterMiddle
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,6 @@ banner = """
    ░███     ░███████  ░██    ░██
         
 """
-website = "https://vex.sh"
 
 
 class VexProxyScreen(Screen):
@@ -53,13 +53,9 @@ class VexProxyScreen(Screen):
         return self.query_one("#proxy-list", VexProxyList)
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="banner-container"):
-            yield Static(banner, id="banner")
-            # yield Center(VexLink("vex.sh", url=website, id="website-link"))
-            #yield Center(Static(f"Version: {VERSION}", id="version"))
-        with Container(id="main-container"):
-            yield VexProxyList(id="proxy-list")
-        yield Footer()
+        yield CenterMiddle(Static(banner, id="banner"), id="banner-container")
+        yield VexProxyList(id="proxy-list")
+        yield VexFooter()
 
     async def on_mount(self):
         # append the default proxy
@@ -73,6 +69,8 @@ class VexProxyScreen(Screen):
         )
         self.proxy_list.index = 0
         self.item_to_update: VexProxyListItem | None = None
+        self.log(self.query_one(Static).styles)
+        self.log(self.query_one(CenterMiddle).styles)
 
         await self.check_for_running_instance()
 

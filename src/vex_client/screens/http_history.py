@@ -25,6 +25,9 @@ from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.api.summaries_api import get_all_summaries
 from vex_client.api.raw_api import get_raw_request, get_raw_response
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
+from vex_client.widgets.footer import VexFooter
+
+
 
 
 class VexHTTPHistoryScreen(Screen):
@@ -86,7 +89,7 @@ class VexHTTPHistoryScreen(Screen):
         with Horizontal(id="text-areas"):
             yield RequestAreaContainer(id="request-area")
             yield ResponseAreaContainer(id="response-area")
-        yield Footer()
+        yield VexFooter()
 
     def on_mount(self) -> None:
         self.navigation_bar.set_navigation_btn_color()

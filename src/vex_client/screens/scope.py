@@ -3,7 +3,6 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
     Button,
-    Footer,
     Input,
     ListItem,
     ListView,
@@ -12,6 +11,7 @@ from textual.widgets import (
 )
 
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
+from vex_client.widgets.footer import VexFooter
 
 
 class ScopeInput(Input, can_focus=True):
@@ -99,7 +99,7 @@ class VexScopeScreen(Screen):
                     yield ScopeButton("Save", classes="func-btn")
                     yield ScopeButton("Duplicate", classes="func-btn")
                     yield ScopeButton("Delete", classes="func-btn")
-        yield Footer()
+        yield VexFooter()
 
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()

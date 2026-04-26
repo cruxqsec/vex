@@ -8,6 +8,7 @@ from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
+from vex_client.widgets.footer import VexFooter
 
 
 class MethodSelect(Select, can_focus=True):
@@ -66,12 +67,13 @@ class VexReplayScreen(Screen):
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
             with Horizontal(id="send-request-bar"):
-                yield MethodSelect(value="GET", id="method-select")
-                yield Input(value="https://", id="request-input")
-                yield Button("Send", classes="func-btn")
+                pass
+                #yield MethodSelect(value="GET", id="method-select")
+                #yield Input(value="https://", id="request-input")
+                #yield Button("Send", classes="func-btn")
             with Horizontal(id="req-res-area"):
                 pass
-        yield Footer()
+        yield VexFooter()
 
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()

@@ -130,8 +130,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 self.update_cell(
                     str(flow_id), "Status", self.render_status(row.status_code)
                 )
-            if row.has_cookie_set:
-                self.update_cell(str(flow_id), "Cookie", self.render_cookie(row.has_cookie_set))
+            if row.cookie:
+                self.update_cell(str(flow_id), "Cookie", self.render_cookie(bool(row.cookie)))
         self.set_loading(False)
 
     def _style_for(self, component: str) -> Style:
@@ -211,7 +211,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 flow_id, "Sent at", self.time_display(response_summary.timestamp)
             )
             self.update_cell(
-                flow_id, "Cookies", self.render_cookie(response_summary.has_cookie_set)
+                flow_id, "Cookies", self.render_cookie(bool(response_summary.cookie))
             )
         except CellDoesNotExist:
             self.notify(
@@ -233,7 +233,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 full_summary.http_title,
                 full_summary.duration_ms,
                 self.time_display(full_summary.timestamp),
-                self.render_cookie(True if full_summary.has_cookie_set else False),
+                self.render_cookie(bool(full_summary.cookie)),
                 self.render_extension(full_summary.file_extension),
                 key=str(full_summary.flow_id),
             )
@@ -251,7 +251,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 unfinished_summary.response_size = summary.response_size
                 unfinished_summary.mime = summary.mime
                 unfinished_summary.http_title = summary.http_title
-                unfinished_summary.has_cookie_set = summary.has_cookie_set
+                unfinished_summary.cookie = summary.cookie
                 unfinished_summary.duration_ms = summary.duration_ms
                 unfinished_summary.timestamp = summary.timestamp
         if isinstance(summary, FlowSummary):

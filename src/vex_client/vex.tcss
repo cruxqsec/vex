@@ -16,7 +16,6 @@ $empty-hatch: right $surface-lighten-1 70%;
     &:focus {
         background-tint: $text-accent 30%;
     }
-
 }
 
 ScopeSelect > SelectCurrent {
@@ -34,36 +33,34 @@ VexDataTable {
     scrollbar-size-vertical: 0;
     scrollbar-gutter: auto;
     margin: 0;
+
+    & .vex-datatable--method-get    { color: $method-get; }
+    & .vex-datatable--method-post   { color: $method-post; }
+    & .vex-datatable--method-put    { color: $method-put; }
+    & .vex-datatable--method-delete { color: $method-delete; }
+    & .vex-datatable--method-patch  { color: $method-patch; }
+    & .vex-datatable--method-options{ color: $method-options; }
+    & .vex-datatable--method-head   { color: $method-head; }
+
+    & .vex-datatable--status-success  { color: $success; }
+    & .vex-datatable--status-redirect { color: $warning; }
+    & .vex-datatable--status-error    { color: $error; }
+
+    & .vex-datatable--ext-html { color: $ext-html; }
+    & .vex-datatable--ext-css  { color: $ext-css; }
+    & .vex-datatable--ext-js   { color: $ext-js; }
+    & .vex-datatable--ext-ts   { color: $ext-ts; }
+    & .vex-datatable--ext-php  { color: $ext-php; }
+    & .vex-datatable--ext-json { color: $ext-json; }
+    & .vex-datatable--ext-pdf  { color: $ext-pdf; }
+    & .vex-datatable--ext-png  { color: $ext-png; }
+    & .vex-datatable--ext-jpg  { color: $ext-jpg; }
+    & .vex-datatable--ext-svg  { color: $ext-svg; }
+
+    & .vex-datatable--cookie-yes { color: $success; }
+    & .vex-datatable--cookie-no  { color: $error; }
+
 }
-
-VexDataTable > .vex-datatable--method-get    { 
-    color: $method-get; 
-    background: transparent;
-}
-VexDataTable > .vex-datatable--method-post   { color: $method-post; }
-VexDataTable > .vex-datatable--method-put    { color: $method-put; }
-VexDataTable > .vex-datatable--method-delete { color: $method-delete; }
-VexDataTable > .vex-datatable--method-patch  { color: $method-patch; }
-VexDataTable > .vex-datatable--method-options{ color: $method-options; }
-VexDataTable > .vex-datatable--method-head   { color: $method-head; }
-
-VexDataTable > .vex-datatable--status-success  { color: $success; }
-VexDataTable > .vex-datatable--status-redirect { color: $warning; }
-VexDataTable > .vex-datatable--status-error    { color: $error; }
-
-VexDataTable > .vex-datatable--ext-html { color: $ext-html; }
-VexDataTable > .vex-datatable--ext-css  { color: $ext-css; }
-VexDataTable > .vex-datatable--ext-js   { color: $ext-js; }
-VexDataTable > .vex-datatable--ext-ts   { color: $ext-ts; }
-VexDataTable > .vex-datatable--ext-php  { color: $ext-php; }
-VexDataTable > .vex-datatable--ext-json { color: $ext-json; }
-VexDataTable > .vex-datatable--ext-pdf  { color: $ext-pdf; }
-VexDataTable > .vex-datatable--ext-png  { color: $ext-png; }
-VexDataTable > .vex-datatable--ext-jpg  { color: $ext-jpg; }
-VexDataTable > .vex-datatable--ext-svg  { color: $ext-svg; }
-
-VexDataTable > .vex-datatable--cookie-yes { color: $success; }
-VexDataTable > .vex-datatable--cookie-no  { color: $error; }
 
 VexTextArea {
     background: $background;
@@ -94,3 +91,4 @@ VexTextArea {
 
     }
 }
+
