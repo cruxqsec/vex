@@ -6,39 +6,40 @@
     margin: 0 0 0 1 !important;
     padding: 0 !important;
     display: block;
+
+    &.hidden {
+        display: none;
+    }
+
+    &:focus-within {
+        border: round $accent 100%;
+    }
 }
 
-#http-table.empty {
-    display: none;
-}
-
-#http-table.inner-focused {
-    border: round $accent 100%;
-}
 
 #text-areas {
     display: block;
     margin: 0 1 0 1;
-}
-
-#text-areas.empty {
-    display: none;
+    &.hidden {
+        display: none;
+    }
 }
 
 #request-area {
     width: 1fr;
     border: round $accent 40%;
-}
 
-#request-area.inner-focused {
-    border: round $accent 100%;
+    &:focus-within {
+        border: round $accent 100%;
+    }
 }
 
 #response-area {
     width: 1fr;
     border: round $accent 40%;
+
+    &:focus-within {
+        border: round $accent 100%;
+    }
 }
 
-#response-area.inner-focused {
-    border: round $accent 100%;
-}

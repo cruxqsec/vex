@@ -22,9 +22,18 @@ class VexLogsPanel(Widget):
     #log-output {
         background: $panel;
         border-title-align: left;
-        border-top: round $accent;
+        border-top: wide $accent;
     }
     """
 
     def compose(self) -> ComposeResult:
         yield RichLog(id="log-output", highlight=True, markup=True)
+    
+    def toggle_panel(self) -> None:
+        if "visible" in self.classes:
+            self.styles.animate("height", value=0, duration=0.2)
+            self.remove_class("visible")
+        else:
+            self.add_class("visible")
+            self.styles.animate("height", value=10, duration=0.2)
+

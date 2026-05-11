@@ -4,6 +4,7 @@ from textual.widgets import Label
 from textual.containers import Horizontal
 
 from vex_client.version import VERSION
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class OnlineKey(Widget, can_focus=False):
@@ -22,7 +23,6 @@ class OnlineKey(Widget, can_focus=False):
     OnlineKey .online {
         background: $success;
     }
-    
     """
 
     def compose(self) -> ComposeResult:
@@ -73,7 +73,7 @@ class LogsKey(Widget, can_focus=False):
         yield Label(" Logs")
 
     def on_click(self) -> None:
-        pass
+        self.app.toggle_logs() # type: ignore
 
 class VersionKey(Widget, can_focus=False):
     """Version display in the footer."""

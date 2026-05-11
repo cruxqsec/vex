@@ -28,6 +28,7 @@ from vex_client.widgets.project.project_table import (
 )
 from vex_client.widgets.table import VexDataTable
 from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class VexProjectsScreen(Screen):
@@ -64,7 +65,8 @@ class VexProjectsScreen(Screen):
             # with Horizontal(id="projects-bar"):
             #yield Button("+ Create project", classes="func-btn", id="create-btn")
             yield VexProjectTableContainer(id="projects-table")
-            yield VexFooter()
+        yield VexLogsPanel()
+        yield VexFooter()
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
@@ -147,7 +149,7 @@ class VexProjectsScreen(Screen):
             return
 
         # check if already set so we don't do startup/cleanup if it's the same
-        active_project = app.get_active_project()
+        active_project = app.vex_active_project
         if active_project and fetched_active_project.id == active_project.id:
             return
 
@@ -227,7 +229,7 @@ class VexProjectsScreen(Screen):
             return
 
         is_deleted = await delete_project(project_id, host, port)
-        active_project = app.get_active_project()
+        active_project = app.vex_active_project
 
         if is_deleted:
             self.projects_table.remove_row(project_id)

@@ -9,6 +9,7 @@ from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class MethodSelect(Select, can_focus=True):
@@ -73,6 +74,7 @@ class VexReplayScreen(Screen):
                 #yield Button("Send", classes="func-btn")
             with Horizontal(id="req-res-area"):
                 pass
+        yield VexLogsPanel()
         yield VexFooter()
 
     def on_mount(self):

@@ -14,7 +14,7 @@ from textual.binding import Binding
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Footer, DataTable
+from textual.widgets import DataTable
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
@@ -24,10 +24,8 @@ from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.api.summaries_api import get_all_summaries
 from vex_client.api.raw_api import get_raw_request, get_raw_response
-from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 from vex_client.widgets.footer import VexFooter
-
-
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class VexHTTPHistoryScreen(Screen):
@@ -54,14 +52,8 @@ class VexHTTPHistoryScreen(Screen):
             "test",
             show=True,
             priority=True,
-        )
+        ),
     ]
-
-    def __init__(self, **kwargs) -> None:
-        self._req_res_hidden = False
-        self._http_table_hidden = False
-        # parent constructor
-        super().__init__(**kwargs)
 
     @property
     def navigation_bar(self) -> VexNavigationBar:
@@ -82,6 +74,12 @@ class VexHTTPHistoryScreen(Screen):
         return self.query_one("#response-area", ResponseAreaContainer).query_one(
             VexTextArea
         )
+    
+    def __init__(self, **kwargs) -> None:
+        self._req_res_hidden = False
+        self._http_table_hidden = False
+        # parent constructor
+        super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
@@ -89,6 +87,7 @@ class VexHTTPHistoryScreen(Screen):
         with Horizontal(id="text-areas"):
             yield RequestAreaContainer(id="request-area")
             yield ResponseAreaContainer(id="response-area")
+        yield VexLogsPanel()
         yield VexFooter()
 
     def on_mount(self) -> None:
@@ -99,42 +98,14 @@ class VexHTTPHistoryScreen(Screen):
     async def on_screen_resume(self) -> None:
         self.set_focus(self.http_table)
 
+    # ------------- Socket manager and related ---------------
+
     def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
         data = json.loads(raw_data)
         try:
             return RequestSummary.model_validate(data)
         except ValidationError:
             return ResponseSummary.model_validate(data)
-
-    @work(exclusive=True)
-    async def fetch_all_summaries(self) -> None:
-        """
-        Worker function that fetches all summaries of a project
-        through vex-cli API and adds them to the table.
-        """
-        app: VexApp = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        skip: int = 0
-
-        if host is None or port is None:
-            return
-
-        while True:
-            full_summaries: list[FlowSummary] = await get_all_summaries(
-                host, port, skip, 50
-            )
-
-            if not full_summaries:
-                break
-
-            for summary in full_summaries:
-                if self.http_table.row_exists(str(summary.flow_id)):
-                    self.notify(f"Row with key {summary.flow_id} exists")
-                    continue
-
-                self.http_table.insert_full_summary(summary)
-
-            skip += 50
 
     @work(name="history_manager", exclusive=True)
     async def _history_websocket_manager(self) -> None:
@@ -181,6 +152,38 @@ class VexHTTPHistoryScreen(Screen):
         except json.JSONDecodeError:
             self.notify("Received data that wasn't even JSON!")
 
+    # ------------------ Fetching and selecting summaries ---------------
+
+    @work(exclusive=True)
+    async def fetch_all_summaries(self) -> None:
+        """
+        Worker function that fetches all summaries of a project
+        through vex-cli API and adds them to the table.
+        """
+        app: VexApp = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        skip: int = 0
+
+        if host is None or port is None:
+            return
+
+        while True:
+            full_summaries: list[FlowSummary] = await get_all_summaries(
+                host, port, skip, 50
+            )
+
+            if not full_summaries:
+                break
+
+            for summary in full_summaries:
+                if self.http_table.row_exists(str(summary.flow_id)):
+                    self.notify(f"Row with key {summary.flow_id} exists")
+                    continue
+
+                self.http_table.insert_full_summary(summary)
+
+            skip += 50
+
     @on(DataTable.RowSelected)
     async def select_summary(self, event: DataTable.RowSelected) -> None:
         """
@@ -216,18 +219,14 @@ class VexHTTPHistoryScreen(Screen):
     def action_hide_show_req_res_areas(self) -> None:
         self._req_res_hidden = not self._req_res_hidden
         self.query_one("#text-areas", Horizontal).set_class(
-            self._req_res_hidden, "empty"
+            self._req_res_hidden, "hidden"
         )
 
     def action_hide_show_http_table(self) -> None:
         self._http_table_hidden = not self._http_table_hidden
         self.query_one("#http-table", VexHTTPTableContainer).set_class(
-            self._http_table_hidden, "empty"
+            self._http_table_hidden, "hidden"
         )
 
     def action_test(self) -> None:
-        self.log(self.query_one(EmptyMessageWidget).styles)
-        #self.log(self.request_area.styles)
-        #self.log(self.request_area.language)
-        #self.log(self.request_area.theme)
-        #self.log(self.response_area.theme)
+        self.log(self.query_one(VexHTTPTableContainer).styles)

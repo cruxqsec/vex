@@ -29,7 +29,7 @@ class VexHTTPTableContainer(EmptyMessageWidget):
     BORDER_TITLE = "HTTP History"
 
     def __init__(self, **kwargs):
-        # column with percent ration, have to add to 100 for proper display
+        # custom icons for columns
         brown_style = Style(color=Color.from_rgb(139, 69, 19))
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
@@ -56,7 +56,6 @@ class VexHTTPTableContainer(EmptyMessageWidget):
             cursor_type="row",
             zebra_stripes=True,
             cell_padding=1,
-            cursor_foreground_priority="renderable",
             columns=history_columns
         )
         super().__init__(

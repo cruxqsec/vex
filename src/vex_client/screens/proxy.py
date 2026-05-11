@@ -20,9 +20,10 @@ from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
 from vex_client.api.health_check import check_health_pid, check_health_retries
 from vex_client.screens.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
-from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
-from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.center_middle import CenterMiddle
+from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,7 @@ class VexProxyScreen(Screen):
     def compose(self) -> ComposeResult:
         yield CenterMiddle(Static(banner, id="banner"), id="banner-container")
         yield VexProxyList(id="proxy-list")
+        yield VexLogsPanel()
         yield VexFooter()
 
     async def on_mount(self):
@@ -69,54 +71,60 @@ class VexProxyScreen(Screen):
         )
         self.proxy_list.index = 0
         self.item_to_update: VexProxyListItem | None = None
-        self.log(self.query_one(Static).styles)
-        self.log(self.query_one(CenterMiddle).styles)
 
         await self.check_for_running_instance()
 
-    async def action_add_instance(self):
+    async def check_for_running_instance(self):
         """
-        Allow the user to add the list item instance data.
+        Checks for any running instances of vex-cli.
+        If it exists it adds it
         """
 
-        def create_instance(instance_data: InstanceData):
-            server_info = VexServerInfo(
-                server_address=instance_data.address,
-                proxy_port=instance_data.proxy_port,
-                api_port=instance_data.api_port,
-            )
-            item = VexProxyListItem(instance_data.name, server_info)
-            self.proxy_list.append(item)
+        pid_file = vex_pid_file()
 
-        self.app.push_screen(CreateUpdateProxyScreen(None), create_instance)  # type: ignore
-
-    async def action_update_instance(self):
-        """
-        Allow the user to update the list item instance data.
-        """
-        selected_instance = self.proxy_list.highlighted_child
-        if selected_instance is None:
+        if not pid_file.exists():
             return
 
-        # cast for the typer
-        selected_instance = cast(VexProxyListItem, selected_instance)
-        self.item_to_update = selected_instance
+        try:
+            pid_data = read_pid_file(pid_file)
 
-        instance_data = InstanceData(
-            selected_instance.instance_name,
-            selected_instance.server_info.server_address,
-            selected_instance.server_info.proxy_port,
-            selected_instance.server_info.api_port,
-        )
-
-        def update_instance(instance_data: InstanceData):
-            if self.item_to_update is None:
+            if not is_process_running(pid_data.pid):
+                self.notify(
+                    "Found stale PID file in vex data directory. Please delete it."
+                )
+                # stale pid file
                 return
-            self.item_to_update.update_item(instance_data)
-            self.item_to_update = None
 
-        self.app.push_screen(CreateUpdateProxyScreen(instance_data), update_instance)  # type: ignore
+            server_info = VexServerInfo(
+                server_address=pid_data.host,
+                proxy_port=pid_data.proxy_port,
+                api_port=pid_data.api_port,
+            )
 
+            app = cast("VexApp", self.app)
+            instance = self.proxy_list.does_instance_exist(server_info)
+
+            if instance is None:
+                # create new
+                instance = VexProxyListItem("Running instance", server_info)
+                self.proxy_list.append(instance)
+
+            # call /health endpoint to confirm the pid from
+            # the file is the same as from the endpoint
+            health_check_pid_result = await check_health_pid(
+                host=instance.server_info.server_address,
+                port=instance.server_info.api_port,
+            )
+
+            if health_check_pid_result == pid_data.pid:
+                app.vex_controller.server_info = server_info
+                app.vex_controller.cli_pid = pid_data.pid
+                instance.toggle_active()
+
+        except (OSError, ValidationError):
+            self.notify("Error reading vex.pid file.", severity="error")
+
+    
     @on(ListView.Selected)
     async def start_enter_vex(self, event: ListView.Selected) -> None:
         """
@@ -169,10 +177,10 @@ class VexProxyScreen(Screen):
                 message="Failed to start instance. Check logs.", severity="error"
             )
 
+    # ------------ actions -----------------
+
     async def action_stop_instance(self) -> None:
-        """
-        Stops vex-cli when we press Ctrl+s on a highlighted list element
-        """
+        """ Stops vex-cli when we press Ctrl+s on a highlighted list element """
         # we have to work with the highlighted element
         selected_instance = self.proxy_list.highlighted_child
         if selected_instance is None:
@@ -197,52 +205,47 @@ class VexProxyScreen(Screen):
                 severity="error",
             )
 
-    async def check_for_running_instance(self):
+    async def action_add_instance(self):
         """
-        Checks for any running instances of vex-cli.
-        If it exists it adds it
+        Allow the user to add the list item instance data.
         """
 
-        pid_file = vex_pid_file()
+        def create_instance(instance_data: InstanceData):
+            server_info = VexServerInfo(
+                server_address=instance_data.address,
+                proxy_port=instance_data.proxy_port,
+                api_port=instance_data.api_port,
+            )
+            item = VexProxyListItem(instance_data.name, server_info)
+            self.proxy_list.append(item)
 
-        if not pid_file.exists():
+        self.app.push_screen(CreateUpdateProxyScreen(None), create_instance)  # type: ignore
+
+    async def action_update_instance(self):
+        """
+        Allow the user to update the list item instance data.
+        """
+        selected_instance = self.proxy_list.highlighted_child
+        if selected_instance is None:
             return
 
-        try:
-            pid_data = read_pid_file(pid_file)
+        # cast for the typer
+        selected_instance = cast(VexProxyListItem, selected_instance)
+        self.item_to_update = selected_instance
 
-            if not is_process_running(pid_data.pid):
-                self.notify(
-                    "Found stale PID file in vex data directory. Please delete it."
-                )
-                # stale pid file
+        instance_data = InstanceData(
+            selected_instance.instance_name,
+            selected_instance.server_info.server_address,
+            selected_instance.server_info.proxy_port,
+            selected_instance.server_info.api_port,
+        )
+
+        def update_instance(instance_data: InstanceData):
+            if self.item_to_update is None:
                 return
+            self.item_to_update.update_item(instance_data)
+            self.item_to_update = None
 
-            server_info = VexServerInfo(
-                server_address=pid_data.host,
-                proxy_port=pid_data.proxy_port,
-                api_port=pid_data.api_port,
-            )
+        self.app.push_screen(CreateUpdateProxyScreen(instance_data), update_instance)  # type: ignore
 
-            app = cast("VexApp", self.app)
-            instance = self.proxy_list.does_instance_exist(server_info)
-
-            if instance is None:
-                # create new
-                instance = VexProxyListItem("Running instance", server_info)
-                self.proxy_list.append(instance)
-
-            # call /health endpoint to confirm the pid from
-            # the file is the same as from the endpoint
-            health_check_pid_result = await check_health_pid(
-                host=instance.server_info.server_address,
-                port=instance.server_info.api_port,
-            )
-
-            if health_check_pid_result == pid_data.pid:
-                app.vex_controller.set_server_info(server_info)
-                app.vex_controller.set_pid(pid_data.pid)
-                instance.toggle_active()
-
-        except (OSError, ValidationError):
-            self.notify("Error reading vex.pid file.", severity="error")
+    
