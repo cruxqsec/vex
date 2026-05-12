@@ -19,7 +19,7 @@ from vex_client.vex_builtin_themes import BUILTIN_THEMES
 from vex_client.vex_themes import VexTheme
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.vex_themes import MethodStyles, FileStyle
-from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +58,12 @@ class VexApp(App[str]):
             "Navigate to Projects screen",
             priority=True,
         ),
+        Binding(
+            "ctrl+l",
+            "toggle_logs()",
+            "Toggle logs menu",
+            priority=True,
+        ),
         Binding("ctrl+c", "switch('proxy-screen')", "Quit", priority=True),
     ]
 
@@ -70,8 +76,9 @@ class VexApp(App[str]):
         "projects-screen": VexProjectsScreen,
     }
 
-    is_project_active = reactive(False, always_update=True, init=False)
-    is_online = reactive(False)
+    is_project_active: reactive[bool] = reactive(False, init=False)
+    server_online: reactive[bool] = reactive(False, init=False)
+    _log_history: list[LogMessage] = []
 
     async def on_mount(self) -> None:
         self.vex_controller: VexController = VexController()
@@ -100,6 +107,16 @@ class VexApp(App[str]):
             return None, None
 
         return server_info.server_address, server_info.api_port
+
+    # ------------ Logs related -------------
+
+    def log_vex(self, message: str, severity: str = "info") -> None:
+        self._log_history.append(LogMessage(message, severity))
+        for screen_name in self.app.SCREENS:
+            screen = self.get_screen(screen_name)
+            logs_panel = screen.query_one_optional(VexLogsPanel)
+            if logs_panel:
+                logs_panel.write_to_log(message, severity)
 
     def toggle_logs(self) -> None:
         for screen_name in self.app.SCREENS:
@@ -209,6 +226,9 @@ class VexApp(App[str]):
 
     def action_switch(self, screen_name: str) -> None:
         self.switch_screen(screen_name)
+
+    def action_toggle_logs(self) -> None:
+        self.toggle_logs()
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if we can switch screen."""

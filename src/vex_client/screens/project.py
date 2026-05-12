@@ -8,7 +8,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer, Button
+from textual.widgets import DataTable
 
 from vex_cli.models.pydantic import ProjectCreate
 from vex_client.api.project_api import (

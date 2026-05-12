@@ -4,7 +4,6 @@ from textual.widgets import Label
 from textual.containers import Horizontal
 
 from vex_client.version import VERSION
-from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class OnlineKey(Widget, can_focus=False):
@@ -20,7 +19,7 @@ class OnlineKey(Widget, can_focus=False):
         width: auto;
     }
 
-    OnlineKey .online {
+    OnlineKey.online {
         background: $success;
     }
     """
@@ -29,7 +28,7 @@ class OnlineKey(Widget, can_focus=False):
         yield Label(" ")
 
     def on_mount(self) -> None:
-        self.query_one(Label).tooltip = "Online: 127.0.0.1:8080:9000"
+        self.query_one(Label).tooltip = "Offline"
 
 
 class CommandPaletteKey(Widget, can_focus=False):
@@ -73,10 +72,12 @@ class LogsKey(Widget, can_focus=False):
         yield Label(" Logs")
 
     def on_click(self) -> None:
-        self.app.toggle_logs() # type: ignore
+        self.app.toggle_logs()  # type: ignore
+
 
 class VersionKey(Widget, can_focus=False):
     """Version display in the footer."""
+
     DEFAULT_CSS = """
         VersionKey {
             background: $panel;
@@ -95,6 +96,7 @@ class VersionKey(Widget, can_focus=False):
 
 class Seperator(Widget, can_focus=False):
     """Simple | seperator in the footer."""
+
     DEFAULT_CSS = """
         Seperator {
             background: $panel;
@@ -109,6 +111,7 @@ class Seperator(Widget, can_focus=False):
 
 class VexCmdKey(Widget):
     """Command key (format: key description)."""
+
     DEFAULT_CSS = """
     VexCmdKey {
         background: $panel;
@@ -139,6 +142,7 @@ class VexCmdKey(Widget):
 
 class VexFooter(Widget):
     """Custom footer class."""
+
     DEFAULT_CSS = """
     VexFooter {
         dock: bottom;
@@ -161,6 +165,14 @@ class VexFooter(Widget):
     }
     """
 
+    @property
+    def online_key(self) -> OnlineKey:
+        return self.query_one(OnlineKey)
+
+    @property
+    def logs_key(self) -> OnlineKey:
+        return self.query_one(OnlineKey)
+
     def compose(self) -> ComposeResult:
         with Horizontal(id="left-side"):
             yield OnlineKey()
@@ -171,3 +183,10 @@ class VexFooter(Widget):
             yield VexCmdKey("f2", "Settings")
             yield Seperator()
             yield VersionKey()
+
+    def on_mount(self) -> None:
+        self.watch(self.app, "server_online", self._on_server_online_changed)
+
+    def _on_server_online_changed(self, online: bool) -> None:
+        self.online_key.set_class(online, "online")
+        self.online_key.tooltip = "Online" if online else "Offline"
