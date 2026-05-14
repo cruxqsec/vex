@@ -1,7 +1,7 @@
-from vex_client.widgets.text_area import VexTextArea
+from vex_client.widgets.text_area import VexTextAreaWidget
 
 
-class ResponseArea(VexTextArea, can_focus=True):
+class ResponseArea(VexTextAreaWidget):
     """
     Response area widget used for displaying the raw HTTP response.
     """

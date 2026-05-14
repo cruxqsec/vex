@@ -40,8 +40,8 @@ Screen {
 
 #proxy-list {
     width: 1fr;
-    border: tab $foreground;
-    background: $background;
+    border: round $foreground;
+    background: transparent;
     margin-left: 20;
     margin-right: 20;
     margin-bottom: 2;

@@ -9,12 +9,12 @@
 #intercept-table {
     width: 1fr;
     height: 1fr;
-    border: wide $foreground;
+    border: round $foreground;
 }
 
 #intercept-req-area {
     width: 1fr;
     height: 1fr;
-    border: wide $foreground;
+    border: round $foreground;
 }
 

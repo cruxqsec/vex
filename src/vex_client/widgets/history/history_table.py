@@ -5,6 +5,7 @@ from textual.widgets.data_table import CellDoesNotExist
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary
 from vex_client.widgets.table import VexDataTable
+from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 request_columns = (
     ("#", None),
@@ -23,16 +24,26 @@ response_columns = (
     ("Time", None),
 )
 
+class VexHTTPTableContainer(EmptyMessageWidget):
+    """Container that holds VexProjectTable"""
+
+    BORDER_TITLE = "HTTP History"
+
+    def __init__(self, **kwargs):
+        self.table = VexHTTPTable(cursor_type="row", zebra_stripes=True)
+        super().__init__(
+            widget=self.table,
+            empty_message = "Requests proxied through Vex are displayed here.",
+            **kwargs,
+        )
+
 
 class VexHTTPTable(VexDataTable, can_focus=True):
     """
     Table containing HTTP information for the corresponding request and response pair.
     """
 
-    BORDER_TITLE = "HTTP History"
-
     def __init__(self, **kwargs):
-        empty_message = "Requests proxied through Vex are displayed here."
         # column with percent ration, have to add to 100 for proper display
         history_columns = (
             ("#", 4),
@@ -45,13 +56,13 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             ("Title", 8),
             ("Time(ms)", 8),
             ("Sent at", 13),
-            ("Cookie", 4),
+            ("Cookies", 4),
             ("Ext", 2),
         )
 
         # parent constructor
         super().__init__(
-            empty_message=empty_message, percent_columns=history_columns, **kwargs
+            percent_columns=history_columns, **kwargs
         )
 
     def cookie_display(self, has_cookie: bool) -> Text:
@@ -82,23 +93,25 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         return Text(dt_object.strftime("%H:%M:%S %d %b %Y"), style="italic")
 
     def insert_request_summary(self, request_summary: RequestSummary):
-        self.add_row(
-            request_summary.id,
-            request_summary.host,
-            request_summary.method,
-            request_summary.path,
-            request_summary.query,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            request_summary.file_extension,
-            key=str(request_summary.flow_id),
-        )
-
-        self.update_empty_class()
+        try:
+            self.add_row(
+                request_summary.id,
+                request_summary.host,
+                request_summary.method,
+                request_summary.path,
+                request_summary.query,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                request_summary.file_extension,
+                key=str(request_summary.flow_id),
+            )
+            self.post_message(VexDataTable.RowAdded())
+        except ValueError:
+            self.notify("Error inserting summary!", severity="error")
 
     def insert_response_summary(self, response_summary: ResponseSummary):
         flow_id = str(response_summary.flow_id)

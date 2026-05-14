@@ -46,10 +46,12 @@ class InterceptButton(Button, can_focus=False):
         self.is_active = not self.is_active
         if self.is_active:
             self.add_class("intercepting")
-            self.label = "⏸ Intercepting"
+            #⏸
+            self.label = " Intercepting"
         else:
             self.remove_class("intercepting")
-            self.label = "⏩ Forwarding"
+            #⏩
+            self.label = " Forwarding"
 
     def on_button_pressed(self):
         self.toggle()

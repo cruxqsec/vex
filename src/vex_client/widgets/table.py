@@ -1,13 +1,13 @@
 from typing import Any, Tuple
 
-from textual import events
+from textual import events, on
 from textual.geometry import Size
-from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.widgets import DataTable, Label
+from textual.widgets import DataTable
 from textual.widgets.data_table import RowDoesNotExist
+from textual.message import Message
 
-from vex_client.widgets.center_middle import CenterMiddle
+from vex_client.widgets.empty_message_widget import EmptyStateChanged
 
 
 class VexDataTable(DataTable, can_focus=True):
@@ -16,19 +16,23 @@ class VexDataTable(DataTable, can_focus=True):
     and columns that support percent ratio.
     """
 
-    DEFAULT_CSS = """
-    VexDataTable.empty {
-        & #empty-message {
-          color: $text-muted;
-          hatch: right $surface-lighten-1 70%;
-          display: block;
-      }
-    }
-    
-    VexDataTable #empty-message {
-        display: none;
-    }
-    """
+    class Focused(Message):
+        pass
+
+    class Blurred(Message):
+        pass
+
+    def _on_focus(self, event: events.Focus) -> None:
+        self.post_message(self.Focused())
+
+    def _on_blur(self, event: events.Blur) -> None:
+        self.post_message(self.Blurred())
+
+    class RowAdded(Message):
+        pass
+
+    class RowRemoved(Message):
+        pass
 
     BINDINGS = [
         Binding("k", "cursor_up", "Cursor up", show=False),
@@ -42,18 +46,13 @@ class VexDataTable(DataTable, can_focus=True):
     ]
 
     def __init__(
-        self, empty_message: str, percent_columns: Tuple[Tuple[str, int], ...], **kwargs
+        self, percent_columns: Tuple[Tuple[str, int], ...], **kwargs
     ):
-        self.empty_message = empty_message
         self.percent_columns = (
             percent_columns  # custom columns with (name, percent_ratio)
         )
 
         super().__init__(**kwargs)
-
-    def compose(self) -> ComposeResult:
-        self.set_class(self.row_count == 0, "empty")
-        yield CenterMiddle(Label(self.empty_message), id="empty-message")
 
     def row_exists(self, key: str) -> bool:
         try:
@@ -76,11 +75,12 @@ class VexDataTable(DataTable, can_focus=True):
         except IndexError:
             return None
 
-    def update_empty_class(self) -> None:
-        if self.row_count == 0:
-            self.add_class("empty")
-        else:
-            self.remove_class("empty")
+    @on(RowRemoved)
+    @on(RowAdded)
+    def _on_rows_added_removed(self, event: RowAdded | RowRemoved) -> None:
+        self.post_message(EmptyStateChanged(is_empty=self.row_count == 0))
+        #self.set_class(self.row_count == 0, "empty")
+
 
     def on_resize(self, event: events.Resize) -> None:
         """Resize while keeping the percentage ratios."""

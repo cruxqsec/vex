@@ -244,7 +244,7 @@ class VexProxyScreen(Screen):
             if health_check_pid_result == pid_data.pid:
                 app.vex_controller.set_server_info(server_info)
                 app.vex_controller.set_pid(pid_data.pid)
-                self.call_after_refresh(instance.toggle_active)
+                instance.toggle_active()
 
         except (OSError, ValidationError):
             self.notify("Error reading vex.pid file.", severity="error")

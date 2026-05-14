@@ -1,6 +1,7 @@
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import Screen
+from textual.binding import Binding
 from textual.widgets import Button, Footer, Input, Select
 
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
@@ -28,6 +29,11 @@ class MethodSelect(Select, can_focus=True):
 class VexReplayScreen(Screen):
     CSS_PATH = "css/replay.tcss"
 
+    BINDINGS = [
+        Binding("r", "test", "Test", show=True, priority=True),
+    ]
+
+
     def __init__(self, **kwargs):
         self.is_first_mount = True
         # parent constructor
@@ -40,6 +46,20 @@ class VexReplayScreen(Screen):
     @property
     def method_select(self) -> Select:
         return self.query_one("#method-select", Select)
+
+    @property
+    def request_area(self) -> RequestArea:
+        return self.query_one("#request-area", RequestArea)
+
+    @property
+    def response_area(self) -> ResponseArea:
+        return self.query_one("#response-area", ResponseArea)
+
+
+    def action_test(self):
+        self.notify(str(self.request_area.classes))
+        self.notify(str(self.response_area.classes))
+
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")

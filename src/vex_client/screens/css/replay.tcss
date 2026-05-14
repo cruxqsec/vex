@@ -27,35 +27,28 @@ Screen {
 
 #request-area {
     width: 1fr;
-    border: wide $foreground;
+    border: round $foreground;
     margin: 0 1 0 0;
-    
-    &:empty {
-    }
-    
-    &:focus {
-        border: wide $primary;
-    }
-    
-    & .text-area--cursor-line {
-       background: $surface;
-    }
+}
 
+#request-area:hover {
+    border: round $accent;
+}
+
+#request-area.inner-focused {
+    border: round $primary;
 }
 
 #response-area {
     width: 1fr;
-    border: wide $foreground;
+    border: round $foreground;
     margin: 0 0 0 1;
-    
-    &:empty {
-    }
+}
 
-    &:focus {
-        border: wide $primary;
-    }
-    
-    & .text-area--cursor-line {
-       background: $surface;
-    }
+#response-area:hover {
+    border: round $accent;
+}
+
+#response-area.inner-focused {
+    border: round $primary;
 }

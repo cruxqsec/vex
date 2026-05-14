@@ -8,9 +8,9 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.screen import Screen
-from textual.widgets import DataTable, Footer
+from textual.widgets import DataTable, Footer, Button
 
-from vex_cli.models.pydantic import Project, ProjectCreate
+from vex_cli.models.pydantic import ProjectCreate
 from vex_client.api.project_api import (
     create_project,
     delete_project,
@@ -22,7 +22,8 @@ from vex_client.api.project_api import (
 from vex_client.screens.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.project.active_project import ActiveProject
-from vex_client.widgets.project.project_table import VexProjectsTable
+from vex_client.widgets.project.project_table import VexProjectTableContainer, VexProjectTable
+from vex_client.widgets.table import VexDataTable
 
 
 class VexProjectsScreen(Screen):
@@ -32,6 +33,7 @@ class VexProjectsScreen(Screen):
         Binding("c", "create_project", "Create project", show=True, priority=True),
         Binding("d", "delete_project", "Delete project", show=True, priority=True),
         Binding("u", "update_project", "Update project", show=True, priority=True),
+        Binding("r", "test", "test", show=True, priority=True),
     ]
 
     def __init__(self, **kwargs):
@@ -44,8 +46,8 @@ class VexProjectsScreen(Screen):
         return self.query_one("#navigation-bar", VexNavigationBar)
 
     @property
-    def projects_table(self) -> VexProjectsTable:
-        return self.query_one("#projects-table", VexProjectsTable)
+    def projects_table(self) -> VexProjectTable:
+        return self.query_one(VexProjectTable)
 
     @property
     def active_project(self) -> ActiveProject:
@@ -56,11 +58,9 @@ class VexProjectsScreen(Screen):
         with Container(id="main-container"):
             yield ActiveProject(id="active-project")
             # with Horizontal(id="projects-bar"):
-            # yield ProjectCreateButton("+ Create project", classes="func-btn", id="create-btn")
-            yield VexProjectsTable(
-                cursor_type="row", zebra_stripes=True, id="projects-table"
-            )
-        yield Footer(classes="vex-footer")
+            yield Button("+ Create project", classes="func-btn", id="create-btn")
+            yield VexProjectTableContainer(id="projects-table")
+            yield Footer(classes="vex-footer")
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
@@ -72,9 +72,13 @@ class VexProjectsScreen(Screen):
             return
 
         self.projects_table.set_loading(True)
-        self.call_after_refresh(self.fetch_and_add_projects)
-        self.call_after_refresh(self.check_active_project)
+        self.fetch_and_add_projects()
+        self.check_active_project()
+
         self.set_focus(self.projects_table)
+
+    def action_test(self):
+        self.notify(str(self.projects_table.classes))
 
     def action_create_project(self):
         """
@@ -90,7 +94,6 @@ class VexProjectsScreen(Screen):
 
             if created_project:
                 self.projects_table.insert(created_project)
-                self.projects_table.update_empty_class()
             else:
                 self.notify("Error creating project.", severity="error")
 
@@ -152,12 +155,12 @@ class VexProjectsScreen(Screen):
 
         if is_deleted:
             self.projects_table.remove_row(project_id)
-            self.projects_table.update_empty_class()
+            self.projects_table.post_message(VexDataTable.RowRemoved())
         else:
             self.notify("Project couldn't be deleted", severity="error")
             return
 
-        if active_project is not None and str(active_project.id) == project_id:
+        if active_project and str(active_project.id) == project_id:
             self.active_project.set_active_project("")
             app.set_active_project(None)
 
@@ -208,7 +211,6 @@ class VexProjectsScreen(Screen):
             self.projects_table.insert(project)
 
         self.projects_table.set_loading(False)
-        self.projects_table.update_empty_class()
 
     @work(name="check_active_project")
     async def check_active_project(self):
