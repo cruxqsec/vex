@@ -7,6 +7,8 @@ from vex_client.widgets.bar.navigation_bar import VexNavigationBar
 from vex_client.widgets.intercept.intercept_table import VexHTTPInterceptTable
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.text_area import VexTextArea
+from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class VexInterceptScreen(Screen):
@@ -30,9 +32,10 @@ class VexInterceptScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
-        with Vertical(id="main-container"):
-            yield VexHTTPInterceptTable(id="intercept-table")
-        yield Footer()
+        #with Vertical(id="main-container"):
+            #yield VexHTTPInterceptTable(id="intercept-table")
+        yield VexLogsPanel()
+        yield VexFooter()
 
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()

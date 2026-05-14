@@ -1,4 +1,5 @@
 import logging
+from asyncio import CancelledError
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
@@ -10,6 +11,15 @@ logger = logging.getLogger(__name__)
 
 websocket_router = APIRouter(tags=["Websockets"])
 
+@websocket_router.websocket("/ping")
+async def ping(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        await websocket.receive()
+    except WebSocketDisconnect:
+        pass
+    except CancelledError:
+        pass  
 
 @websocket_router.websocket("/history")
 async def history_websocket(
@@ -24,6 +34,8 @@ async def history_websocket(
             await websocket.send_text(summary.model_dump_json())
     except WebSocketDisconnect:
         logger.info("Flow history client disconnected")
+    except CancelledError:
+        pass  
     except Exception as e:
         logger.error(f"Error in websocket: {e}")
     finally:

@@ -10,9 +10,7 @@ from vex_client.process import (
 )
 
 class VexController():
-    """
-    Controller for the vex-cli server
-    """
+    """ Controller for the vex-cli server. """
 
     def __init__(self):
         self.server_info: VexServerInfo | None = None
@@ -23,18 +21,6 @@ class VexController():
         if self.cli_pid == INACTIVE_PROCESS:
             return False
         return True
-    
-    def get_server_info(self) -> VexServerInfo | None:
-        return self.server_info
-
-    def set_server_info(self, server_info: VexServerInfo) -> None:
-        self.server_info = server_info
-    
-    def get_pid(self) -> int:
-        return self.cli_pid
-    
-    def set_pid(self, pid: int) -> None:
-        self.cli_pid = pid
 
     def start_vex_cli(self, server_info: VexServerInfo) -> bool:
         
@@ -44,7 +30,6 @@ class VexController():
         ]
 
         pid = start_detached_process(cmd) 
-        
         if pid == INACTIVE_PROCESS:
             self.cli_pid = INACTIVE_PROCESS
             return False
@@ -59,7 +44,6 @@ class VexController():
 
         try:
             terminated = terminate_process(self.cli_pid)
-
             if terminated and not psutil.pid_exists(self.cli_pid):
                 return True
 

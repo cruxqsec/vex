@@ -1,18 +1,18 @@
 from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
+import websockets
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 import logging
 
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Center, Container, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, ListView, Static
+from textual.widgets import ListView, Static
 
 from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_pid_file
@@ -20,8 +20,10 @@ from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
 from vex_client.api.health_check import check_health_pid, check_health_retries
 from vex_client.screens.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
-from vex_client.version import VERSION
+from vex_client.widgets.center_middle import CenterMiddle
+from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
+from vex_client.widgets.logs_panel import VexLogsPanel
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,6 @@ banner = """
    ░███     ░███████  ░██    ░██
         
 """
-website = "https://vex.sh"
 
 
 class VexProxyScreen(Screen):
@@ -46,20 +47,22 @@ class VexProxyScreen(Screen):
         Binding("u", "update_instance", "Update instance"),
         Binding("ctrl+s", "stop_instance", "Stop instance", show=True),
         Binding("ctrl+c", "app.quit", "Quit", show=False),
+        Binding("ctrl+f", "test", "Quit", show=False),
     ]
 
     @property
     def proxy_list(self) -> VexProxyList:
         return self.query_one("#proxy-list", VexProxyList)
 
+    @property
+    def footer(self) -> VexFooter:
+        return self.query_one(VexFooter)
+
     def compose(self) -> ComposeResult:
-        with Vertical(id="banner-container"):
-            yield Static(banner, id="banner")
-            # yield Center(VexLink("vex.sh", url=website, id="website-link"))
-            #yield Center(Static(f"Version: {VERSION}", id="version"))
-        with Container(id="main-container"):
-            yield VexProxyList(id="proxy-list")
-        yield Footer()
+        yield CenterMiddle(Static(banner, id="banner"), id="banner-container")
+        yield VexProxyList(id="proxy-list")
+        yield VexLogsPanel()
+        yield VexFooter()
 
     async def on_mount(self):
         # append the default proxy
@@ -75,6 +78,144 @@ class VexProxyScreen(Screen):
         self.item_to_update: VexProxyListItem | None = None
 
         await self.check_for_running_instance()
+
+    async def check_for_running_instance(self):
+        """
+        Checks for any running instances of vex-cli.
+        If it exists it adds it
+        """
+
+        app = cast("VexApp", self.app)
+        pid_file = vex_pid_file()
+
+        if not pid_file.exists():
+            return
+
+        try:
+            pid_data = read_pid_file(pid_file)
+
+            if not is_process_running(pid_data.pid):
+                return
+
+            server_info = VexServerInfo(
+                server_address=pid_data.host,
+                proxy_port=pid_data.proxy_port,
+                api_port=pid_data.api_port,
+            )
+
+            instance = self.proxy_list.does_instance_exist(server_info)
+
+            if instance is None:
+                instance = VexProxyListItem("Running instance", server_info)
+                self.proxy_list.append(instance)
+
+            # call /health endpoint to confirm the pid from
+            # the file is the same as from the endpoint
+            health_check_pid_result = await check_health_pid(
+                host=instance.server_info.server_address,
+                port=instance.server_info.api_port,
+            )
+
+            if health_check_pid_result == pid_data.pid:
+                app.log_vex("Found running instance.", severity="info")
+                app.vex_controller.server_info = server_info
+                app.vex_controller.cli_pid = pid_data.pid
+                instance.toggle_active()
+
+        except (OSError, ValidationError):
+            app.log_vex("Error reading vex.pid file!", severity="error")
+
+    @work(name="server_monitor", exclusive=True)
+    async def _server_monitor(self):
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        try:
+            async with websockets.connect(
+                f"ws://{host}:{port}/ws/ping",
+                ping_interval=20,
+                ping_timeout=10,
+            ) as ws:
+                app.server_online = True
+                app.log_vex("Server connected")
+                await ws.wait_closed()
+                app.log_vex("Server shutdown")
+        except websockets.ConnectionClosed:
+            app.log_vex("Server closed connection unexpectedly", "warning")
+        except OSError:
+            # connection refused, server not running
+            app.log_vex("Could not reach server, is it running?", "error")
+        except Exception as e:
+            app.log_vex(f"Unexpected error in server monitor: {e}", "error")
+        finally:
+            app.server_online = False
+
+    # ------------ actions -----------------
+
+    @on(ListView.Selected)
+    async def start_enter_vex(self, event: ListView.Selected) -> None:
+        """
+        Starts vex-cli when we press Enter on selected element.
+        On second enter or if the vex-cli is already running we enter main interface.
+        """
+
+        selected_instance: VexProxyListItem = cast(VexProxyListItem, event.item)
+        server_info = selected_instance.server_info
+        app = cast("VexApp", self.app)
+
+        if app.vex_controller.is_cli_running:
+            self._server_monitor()
+            app.switch_screen("projects-screen")
+            return
+
+        can_bind, port = try_bind_ports(server_info)
+        address = server_info.server_address
+
+        if not can_bind:
+            app.log_vex(
+                message=f"Port {port} on {address} is already in use!",
+                severity="error",
+            )
+            return
+
+        successful_startup = app.vex_controller.start_vex_cli(server_info)
+
+        if successful_startup:
+            app.log_vex("Successfuly started vex-cli.", severity="success")
+            app.log_vex(f"Proxy: {server_info.server_address}:{server_info.proxy_port}")
+            app.log_vex(f"API: {server_info.server_address}:{server_info.api_port}")
+            selected_instance.toggle_active()
+        else:
+            app.log_vex(
+                message="Failed to start instance. Check logs.", severity="error"
+            )
+
+    async def action_stop_instance(self) -> None:
+        """Stops vex-cli when we press Ctrl+s on a highlighted list element"""
+        # we have to work with the highlighted element
+        selected_instance = self.proxy_list.highlighted_child
+        if selected_instance is None:
+            return
+
+        selected_instance = cast(VexProxyListItem, selected_instance)
+        app = cast("VexApp", self.app)
+
+        if not app.vex_controller.is_cli_running:
+            return
+
+        successful_stop = app.vex_controller.stop_vex_cli()
+
+        if successful_stop:
+            selected_instance.toggle_active()
+            await app.set_active_project(None)
+            app.log_vex(message="Server stopped.")
+        else:
+            app.log_vex(
+                message="Failed to stop! Try `kill -9 $pid`",
+                severity="error",
+            )
 
     async def action_add_instance(self):
         """
@@ -100,7 +241,6 @@ class VexProxyScreen(Screen):
         if selected_instance is None:
             return
 
-        # cast for the typer
         selected_instance = cast(VexProxyListItem, selected_instance)
         self.item_to_update = selected_instance
 
@@ -119,132 +259,5 @@ class VexProxyScreen(Screen):
 
         self.app.push_screen(CreateUpdateProxyScreen(instance_data), update_instance)  # type: ignore
 
-    @on(ListView.Selected)
-    async def start_enter_vex(self, event: ListView.Selected) -> None:
-        """
-        Starts vex-cli when we press Enter on selected element.
-        On second enter or if the vex-cli is already running we enter main interface.
-        """
-
-        selected_instance: VexProxyListItem = cast(VexProxyListItem, event.item)
-        server_info = selected_instance.server_info
-        app = cast("VexApp", self.app)
-
-        if app.vex_controller.is_cli_running:
-            # this should happen on second select or if proxy is already running
-            # before we switch we should try a health check
-            health_check_complete = await check_health_retries(
-                retries=10,
-                host=selected_instance.server_info.server_address,
-                port=selected_instance.server_info.api_port,
-            )
-
-            if health_check_complete:
-                app.switch_screen("projects-screen")
-            else:
-                self.notify("Couldn't connect to the server", severity="error")
-
-            return
-
-        can_bind, port = try_bind_ports(server_info)
-        address = server_info.server_address
-
-        if not can_bind:
-            self.notify(
-                title="ERROR",
-                message=f"Port {port} on {address} is already in use!",
-                severity="error",
-            )
-            return
-
-        successful_startup = app.vex_controller.start_vex_cli(server_info)
-
-        if successful_startup:
-            message = (
-                f"API server started on port:{server_info.api_port}\n"
-                f"Proxy server started on port:{server_info.proxy_port}"
-            )
-            self.notify(message=message, timeout=5.0)
-            selected_instance.toggle_active()
-        else:
-            self.notify(
-                message="Failed to start instance. Check logs.", severity="error"
-            )
-
-    async def action_stop_instance(self) -> None:
-        """
-        Stops vex-cli when we press Ctrl+s on a highlighted list element
-        """
-        # we have to work with the highlighted element
-        selected_instance = self.proxy_list.highlighted_child
-        if selected_instance is None:
-            return
-
-        # cast for the typer
-        selected_instance = cast(VexProxyListItem, selected_instance)
-        app = cast("VexApp", self.app)
-
-        if not app.vex_controller.is_cli_running:
-            return
-
-        successful_stop = app.vex_controller.stop_vex_cli()
-
-        if successful_stop:
-            selected_instance.toggle_active()
-            await app.set_active_project(None)
-            self.notify(message="Proxy instance has shutdown")
-        else:
-            self.notify(
-                message="Could not stop vex-cli. Try stopping it yourself",
-                severity="error",
-            )
-
-    async def check_for_running_instance(self):
-        """
-        Checks for any running instances of vex-cli.
-        If it exists it adds it
-        """
-
-        pid_file = vex_pid_file()
-
-        if not pid_file.exists():
-            return
-
-        try:
-            pid_data = read_pid_file(pid_file)
-
-            if not is_process_running(pid_data.pid):
-                self.notify(
-                    "Found stale PID file in vex data directory. Please delete it."
-                )
-                # stale pid file
-                return
-
-            server_info = VexServerInfo(
-                server_address=pid_data.host,
-                proxy_port=pid_data.proxy_port,
-                api_port=pid_data.api_port,
-            )
-
-            app = cast("VexApp", self.app)
-            instance = self.proxy_list.does_instance_exist(server_info)
-
-            if instance is None:
-                # create new
-                instance = VexProxyListItem("Running instance", server_info)
-                self.proxy_list.append(instance)
-
-            # call /health endpoint to confirm the pid from
-            # the file is the same as from the endpoint
-            health_check_pid_result = await check_health_pid(
-                host=instance.server_info.server_address,
-                port=instance.server_info.api_port,
-            )
-
-            if health_check_pid_result == pid_data.pid:
-                app.vex_controller.set_server_info(server_info)
-                app.vex_controller.set_pid(pid_data.pid)
-                instance.toggle_active()
-
-        except (OSError, ValidationError):
-            self.notify("Error reading vex.pid file.", severity="error")
+    def action_test(self):
+        self.log(self.footer.online_key.styles)

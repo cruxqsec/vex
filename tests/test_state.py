@@ -120,6 +120,19 @@ def test_get_db_manager_returns_db_manager(state):
     assert state.get_db_manager() is state._db_manager
 
 
+def test_get_flow_scope_returns_flow_scope(state):
+    from vex_cli.flow_scope import FlowScope
+
+    assert isinstance(state.get_flow_scope(), FlowScope)
+
+
+def test_get_flow_scope_returns_same_instance(state):
+    result1 = state.get_flow_scope()
+    result2 = state.get_flow_scope()
+
+    assert result1 is result2
+
+
 @pytest.mark.asyncio
 async def test_is_project_active_false_without_project(state):
     state._db_manager.is_project_active = False

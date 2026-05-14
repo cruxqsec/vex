@@ -11,6 +11,7 @@ from vex_cli.models.pydantic import (
     VexServerInfo
 )
 from vex_cli.proxy import VexCapture, start_proxy
+from vex_cli.flow_scope import FlowScope
 
 @pytest.fixture
 def mock_app_state():
@@ -23,6 +24,7 @@ def mock_app_state():
     state.is_project_active = True
     state.get_server_info.return_value = server_info  
     state.get_flow_history.return_value = AsyncMock()
+    state.get_flow_scope.return_value = MagicMock(spec=FlowScope)
     state.get_db_manager.return_value = MagicMock()
     state.get_db_manager().summaries_db.create = AsyncMock()
     state.get_db_manager().raw_db.create = AsyncMock()
@@ -61,6 +63,12 @@ def test_init_gets_db_manager(mock_app_state):
     assert capture.db_manager is mock_app_state.get_db_manager()
 
 
+def test_init_gets_flow_scope(mock_app_state):
+    capture = VexCapture(mock_app_state)
+
+    assert capture.flow_scope is mock_app_state.get_flow_scope()
+
+
 @pytest.mark.asyncio
 async def test_request_does_nothing_if_no_active_project(capture, mock_flow):
     capture.app_state.is_project_active = False
@@ -89,7 +97,36 @@ async def test_request_does_not_raise_on_exception(capture, mock_flow, mocker):
         RequestSummary, "from_flow", side_effect=Exception("unexpected")
     )
 
-    await capture.request(mock_flow) 
+    await capture.request(mock_flow)
+
+
+@pytest.mark.asyncio
+async def test_request_sets_in_scope_metadata(capture, mock_flow, mocker):
+    mock_flow.request.pretty_host = "example.com"
+    mock_flow.metadata = {}
+    capture.flow_scope.apply_scope.return_value = True
+    mocker.patch.object(RequestSummary, "from_flow", return_value=MagicMock())
+    mocker.patch.object(RawRequest, "from_flow", return_value=MagicMock())
+    capture._save_and_broadcast = AsyncMock()
+
+    await capture.request(mock_flow)
+
+    capture.flow_scope.apply_scope.assert_called_once_with("example.com")
+    assert mock_flow.metadata["in_scope"] is True
+
+
+@pytest.mark.asyncio
+async def test_request_skips_out_of_scope(capture, mock_flow, mocker):
+    mock_flow.request.pretty_host = "evil.com"
+    mock_flow.metadata = {}
+    capture.flow_scope.apply_scope.return_value = False
+    mocker.patch.object(RequestSummary, "from_flow")
+    capture._save_and_broadcast = AsyncMock()
+
+    await capture.request(mock_flow)
+
+    # Should not try to create summary if out of scope
+    capture._save_and_broadcast.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -121,6 +158,33 @@ async def test_response_does_not_raise_on_exception(capture, mock_flow, mocker):
     )
 
     await capture.response(mock_flow)  # should not raise
+
+
+@pytest.mark.asyncio
+async def test_response_returns_early_when_not_in_scope(capture, mock_flow):
+    mock_flow.metadata = {"in_scope": False}
+    capture.flow_history.broadcast_summary = AsyncMock()
+    capture._save_and_broadcast = AsyncMock()
+
+    await capture.response(mock_flow)
+
+    # Should not try to create summary if out of scope
+    capture._save_and_broadcast.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_response_processes_in_scope_flows(capture, mock_flow, mocker):
+    mock_flow.metadata = {"in_scope": True}
+
+    mock_summary = MagicMock(spec=ResponseSummary)
+    mock_raw = MagicMock(spec=RawResponse)
+    mocker.patch.object(ResponseSummary, "from_flow", return_value=mock_summary)
+    mocker.patch.object(RawResponse, "from_flow", return_value=mock_raw)
+    capture._save_and_broadcast = AsyncMock()
+
+    await capture.response(mock_flow)
+
+    capture._save_and_broadcast.assert_called_once_with(mock_summary, mock_raw)
 
 
 @pytest.mark.asyncio
@@ -157,7 +221,6 @@ async def test_save_and_broadcast_broadcasts_summary(capture):
 
 @pytest.mark.asyncio
 async def test_save_and_broadcast_saves_concurrently(capture, mocker):
-    """Both DB writes should happen in the same gather call, not sequentially."""
     mock_summary = MagicMock(spec=RequestSummary)
     mock_raw = MagicMock(spec=RawRequest)
     gather_spy = mocker.patch("vex_cli.proxy.asyncio.gather", wraps=asyncio.gather)
@@ -165,6 +228,12 @@ async def test_save_and_broadcast_saves_concurrently(capture, mocker):
     await capture._save_and_broadcast(mock_summary, mock_raw)
 
     gather_spy.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_capture_error_method_passes(capture, mock_flow):
+    # Just ensures it doesn't raise
+    await capture.error(mock_flow)
+
 
 @pytest.mark.asyncio
 async def test_start_proxy_adds_addon(mock_app_state, mocker):

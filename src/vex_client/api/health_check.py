@@ -11,9 +11,11 @@ async def check_health_retries(retries: int, host: str, port: int) -> bool:
                 response = await client.get(f"http://{host}:{port}/health")
                 if response.status_code == 200:
                     return True
-        except httpx.TimeoutException as e:
+        except httpx.TimeoutException:
+            retries -= 1
             continue
-        except httpx.RequestError as e:
+        except httpx.RequestError:
+            retries -= 1
             continue
 
     return False
@@ -27,9 +29,9 @@ async def check_health_pid(host: str, port: int) -> int:
             if response.status_code == 200:
                 json_response = response.json()
                 return json_response["pid"]
-    except httpx.TimeoutException as e:
+    except httpx.TimeoutException:
         pass
-    except httpx.RequestError as e:
+    except httpx.RequestError:
         pass
 
     return INACTIVE_PROCESS

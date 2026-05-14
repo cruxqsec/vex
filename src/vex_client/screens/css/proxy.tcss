@@ -1,44 +1,14 @@
-Screen {
-    align: center middle;
-    background: $background;
-}
-
 #banner-container {
-    align: center middle;
-}
-
-#main-container {
-    align: center middle;
+    width: 1.5fr;
 }
 
 #banner {
-    height: 1fr;
-    width: 1fr;
     content-align: center middle;
-    background: $background;
     color: $accent;
-}
-
-#website-link {
-    content-align: center middle;
-    background: $accent-muted;
-    color: $text-accent;
-    padding: 0 2;
-    margin-bottom: 1;
-}
-
-#version {
-    width: auto;
-    height: auto;
-    content-align: center middle;
-    background: $background-lighten-2;
-    color: $accent;
-    padding: 0 2;
-    margin-bottom: 3;
-    text-style: bold;
 }
 
 #proxy-list {
+    height: 1fr;
     width: 1fr;
     border: round $accent 40%;
     background: transparent;
@@ -57,7 +27,7 @@ VexProxyListItem {
     max-height: 3 !important;
 }
 
-Horizontal {
+VexProxyListItem > Horizontal {
     margin-left: 1;
     margin-right: 1;
     margin-bottom: 1;
