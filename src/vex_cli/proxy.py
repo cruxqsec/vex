@@ -7,6 +7,7 @@ from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.flow_history import FlowHistory
+from vex_cli.flow_scope import FlowScope
 from vex_cli.models.pydantic import (
     RawRequest,
     RawResponse,
@@ -26,14 +27,19 @@ class VexCapture:
     """
 
     def __init__(self, app_state: VexState):
-        self._app_state: VexState = app_state
-        self._flow_history: FlowHistory = app_state.get_flow_history()
-        self._db_manager: DatabaseManager = app_state.get_db_manager()
+        self.app_state: VexState = app_state
+        self.flow_history: FlowHistory = app_state.get_flow_history()
+        self.flow_scope: FlowScope = app_state.get_flow_scope()
+        self.db_manager: DatabaseManager = app_state.get_db_manager()
 
     async def request(self, flow: http.HTTPFlow):
         """Called when request is captured"""
         try:
-            if not self._app_state.is_project_active:
+            if not self.app_state.is_project_active:
+                return
+
+            flow.metadata["in_scope"] = self.flow_scope.apply_scope(flow.request.pretty_host)
+            if not flow.metadata["in_scope"]:
                 return
 
             flow.request.headers.pop(
@@ -52,7 +58,10 @@ class VexCapture:
     async def response(self, flow: http.HTTPFlow):
         """Called when response is received"""
         try:
-            if not self._app_state.is_project_active:
+            if not self.app_state.is_project_active:
+                return
+
+            if not flow.metadata.get("in_scope", False):
                 return
 
             summary = ResponseSummary.from_flow(flow)
@@ -73,11 +82,11 @@ class VexCapture:
         raw: RawRequest | RawResponse,
     ):
         await asyncio.gather(
-            self._db_manager.summaries_db.create(summary.to_orm()),
-            self._db_manager.raw_db.create(raw.to_orm()),
+            self.db_manager.summaries_db.create(summary.to_orm()),
+            self.db_manager.raw_db.create(raw.to_orm()),
         )
 
-        await self._flow_history.broadcast_summary(summary)
+        await self.flow_history.broadcast_summary(summary)
 
 
 async def start_proxy(app_state: VexState):

@@ -17,6 +17,7 @@ from vex_cli.api.summary_routes import (
     response_summary_router,
     summary_router,
 )
+from vex_cli.api.scope_routes import scope_router
 from vex_cli.api.websockets import websocket_router
 from vex_cli.errors import AppException
 from vex_cli.state import VexState
@@ -93,5 +94,6 @@ def create_app() -> FastAPI:
     app.include_router(raw_request_router, prefix="/api")
     app.include_router(raw_response_router, prefix="/api")
     app.include_router(raw_router, prefix="/api")
+    app.include_router(scope_router, prefix="/api")
 
     return app

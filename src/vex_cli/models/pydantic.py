@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Union
+import json
 from uuid import UUID
 
 from mitmproxy import http
@@ -11,6 +12,7 @@ from pydantic import (
     ConfigDict,
     Field,
     IPvAnyAddress,
+    AnyUrl,
     TypeAdapter,
 )
 
@@ -21,6 +23,7 @@ from vex_cli.flow_helper import (
     extract_mime,
     extract_query,
     extract_url_path,
+    extract_cookies,
     flow_to_raw_request,
     flow_to_raw_response,
     has_cookies,
@@ -34,6 +37,7 @@ from vex_cli.models.orm import (
     RequestSummaryORM,
     ResponseSummaryORM,
     ProjectORM,
+    ScopeORM
 )
 
 # For Pydantic->ORM conversion
@@ -45,9 +49,26 @@ def check_ip(v: str) -> str:
     TypeAdapter(IPvAnyAddress).validate_python(v)
     return v
 
+def check_domain(v: str) -> str:
+    if "://" in v:
+        raise ValueError(f"URLs with schemes are not allowed, got: {v!r}")
+    
+    url = TypeAdapter(AnyUrl).validate_python(f"https://{v}")
+    
+    if not url.host:
+        raise ValueError(f"Invalid domain: no host found in '{v}'")
+    if url.path and url.path != "/":
+        raise ValueError(f"Domain must not contain a path: '{url.path}'")
+    if url.query:
+        raise ValueError(f"Domain must not contain query parameters: '{url.query}'")
+    if url.fragment:
+        raise ValueError(f"Domain must not contain a fragment: '#{url.fragment}'")
+    
+    return v
 
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
+DomainStr = Annotated[str, BeforeValidator(check_domain)]
 
 
 class VexServerInfo(BaseModel):
@@ -92,6 +113,7 @@ class Project(BaseModel):
 
     def to_orm(self) -> ProjectORM:
         return ProjectORM(**self.model_dump())
+
 
 class ProjectCreate(BaseModel):
     """Used when creating or updating a project — id and timestamps are DB-generated."""
@@ -144,7 +166,7 @@ class ResponseSummary(BaseModel):
     response_size: int
     mime: str | None
     http_title: str | None
-    has_cookie_set: bool
+    cookie: str
     duration_ms: int
     timestamp: float
 
@@ -156,13 +178,38 @@ class ResponseSummary(BaseModel):
             response_size=response_total_size(flow),
             mime=extract_mime(flow),
             http_title=extract_http_title(flow),
-            has_cookie_set=has_cookies(flow),
+            cookie=extract_cookies(flow),
             duration_ms=calculate_response_time_ms(flow),
             timestamp=datetime.timestamp(datetime.now()),
         )
 
     def to_orm(self) -> ResponseSummaryORM:
         return ResponseSummaryORM(**self.model_dump())
+
+
+# for querying the full summaries from db
+class FlowSummary(BaseModel):
+    model_config = _orm_config
+
+    # from RequestSummary (all fields)
+    id: int
+    flow_id: UUID
+    host: str
+    method: str
+    path: str
+    request_size: int
+    is_tls: bool
+    query: str | None
+    file_extension: str | None
+    timestamp: float
+
+    # from ResponseSummary (excluding id, flow_id, timestamp)
+    status_code: int | None = None
+    response_size: int | None = None
+    mime: str | None = None
+    http_title: str | None = None
+    cookie: str | None = None
+    duration_ms: int | None = None
 
 
 class RawRequest(BaseModel):
@@ -198,3 +245,33 @@ class RawResponse(BaseModel):
 
     def to_orm(self) -> RawResponseORM:
         return RawResponseORM(**self.model_dump())
+
+
+ScopeEndpoint = Union[IPStr, DomainStr]
+
+class Scope(BaseModel):
+    """
+    Scope set on the proxy.
+    Composed of allow and deny endpoints.
+    """
+
+    id: int
+    allow_endpoints: list[ScopeEndpoint]
+    deny_endpoints: list[ScopeEndpoint]
+
+    def to_orm(self) -> ScopeORM:
+        return ScopeORM(
+            definitions=json.dumps({
+                "allow": list(self.allow_endpoints),
+                "deny": list(self.deny_endpoints)
+            }),
+    )
+
+    @classmethod
+    def from_orm(cls, orm: ScopeORM) -> "Scope":
+        raw = json.loads(orm.definitions) if orm.definitions else {}
+        return cls(
+            id=orm.id,
+            allow_endpoints=raw.get("allow", []),
+            deny_endpoints=raw.get("deny", []),
+        )

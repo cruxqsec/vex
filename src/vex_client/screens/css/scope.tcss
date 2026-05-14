@@ -9,7 +9,7 @@
 #scope-list {
    width: 1fr; 
    height: 1fr;
-   border: wide $foreground;
+   border: round $accent;
    
    margin: 0 1 0 0;
 }
@@ -27,13 +27,13 @@
    
    margin: 0;
    padding: 0 1;
-   border: wide $foreground;
+   border: round $accent;
 }
 
 #in-scope-area {
    width: 1fr;
    height: 1fr;
-   border: wide $foreground;
+   border: round $accent;
    
    margin: 0 1 0 0;
 }
@@ -41,7 +41,7 @@
 #out-of-scope-area {
    width: 1fr;
    height: 1fr;
-   border: wide $foreground;
+   border: round $accent;
    margin: 0 0 0 1;
 }
 

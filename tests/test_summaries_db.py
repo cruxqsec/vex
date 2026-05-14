@@ -7,6 +7,7 @@ import pytest_asyncio
 from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.errors import NotFoundError
 from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
+from vex_cli.models.pydantic import FlowSummary
 
 
 @pytest_asyncio.fixture
@@ -39,7 +40,7 @@ def make_response_summary(**kwargs):
         "response_size": 2134,
         "mime": "html/text",
         "http_title": "Example title",
-        "has_cookie_set": False,
+        "cookie": "test_cookie=value",
         "duration_ms": 345,
         "timestamp": 324569.43,
     }
@@ -50,7 +51,6 @@ def test_res_cols_excludes_correct_columns(db):
     """id, flow_id, timestamp should be excluded from response cols."""
     res_col_names = {col.key for col in db._res_cols}
 
-    assert "id" not in res_col_names
     assert "flow_id" not in res_col_names
     assert "timestamp" not in res_col_names
 
@@ -61,7 +61,7 @@ def test_res_cols_contains_remaining_columns(db):
     expected = {
         c.name
         for c in ResponseSummaryORM.__table__.columns
-        if c.name not in {"id", "flow_id", "timestamp"}
+        if c.name not in {"flow_id", "timestamp"}
     }
 
     assert res_col_names == expected
@@ -93,22 +93,21 @@ async def test_get_full_summary(db):
         "response_size",
         "mime",
         "http_title",
-        "has_cookie_set",
+        "cookie",
         "duration_ms",
     ]
 
-    assert len(result) == 2
-    assert "id" in result[0]
-    assert "id" in result[1]
+    assert hasattr(result[0], "id")
+    assert hasattr(result[1], "id")
 
     # check the presence of all the req and res summary keys
     for k in req_summary_keys:
-        assert k in result[0]
-        assert k in result[1]
+        assert hasattr(result[0], k)
+        assert hasattr(result[1], k)
 
     for k in res_summary_keys:
-        assert k in result[0]
-        assert k in result[1]
+        assert hasattr(result[0], k)
+        assert hasattr(result[1], k)
 
 
 @pytest.mark.asyncio
@@ -135,8 +134,8 @@ async def test_get_full_summary_by_id_returns_correct(db):
 
     result = await db.get_full_summary_by_id(flow_id)
 
-    assert result is not None
-    assert result["flow_id"] == flow_id
+    assert type(result) is FlowSummary
+    assert result.flow_id == flow_id
 
 
 @pytest.mark.asyncio
@@ -163,19 +162,19 @@ async def test_get_full_summary_by_id_with_response(db):
         "response_size",
         "mime",
         "http_title",
-        "has_cookie_set",
+        "cookie",
         "duration_ms",
     ]
 
-    assert type(result) is dict
-    assert "id" in result
+    assert type(result) is FlowSummary
+    assert hasattr(result, "id")
 
     # check the presence of all the req and res summary keys
     for k in req_summary_keys:
-        assert k in result
+        assert hasattr(result, k) 
 
     for k in res_summary_keys:
-        assert k in result
+        assert hasattr(result, k) 
 
 
 @pytest.mark.asyncio

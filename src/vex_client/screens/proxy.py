@@ -76,7 +76,7 @@ class VexProxyScreen(Screen):
 
         await self.check_for_running_instance()
 
-    def action_add_instance(self):
+    async def action_add_instance(self):
         """
         Allow the user to add the list item instance data.
         """
@@ -92,7 +92,7 @@ class VexProxyScreen(Screen):
 
         self.app.push_screen(CreateUpdateProxyScreen(None), create_instance)  # type: ignore
 
-    def action_update_instance(self):
+    async def action_update_instance(self):
         """
         Allow the user to update the list item instance data.
         """
@@ -171,7 +171,7 @@ class VexProxyScreen(Screen):
                 message="Failed to start instance. Check logs.", severity="error"
             )
 
-    def action_stop_instance(self) -> None:
+    async def action_stop_instance(self) -> None:
         """
         Stops vex-cli when we press Ctrl+s on a highlighted list element
         """
@@ -191,7 +191,7 @@ class VexProxyScreen(Screen):
 
         if successful_stop:
             selected_instance.toggle_active()
-            app.set_active_project(None)
+            await app.set_active_project(None)
             self.notify(message="Proxy instance has shutdown")
         else:
             self.notify(

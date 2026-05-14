@@ -5,8 +5,9 @@ from textual.binding import Binding
 from textual.widgets import Button, Footer, Input, Select
 
 from vex_client.widgets.bar.navigation_bar import VexNavigationBar
-from vex_client.widgets.request_area import RequestArea
-from vex_client.widgets.response_area import ResponseArea
+from vex_client.widgets.text_area import VexTextArea
+from vex_client.widgets.request_area import RequestAreaContainer
+from vex_client.widgets.response_area import ResponseAreaContainer
 
 
 class MethodSelect(Select, can_focus=True):
@@ -48,12 +49,12 @@ class VexReplayScreen(Screen):
         return self.query_one("#method-select", Select)
 
     @property
-    def request_area(self) -> RequestArea:
-        return self.query_one("#request-area", RequestArea)
+    def request_area(self) -> VexTextArea:
+        return self.query_one("#request-area", VexTextArea)
 
     @property
-    def response_area(self) -> ResponseArea:
-        return self.query_one("#response-area", ResponseArea)
+    def response_area(self) -> VexTextArea:
+        return self.query_one("#response-area", VexTextArea)
 
 
     def action_test(self):
@@ -69,18 +70,7 @@ class VexReplayScreen(Screen):
                 yield Input(value="https://", id="request-input")
                 yield Button("Send", classes="func-btn")
             with Horizontal(id="req-res-area"):
-                yield RequestArea(
-                    empty_message="No request",
-                    read_only=False,
-                    tab_behavior="focus",
-                    id="request-area",
-                )
-                yield ResponseArea(
-                    empty_message="No response",
-                    read_only=True,
-                    tab_behavior="focus",
-                    id="response-area",
-                )
+                pass
         yield Footer()
 
     def on_mount(self):

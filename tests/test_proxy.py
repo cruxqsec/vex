@@ -46,28 +46,28 @@ def mock_flow():
 def test_init_sets_app_state(mock_app_state):
     capture = VexCapture(mock_app_state)
 
-    assert capture._app_state is mock_app_state
+    assert capture.app_state is mock_app_state
 
 
 def test_init_gets_flow_history(mock_app_state):
     capture = VexCapture(mock_app_state)
 
-    assert capture._flow_history is mock_app_state.get_flow_history()
+    assert capture.flow_history is mock_app_state.get_flow_history()
 
 
 def test_init_gets_db_manager(mock_app_state):
     capture = VexCapture(mock_app_state)
 
-    assert capture._db_manager is mock_app_state.get_db_manager()
+    assert capture.db_manager is mock_app_state.get_db_manager()
 
 
 @pytest.mark.asyncio
 async def test_request_does_nothing_if_no_active_project(capture, mock_flow):
-    capture._app_state.is_project_active = False
+    capture.app_state.is_project_active = False
 
     await capture.request(mock_flow)
 
-    capture._flow_history.broadcast_summary.assert_not_called()
+    capture.flow_history.broadcast_summary.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -94,11 +94,11 @@ async def test_request_does_not_raise_on_exception(capture, mock_flow, mocker):
 
 @pytest.mark.asyncio
 async def test_response_does_nothing_if_no_active_project(capture, mock_flow):
-    capture._app_state.is_project_active = False
+    capture.app_state.is_project_active = False
 
     await capture.response(mock_flow)
 
-    capture._flow_history.broadcast_summary.assert_not_called()
+    capture.flow_history.broadcast_summary.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -130,7 +130,7 @@ async def test_save_and_broadcast_saves_to_summaries_db(capture, mocker):
 
     await capture._save_and_broadcast(mock_summary, mock_raw)
 
-    capture._db_manager.summaries_db.create.assert_called_once_with(
+    capture.db_manager.summaries_db.create.assert_called_once_with(
         mock_summary.to_orm()
     )
 
@@ -142,7 +142,7 @@ async def test_save_and_broadcast_saves_to_raw_db(capture, mocker):
 
     await capture._save_and_broadcast(mock_summary, mock_raw)
 
-    capture._db_manager.raw_db.create.assert_called_once_with(mock_raw.to_orm())
+    capture.db_manager.raw_db.create.assert_called_once_with(mock_raw.to_orm())
 
 
 @pytest.mark.asyncio
@@ -152,7 +152,7 @@ async def test_save_and_broadcast_broadcasts_summary(capture):
 
     await capture._save_and_broadcast(mock_summary, mock_raw)
 
-    capture._flow_history.broadcast_summary.assert_called_once_with(mock_summary)
+    capture.flow_history.broadcast_summary.assert_called_once_with(mock_summary)
 
 
 @pytest.mark.asyncio

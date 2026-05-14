@@ -60,7 +60,7 @@ class ResponseSummaryORM(Base):
     response_size: Mapped[int] = mapped_column(Integer, nullable=False)
     mime: Mapped[str | None] = mapped_column(String, nullable=True)
     http_title: Mapped[str | None] = mapped_column(String, nullable=True)
-    has_cookie_set: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    cookie: Mapped[str] = mapped_column(String, nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     timestamp: Mapped[float] = mapped_column(Float, nullable=False)
 
@@ -87,3 +87,12 @@ class RawResponseORM(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)  # flow_id
     data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
+
+class ScopeORM(Base):
+    """Scopes that are set by the user."""
+
+    __tablename__ = "scopes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    definitions: Mapped[str] = mapped_column(String, nullable=True)

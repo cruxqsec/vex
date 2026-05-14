@@ -4,6 +4,7 @@ from mitmproxy.test import tflow, tutils
 
 from vex_cli.flow_helper import (
     calculate_response_time_ms,
+    extract_cookies,
     extract_extension,
     extract_http_title,
     extract_mime,
@@ -154,6 +155,33 @@ def test_has_cookies_true(mock_flow: http.HTTPFlow):
 
 def test_has_cookies_no_res(mock_flow_no_resp: http.HTTPFlow):
     assert not has_cookies(mock_flow_no_resp)
+
+
+def test_extract_cookies_single(mock_flow: http.HTTPFlow):
+    assert extract_cookies(mock_flow) == "test_token=random-test-cookie"
+
+
+def test_extract_cookies_no_response(mock_flow_no_resp: http.HTTPFlow):
+    assert extract_cookies(mock_flow_no_resp) == ""
+
+
+def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
+    # Create a flow with response but no cookies
+    import mitmproxy.test.tflow as tflow_module
+    req = tutils.treq(
+        host="example.com",
+        scheme="http",
+        method="GET",
+        path="/test",
+        content=b"",
+    )
+    resp = tutils.tresp(status_code=200, content=b"test")
+    flow = tflow_module.tflow(req=req, resp=resp)
+
+    if flow.response:
+        flow.response.cookies.clear()
+    
+    assert extract_cookies(flow) == ""
 
 
 def test_calculate_response_time_ms(mock_flow: http.HTTPFlow):

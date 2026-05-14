@@ -21,7 +21,7 @@ async def get_all_projects(host: str, port: int) -> list[Project]:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return []
 
 
@@ -36,7 +36,7 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return None
 
 
@@ -56,7 +56,7 @@ async def create_project(
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return None
 
 
@@ -76,7 +76,7 @@ async def update_project(
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return False
 
 
@@ -91,7 +91,7 @@ async def delete_project(id: str, host: str, port: int) -> bool:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return False
 
 
@@ -108,7 +108,7 @@ async def select_project(id: str, host: str, port: int) -> bool:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return False
 
 
@@ -124,5 +124,5 @@ async def get_active_project(host: str, port: int) -> Project | None:
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
     except Exception as e:
-        logger.error(f"{response.json()}\n {e}")
+        logger.error(f"Unexpected error: {e}")
     return None

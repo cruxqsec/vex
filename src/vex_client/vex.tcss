@@ -28,3 +28,69 @@ ScopeSelect > SelectCurrent {
     padding: 0 2;
     margin-top: 0 !important;
 }
+
+VexDataTable {
+    overflow-x: hidden;
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
+    margin: 0;
+}
+
+VexDataTable > .vex-datatable--method-get    { 
+    color: $method-get; 
+    background: transparent;
+}
+VexDataTable > .vex-datatable--method-post   { color: $method-post; }
+VexDataTable > .vex-datatable--method-put    { color: $method-put; }
+VexDataTable > .vex-datatable--method-delete { color: $method-delete; }
+VexDataTable > .vex-datatable--method-patch  { color: $method-patch; }
+VexDataTable > .vex-datatable--method-options{ color: $method-options; }
+VexDataTable > .vex-datatable--method-head   { color: $method-head; }
+
+VexDataTable > .vex-datatable--status-success  { color: $success; }
+VexDataTable > .vex-datatable--status-redirect { color: $warning; }
+VexDataTable > .vex-datatable--status-error    { color: $error; }
+
+VexDataTable > .vex-datatable--ext-html { color: $ext-html; }
+VexDataTable > .vex-datatable--ext-css  { color: $ext-css; }
+VexDataTable > .vex-datatable--ext-js   { color: $ext-js; }
+VexDataTable > .vex-datatable--ext-ts   { color: $ext-ts; }
+VexDataTable > .vex-datatable--ext-php  { color: $ext-php; }
+VexDataTable > .vex-datatable--ext-json { color: $ext-json; }
+VexDataTable > .vex-datatable--ext-pdf  { color: $ext-pdf; }
+VexDataTable > .vex-datatable--ext-png  { color: $ext-png; }
+VexDataTable > .vex-datatable--ext-jpg  { color: $ext-jpg; }
+VexDataTable > .vex-datatable--ext-svg  { color: $ext-svg; }
+
+VexDataTable > .vex-datatable--cookie-yes { color: $success; }
+VexDataTable > .vex-datatable--cookie-no  { color: $error; }
+
+VexTextArea {
+    background: $background;
+    
+    scrollbar-size-vertical: 0;
+    scrollbar-gutter: auto;
+
+    margin: 0;
+    padding: 0;
+    border: none;
+
+    border-subtitle-color: $foreground;
+    border-subtitle-background: $background;
+    border-subtitle-style: bold;
+    border-subtitle-align: left;
+
+    &.visual-mode {
+        border-subtitle-background: $accent;
+        border-subtitle-style: bold;
+    }
+    
+    &.text-area--selection {
+            background: $accent 60%;
+    }
+
+
+    &.insert-mode {
+
+    }
+}

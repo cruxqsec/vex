@@ -8,9 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 class FlowHistory:
-    """Maintains and broadcasts captured HTTP flows"""
-
-    """Clients subscribe through the Websocket API """
+    """
+    Maintains and broadcasts captured HTTP flows.
+    Clients subscribe through the Websocket API.
+    """
 
     def __init__(self):
         self._subscribers: Set[asyncio.Queue] = set()

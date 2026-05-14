@@ -27,28 +27,28 @@ Screen {
 
 #request-area {
     width: 1fr;
-    border: round $foreground;
+    border: round $accent 40%;
     margin: 0 1 0 0;
 }
 
 #request-area:hover {
-    border: round $accent;
+    border: round $accent 80%;
 }
 
 #request-area.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }
 
 #response-area {
     width: 1fr;
-    border: round $foreground;
+    border: round $accent 40%;
     margin: 0 0 0 1;
 }
 
 #response-area:hover {
-    border: round $accent;
+    border: round $accent 80%;
 }
 
 #response-area.inner-focused {
-    border: round $primary;
+    border: round $accent 100%;
 }

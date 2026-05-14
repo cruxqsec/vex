@@ -32,3 +32,9 @@ def vex_projects_db_path() -> Path:
 def vex_pid_file() -> Path:
     """Path to the vex-cli pid file."""
     return vex_data_directory() / "vex.pid"
+
+
+def vex_tree_sitter_directory() -> Path:
+    vex_tree_sitter_dir: Path = vex_data_directory() / "logs"
+    vex_tree_sitter_dir.mkdir(exist_ok=True)
+    return vex_tree_sitter_dir

@@ -3,18 +3,19 @@ from uuid import UUID
 
 from sqlalchemy import RowMapping, select
 
-from vex_cli.database.base_db import BaseDatabase
+from vex_cli.database.base_db import BaseDatabase, T
 from vex_cli.errors import NotFoundError
-from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
+from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM, ScopeORM
+from vex_cli.models.pydantic import FlowSummary
 
 
 class SummariesDatabase(BaseDatabase):
-    _orm_models = [RequestSummaryORM, ResponseSummaryORM]
+    _orm_models = [RequestSummaryORM, ResponseSummaryORM, ScopeORM]
     _wal_mode = True
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
-        _exclude = {"id", "flow_id", "timestamp"}
+        _exclude = {"flow_id", "timestamp"}
         # RequestSummary columns to select
         self._req_cols = [
             getattr(RequestSummaryORM, c.name)
@@ -27,7 +28,17 @@ class SummariesDatabase(BaseDatabase):
             if c.name not in _exclude
         ]
 
-    async def get_full_summaries(self, skip: int, size: int) -> list:
+    async def get_by_flow_id(self, model: type[T], flow_id: UUID) -> T:
+        async with self.session() as s:
+            result = await s.execute(
+                select(model).where(model.flow_id == flow_id)  # type: ignore
+            )
+            obj = result.scalars().first()
+            if obj is None:
+                raise NotFoundError("Object not found")
+            return obj
+
+    async def get_full_summaries(self, skip: int, size: int) -> list[FlowSummary]:
         """List of full summaries (Request/ResponseSummary)"""
         async with self.session() as s:
             statement = (
@@ -40,9 +51,11 @@ class SummariesDatabase(BaseDatabase):
                 .limit(size)
             )
             result = await s.execute(statement)
-            return list(result.mappings().all())
+            return [
+                FlowSummary.model_validate(dict(row)) for row in result.mappings().all()
+            ]
 
-    async def get_full_summary_by_id(self, flow_id: UUID) -> dict:
+    async def get_full_summary_by_id(self, flow_id: UUID) -> FlowSummary:
         """Get a single summary (Request/ResponseSummary). TODO: Improve return type!"""
         async with self.session() as s:
             statement = (
@@ -57,4 +70,4 @@ class SummariesDatabase(BaseDatabase):
             row: RowMapping | None = result.mappings().first()
             if row is None:
                 raise NotFoundError("Summary not found")
-            return dict(row)
+            return FlowSummary.model_validate(dict(row))

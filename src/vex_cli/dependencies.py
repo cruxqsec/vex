@@ -5,6 +5,7 @@ from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.flow_history import FlowHistory
+from vex_cli.flow_scope import FlowScope
 from vex_cli.state import VexState
 
 """
@@ -18,6 +19,10 @@ def get_state_object(request: Request) -> VexState:
 
 def get_flow_history(websocket: WebSocket) -> FlowHistory:
     return websocket.app.state.vex_state.get_flow_history()
+
+
+def get_flow_scope(request: Request) -> FlowScope:
+    return request.app.state.vex_state.get_flow_scope()
 
 
 def get_db_manager(request: Request) -> DatabaseManager:

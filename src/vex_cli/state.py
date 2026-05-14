@@ -3,6 +3,7 @@ import logging
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.flow_history import FlowHistory
+from vex_cli.flow_scope import FlowScope
 from vex_cli.locations import vex_log_directory
 from vex_cli.models.pydantic import Project, VexServerInfo
 from vex_cli.errors import AppException
@@ -21,6 +22,7 @@ class VexState:
         self._active_project: Project | None = None
 
         self._flow_history: FlowHistory = FlowHistory()
+        self._flow_scope: FlowScope = FlowScope()
 
         self._configure_logging()
 
@@ -44,6 +46,9 @@ class VexState:
 
     def get_flow_history(self) -> FlowHistory:
         return self._flow_history
+
+    def get_flow_scope(self) -> FlowScope:
+        return self._flow_scope
 
     def get_db_manager(self) -> DatabaseManager:
         return self._db_manager

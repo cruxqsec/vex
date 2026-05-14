@@ -5,6 +5,7 @@ import pytest
 from vex_cli.dependencies import (
     get_db_manager,
     get_flow_history,
+    get_flow_scope,
     get_projects_db,
     get_raw_db,
     get_state_object,
@@ -58,3 +59,9 @@ def test_get_raw_db_returns_raw_db(mock_request):
     result = get_raw_db(mock_request)
 
     assert result is mock_request.app.state.vex_state.get_db_manager().raw_db
+
+
+def test_get_flow_scope_returns_flow_scope(mock_request):
+    result = get_flow_scope(mock_request)
+
+    assert result is mock_request.app.state.vex_state.get_flow_scope()

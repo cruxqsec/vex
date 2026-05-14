@@ -1,10 +1,16 @@
 from os import getpid
 
 from fastapi import APIRouter
+from fastapi.responses import RedirectResponse
 
 from vex_client.version import VERSION
 
 health_router = APIRouter()
+
+@health_router.get("/")
+async def swagger_docs():
+    """Redirect to swagger docs for easy access."""
+    return RedirectResponse(url="/docs")
 
 
 @health_router.get("/health")
