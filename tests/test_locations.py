@@ -1,5 +1,3 @@
-# test_locations.py
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -26,6 +24,7 @@ def test_vex_data_directory_creates_dir(tmp_path):
         assert result.exists()
         assert result.is_dir()
 
+
 def test_vex_data_project_dir_is_created(tmp_path):
     with patch("vex_cli.locations.user_data_dir", return_value=str(tmp_path / "vex")):
         result = vex_projects_directory()
@@ -33,12 +32,14 @@ def test_vex_data_project_dir_is_created(tmp_path):
         assert result.is_dir()
         assert (vex_data_directory() / "projects").exists()
 
+
 def test_vex_data_log_dir_is_created(tmp_path):
     with patch("vex_cli.locations.user_data_dir", return_value=str(tmp_path / "vex")):
         result = vex_log_directory()
         assert result.exists()
         assert result.is_dir()
         assert (vex_data_directory() / "logs").exists()
+
 
 def test_vex_data_pid_file_is_created(tmp_path):
     with patch("vex_cli.locations.user_data_dir", return_value=str(tmp_path / "vex")):

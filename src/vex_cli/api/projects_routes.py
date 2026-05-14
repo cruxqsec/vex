@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, Query
 
 from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
-from vex_cli.errors import DatabaseError
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.orm import ProjectORM
 from vex_cli.models.pydantic import Project, ResponseStatus
@@ -75,12 +74,8 @@ async def delete_project(
     Deletes the database entry and the project directory
     """
     db_manager = state_obj.get_db_manager()
-    projects_db = db_manager.get_projects_db()
 
-    if not projects_db:
-        raise DatabaseError("Projects database not initialized.")
-
-    await projects_db.delete(ProjectORM, project_id)
+    await db_manager.projects_db.delete(ProjectORM, project_id)
 
     path = vex_projects_directory() / str(project_id)
     if path.exists() and path.is_dir():
@@ -107,12 +102,8 @@ async def select_project(
     Selects the project as active.
     """
     db_manager = state_obj.get_db_manager()
-    projects_db = db_manager.get_projects_db()
 
-    if not projects_db:
-        raise DatabaseError("Projects database not initialized.")
-
-    project_row = await projects_db.get(ProjectORM, project_id)
+    project_row = await db_manager.projects_db.get(ProjectORM, project_id)
     project = Project.model_validate(project_row)
 
     project_path = vex_projects_directory() / str(project_id)

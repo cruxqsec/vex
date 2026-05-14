@@ -5,6 +5,7 @@ from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.flow_history import FlowHistory
 from vex_cli.locations import vex_log_directory
 from vex_cli.models.pydantic import Project, VexServerInfo
+from vex_cli.errors import AppException
 
 logger = logging.getLogger(__name__)
 
@@ -56,5 +57,7 @@ class VexState:
         )
 
     async def shutdown(self):
-        if self._db_manager:
+        if hasattr(self, "_db_manager") and self._db_manager:
             await self._db_manager.close()
+        else:
+            raise AppException("Database manager was not initialized in state.")

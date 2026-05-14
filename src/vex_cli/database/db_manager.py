@@ -27,12 +27,16 @@ class DatabaseManager:
         self._summaries_db: SummariesDatabase | None = None
         self._raw_db: RawDatabase | None = None
 
-    def get_projects_db(self) -> ProjectsDatabase:
+    @property
+    def projects_db(self) -> ProjectsDatabase:
+        if not self._projects_db:
+            raise DatabaseError("Error - projects database not initialized")
+
         return self._projects_db
 
     @property
     def summaries_db(self) -> SummariesDatabase:
-        if self._summaries_db is None:
+        if not self._summaries_db:
             raise DatabaseError(
                 "No active project — summaries database not initialized"
             )
@@ -40,7 +44,7 @@ class DatabaseManager:
 
     @property
     def raw_db(self) -> RawDatabase:
-        if self._raw_db is None:
+        if not self._raw_db:
             raise DatabaseError("No active project — raw database not initialized")
         return self._raw_db
 

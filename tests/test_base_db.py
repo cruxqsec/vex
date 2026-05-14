@@ -2,9 +2,9 @@ import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock
 from pathlib import Path
-from sqlalchemy import String, Uuid, LargeBinary, DateTime, inspect, text, ForeignKey
+from sqlalchemy import String, Uuid, LargeBinary, DateTime, inspect, text
 from sqlalchemy.ext.asyncio import AsyncEngine
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column
 from uuid import UUID, uuid4
 from datetime import datetime

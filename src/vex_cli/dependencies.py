@@ -25,12 +25,12 @@ def get_db_manager(request: Request) -> DatabaseManager:
 
 
 def get_projects_db(request: Request) -> ProjectsDatabase:
-    return request.app.state.vex_state.get_db_manager().get_projects_db()
+    return request.app.state.vex_state.get_db_manager().projects_db
 
 
 def get_summaries_db(request: Request) -> SummariesDatabase | None:
-    return request.app.state.vex_state.get_db_manager().get_summaries_db()
+    return request.app.state.vex_state.get_db_manager().summaries_db
 
 
 def get_raw_db(request: Request) -> RawDatabase | None:
-    return request.app.state.vex_state.get_db_manager().get_raw_db()
+    return request.app.state.vex_state.get_db_manager().raw_db

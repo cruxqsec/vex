@@ -1,4 +1,3 @@
-# tests/test_db_manager.py
 import pytest
 from unittest.mock import AsyncMock
 
@@ -45,7 +44,7 @@ async def test_initialize_does_not_initialize_project_dbs(manager):
 async def test_get_projects_db_returns_db(manager):
     await manager.initialize()
 
-    result = manager.get_projects_db()
+    result = manager.projects_db
 
     assert result is manager._projects_db
 
@@ -59,19 +58,19 @@ async def test_get_projects_db_raises_before_initialize(mocker):
     manager._projects_db = None  # pyright: ignore force uninitialized state
 
     with pytest.raises(DatabaseError):
-        manager.get_projects_db()
+        manager.projects_db
 
 
 @pytest.mark.asyncio
 async def test_get_summaries_db_raises_before_switch(manager):
     with pytest.raises(DatabaseError, match="summaries database not initialized"):
-        manager.get_summaries_db()
+        manager.summaries_db
 
 @pytest.mark.asyncio
 async def test_get_summaries_db_returns_db_after_switch(manager, tmp_path):
     await manager.switch_project_databases(tmp_path)
 
-    result = manager.get_summaries_db()
+    result = manager.summaries_db
 
     assert result is manager._summaries_db
 
@@ -79,13 +78,13 @@ async def test_get_summaries_db_returns_db_after_switch(manager, tmp_path):
 @pytest.mark.asyncio
 async def test_get_raw_db_raises_before_switch(manager):
     with pytest.raises(DatabaseError, match="raw database not initialized"):
-        manager.get_raw_db()
+        manager.raw_db
 
 @pytest.mark.asyncio
 async def test_get_raw_db_returns_db_after_switch(manager, tmp_path):
     await manager.switch_project_databases(tmp_path)
 
-    result = manager.get_raw_db()
+    result = manager.raw_db
 
     assert result is manager._raw_db
 

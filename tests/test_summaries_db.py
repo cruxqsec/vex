@@ -1,4 +1,3 @@
-# tests/test_summaries_db.py
 from pathlib import Path
 from uuid import uuid4
 
@@ -127,9 +126,6 @@ async def test_get_full_summaries_empty(db):
     result = await db.get_full_summaries(skip=0, size=10)
 
     assert result == []
-
-
-# --- get_full_summary_by_id tests ---
 
 
 @pytest.mark.asyncio
