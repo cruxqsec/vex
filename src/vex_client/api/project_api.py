@@ -1,14 +1,13 @@
 import logging
-from typing import List
 
 import httpx
 
-from vex_cli.models.pydantic import Project
+from vex_cli.models.pydantic import Project, ProjectCreate
 
 logger = logging.getLogger(__name__)
 
 
-async def get_all_projects(host: str, port: int) -> List[Project]:
+async def get_all_projects(host: str, port: int) -> list[Project]:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"http://{host}:{port}/api/projects/")
@@ -37,28 +36,32 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
     return None
 
 
-async def create_project(project: Project, host: str, port: int) -> bool:
+async def create_project(
+    new_project: ProjectCreate, host: str, port: int
+) -> Project | None:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"http://{host}:{port}/api/projects/",
-                json=project.model_dump(mode="json"),
+                json=new_project.model_dump_json(),
             )
             if response.status_code == 201:
-                return True
+                return Project.model_validate(response.json())
     except httpx.TimeoutException as e:
         logger.error(f"Timeout occurred: {e}")
     except httpx.RequestError as e:
         logger.error(f"Request failed: {e}")
-    return False
+    return None
 
 
-async def update_project(project: Project, host: str, port: int) -> bool:
+async def update_project(
+    updated_project: Project, host: str, port: int
+) -> bool:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.put(
                 f"http://{host}:{port}/api/projects/",
-                json=project.model_dump(mode="json"),
+                json=updated_project.model_dump_json(),
             )
             if response.status_code == 202:
                 return True

@@ -1,6 +1,7 @@
 from typing import Any, Tuple
 
 from textual import events
+from textual.geometry import Size
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.widgets import DataTable, Label
@@ -96,9 +97,9 @@ class VexDataTable(DataTable, can_focus=True):
 
         self.refresh()
 
-    def set_columns(self):
+    def set_columns(self, size: Size):
         """Set the columns with percent ratio."""
-        if self.size.width == 0:
+        if size.width == 0:
             return
 
         total_width = self.size.width
@@ -107,4 +108,4 @@ class VexDataTable(DataTable, can_focus=True):
 
         for name, percent_width in self.percent_columns:
             width = round(percent_width * one_percent)
-            self.add_column(name, width=width, key=name)
+            self.add_column(label=name, width=width, key=name)

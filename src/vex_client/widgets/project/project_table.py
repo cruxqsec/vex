@@ -33,14 +33,17 @@ class VexProjectsTable(VexDataTable, can_focus=True):
     def insert(self, project: Project):
         """Calculate the size of the project directory and insert the row into the table."""
         size = get_directory_size(vex_projects_directory() / str(project.id))
+        try:
+            self.add_row(
+                project.name,
+                human_readable(size),
+                project.created_at.strftime("%H:%M %d %B %Y"),
+                project.updated_at.strftime("%H:%M %d %B %Y"),
+                key=str(project.id),
+            )
+        except ValueError:
+            self.notify("Error inserting project into table!", severity="error")
 
-        self.add_row(
-            project.name,
-            human_readable(size),
-            project.created_at.strftime("%H:%M %d %B %Y"),
-            project.updated_at.strftime("%H:%M %d %B %Y"),
-            key=str(project.id),
-        )
 
     def get_project(self, project_id: str) -> Project | None:
         try:
@@ -51,18 +54,18 @@ class VexProjectsTable(VexDataTable, can_focus=True):
         if len(project_data) != 4:
             return None
 
-        created_at_str = project_data[2]
-        updated_at_str = project_data[3]
+        created_at_tmp: str = project_data[2]
+        updated_at_tmp: str = project_data[3]
 
-        created_at_dt: datetime = datetime.strptime(created_at_str, "%H:%M %d %B %Y")
-        updated_at_dt: datetime = datetime.strptime(created_at_str, "%H:%M %d %B %Y")
+        created_at: datetime = datetime.strptime(created_at_tmp, "%H:%M %d %B %Y")
+        updated_at: datetime = datetime.strptime(updated_at_tmp, "%H:%M %d %B %Y")
 
         project = Project(
             id=uuid.UUID(project_id),
             name=project_data[0],
             # project_data[1] is the size which is calculated on the fly
-            created_at=created_at_dt,
-            updated_at=updated_at_dt,
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
         return project
@@ -84,5 +87,5 @@ class VexProjectsTable(VexDataTable, can_focus=True):
                 project.updated_at.strftime("%H:%M %d %B %Y"),
             )
         except CellDoesNotExist:
-            self.notify("Error updating cells", severity="error")
+            self.notify("Error updating cells!", severity="error")
             return
