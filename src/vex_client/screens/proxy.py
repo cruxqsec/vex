@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
+import websockets
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 import logging
 
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
@@ -94,10 +95,6 @@ class VexProxyScreen(Screen):
             pid_data = read_pid_file(pid_file)
 
             if not is_process_running(pid_data.pid):
-                app.log_vex(
-                    message="Found stale PID file in vex data directory. Please delete it.",
-                    severity="error",
-                )
                 return
 
             server_info = VexServerInfo(
@@ -124,10 +121,36 @@ class VexProxyScreen(Screen):
                 app.vex_controller.server_info = server_info
                 app.vex_controller.cli_pid = pid_data.pid
                 instance.toggle_active()
-                app.server_online = True
 
         except (OSError, ValidationError):
             app.log_vex("Error reading vex.pid file!", severity="error")
+
+    @work(name="server_monitor", exclusive=True)
+    async def _server_monitor(self):
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        try:
+            async with websockets.connect(
+                f"ws://{host}:{port}/ws/ping",
+                ping_interval=20,
+                ping_timeout=10,
+            ) as ws:
+                app.server_online = True
+                app.log_vex("Server connected")
+                await ws.wait_closed()
+                app.log_vex("Server shutdown")
+        except websockets.ConnectionClosed:
+            app.log_vex("Server closed connection unexpectedly", "warning")
+        except OSError:
+            # connection refused, server not running
+            app.log_vex("Could not reach server, is it running?", "error")
+        except Exception as e:
+            app.log_vex(f"Unexpected error in server monitor: {e}", "error")
+        finally:
+            app.server_online = False
 
     # ------------ actions -----------------
 
@@ -143,19 +166,8 @@ class VexProxyScreen(Screen):
         app = cast("VexApp", self.app)
 
         if app.vex_controller.is_cli_running:
-            # this should happen on second select or if proxy is already running
-            # before we switch we should try a health check
-            health_check_complete = await check_health_retries(
-                retries=10,
-                host=selected_instance.server_info.server_address,
-                port=selected_instance.server_info.api_port,
-            )
-
-            if health_check_complete:
-                app.switch_screen("projects-screen")
-            else:
-                app.log_vex("Connection failed: timeout.", severity="error")
-
+            self._server_monitor()
+            app.switch_screen("projects-screen")
             return
 
         can_bind, port = try_bind_ports(server_info)
@@ -175,7 +187,6 @@ class VexProxyScreen(Screen):
             app.log_vex(f"Proxy: {server_info.server_address}:{server_info.proxy_port}")
             app.log_vex(f"API: {server_info.server_address}:{server_info.api_port}")
             selected_instance.toggle_active()
-            app.server_online = True
         else:
             app.log_vex(
                 message="Failed to start instance. Check logs.", severity="error"
@@ -188,7 +199,6 @@ class VexProxyScreen(Screen):
         if selected_instance is None:
             return
 
-        # cast for the typer
         selected_instance = cast(VexProxyListItem, selected_instance)
         app = cast("VexApp", self.app)
 
@@ -201,7 +211,6 @@ class VexProxyScreen(Screen):
             selected_instance.toggle_active()
             await app.set_active_project(None)
             app.log_vex(message="Server stopped.")
-            app.server_online = False
         else:
             app.log_vex(
                 message="Failed to stop! Try `kill -9 $pid`",
@@ -232,7 +241,6 @@ class VexProxyScreen(Screen):
         if selected_instance is None:
             return
 
-        # cast for the typer
         selected_instance = cast(VexProxyListItem, selected_instance)
         self.item_to_update = selected_instance
 

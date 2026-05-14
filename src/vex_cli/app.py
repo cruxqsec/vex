@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -54,12 +55,22 @@ async def start_fastapi(app_state: VexState):
         except Exception as e:
             logger.error(f"Error during FastAPI cleanup: {e}")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        # startup
+        yield
+    except asyncio.CancelledError:
+        pass  # normal shutdown
+    finally:
+        # cleanup
+        pass
 
 def create_app() -> FastAPI:
     """Creates app object, registers exception handlers and adds all routes."""
     app = FastAPI(
         title="Vex API",
-        # lifespan=lifespan
+        lifespan=lifespan
     )
 
     @app.exception_handler(AppException)

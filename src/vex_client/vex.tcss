@@ -95,31 +95,32 @@ VexTextArea {
 CommandPalette {
     background: black 33%;
     align: center middle;
+
+    & > Vertical {
+        margin-top: 2;
+        width: 65vw;
+        max-height: 65vh;
+    }
+
+    & #--input {
+        border: none;
+        border-left: wide $accent;
+    }
+
+    & #--input CommandInput {
+        height: 3;
+        border: none;
+        padding: 1 2;
+    }
+
+    & #--input SearchIcon {
+        display: none;
+    }
+
+    & CommandList {
+        border: none;
+        border-left: wide $accent;
+        padding-bottom: 1;
+    }
 }
 
-CommandPalette > Vertical {
-    margin-top: 2;
-    width: 65vw;
-    max-height: 65vh;
-}
-
-CommandPalette #--input {
-    border: none;
-    border-left: wide $accent;
-}
-
-CommandPalette #--input CommandInput {
-    height: 3;
-    border: none;
-    padding: 1 2;
-}
-
-CommandPalette #--input SearchIcon {
-    display: none;
-}
-
-CommandPalette CommandList {
-    border: none;
-    border-left: wide $accent;
-    padding-bottom: 1;
-}

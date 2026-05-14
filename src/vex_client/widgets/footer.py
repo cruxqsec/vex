@@ -28,7 +28,7 @@ class OnlineKey(Widget, can_focus=False):
         yield Label(" ")
 
     def on_mount(self) -> None:
-        self.query_one(Label).tooltip = "Offline"
+        self.query_one(Label).tooltip = "Disconnected"
 
 
 class CommandPaletteKey(Widget, can_focus=False):
