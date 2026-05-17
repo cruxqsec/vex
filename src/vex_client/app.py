@@ -8,17 +8,17 @@ from textual.reactive import reactive
 
 from vex_cli.models.pydantic import Project
 from vex_client.cli_controller import VexController
-from vex_client.screens.http_history import VexHTTPHistoryScreen
-from vex_client.screens.intercept import VexInterceptScreen
-from vex_client.screens.project import VexProjectsScreen
-from vex_client.screens.proxy import VexProxyScreen
-from vex_client.screens.replay import VexReplayScreen
-from vex_client.screens.scope import VexScopeScreen
+from vex_client.history.screen import VexHTTPHistoryScreen
+from vex_client.intercept.screen import VexInterceptScreen
+from vex_client.projects.screen import VexProjectsScreen
+from vex_client.proxy.screen import VexProxyScreen
+from vex_client.replay.screen import VexReplayScreen
+from vex_client.scope.screen import VexScopeScreen
 from vex_client.settings import Settings
-from vex_client.vex_builtin_themes import BUILTIN_THEMES
-from vex_client.vex_themes import VexTheme
+from vex_client.themes.builtin import BUILTIN_THEMES
+from vex_client.themes.models import VexTheme
 from vex_client.widgets.text_area import VexTextArea
-from vex_client.vex_themes import MethodStyles, FileStyle
+from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
 
 logger = logging.getLogger(__name__)

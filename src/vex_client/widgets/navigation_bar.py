@@ -5,11 +5,112 @@ if TYPE_CHECKING:
 
 from textual.app import ComposeResult
 from textual.widget import Widget
-from textual.widgets import Button
+from textual.widgets import Button, Select
 
-from vex_client.widgets.bar.intercept_button import InterceptButton
-from vex_client.widgets.bar.navigation_button import NavigationButton
-from vex_client.widgets.bar.scope_select import ScopeSelect
+
+class LogoButton(Button, can_focus=False):
+    """
+    Logo button that goes to vex.sh
+    """
+
+    DEFAULT_CSS = """
+        LogoButton {
+            outline: thick transparent;
+            background: $error-darken-3 !important;
+            width: 1fr;
+            height: 1fr;
+            max-height: 3;
+            max-width: 20;
+        }
+    """
+
+
+class NavigationButton(Button, can_focus=False):
+    """
+    The sidebar button for switching between screens.
+    """
+
+    DEFAULT_CSS = """
+        NavigationButton {
+            text-align: left;
+            outline: thick transparent;
+            background: $background-lighten-2 !important;
+            width: 1fr;
+            height: 1fr;
+            max-height: 3;
+        }    
+    """
+
+
+class InterceptButton(Button, can_focus=False):
+    """
+    Button for interception. Can be in 2 states. Forwarding and intercepting.
+    """
+
+    DEFAULT_CSS = """
+    
+        InterceptButton {
+            width: 1fr;
+            height: 1fr;
+            max-height: 3;
+            max-width: 20;
+            background: $background !important;
+            outline: round $success;
+            color: $success !important;
+
+            &:hover {
+                background: transparent !important;
+                tint: $background 0%;
+            }
+        }
+        
+        InterceptButton.intercepting {
+            outline: round $error;
+            background: $background;
+            color: $error !important;
+            text-opacity: 0.8;
+            
+            &:hover {
+                background: transparent !important;
+                tint: $background 0%;
+            }
+
+        }
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_active = True
+        self.toggle()  # Toggle it to be forwarding by default
+
+    def toggle(self):
+        self.is_active = not self.is_active
+        if self.is_active:
+            self.add_class("intercepting")
+            # ⏸
+            self.label = " Intercepting"
+        else:
+            self.remove_class("intercepting")
+            # ⏩
+            self.label = " Forwarding"
+
+    def on_button_pressed(self):
+        self.toggle()
+
+
+class ScopeSelect(Select, can_focus=False):
+    """Select the scope"""
+
+    DEFAULT_CSS = """
+        ScopeSelect {
+            max-height: 3;
+            height: 1fr;
+            width: 1fr;
+            outline: none !important;
+
+        }
+
+    """
 
 
 class VexNavigationBar(Widget):
@@ -88,7 +189,7 @@ class VexNavigationBar(Widget):
             action="app.switch('history-screen')",
         )
         yield NavigationButton(
-            #🎯
+            # 🎯
             "󰓾  Intercept",
             compact=True,
             id="intercept-nav-btn",

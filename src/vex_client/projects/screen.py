@@ -19,10 +19,10 @@ from vex_client.api.project_api import (
     select_project,
     update_project,
 )
-from vex_client.screens.modals.project_modal import CreateUpdateProjectScreen
-from vex_client.widgets.bar.navigation_bar import VexNavigationBar
-from vex_client.widgets.project.active_project import ActiveProject
-from vex_client.widgets.project.project_table import (
+from vex_client.modals.project_modal import CreateUpdateProjectScreen
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.projects.active import ActiveProject
+from vex_client.projects.table import (
     VexProjectTableContainer,
     VexProjectTable,
 )
@@ -61,9 +61,9 @@ class VexProjectsScreen(Screen):
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
-            #yield ActiveProject(id="active-project")
+            # yield ActiveProject(id="active-project")
             # with Horizontal(id="projects-bar"):
-            #yield Button("+ Create project", classes="func-btn", id="create-btn")
+            # yield Button("+ Create project", classes="func-btn", id="create-btn")
             yield VexProjectTableContainer(id="projects-table")
         yield VexLogsPanel()
         yield VexFooter()
@@ -105,7 +105,7 @@ class VexProjectsScreen(Screen):
         successfully_selected = await select_project(project_id, host, port)
 
         if successfully_selected and project is not None:
-            #self.active_project.set_active_project(project.name)
+            # self.active_project.set_active_project(project.name)
             await app.set_active_project(project)
         else:
             self.notify("Project couldn't be selected", severity="error")
@@ -153,7 +153,7 @@ class VexProjectsScreen(Screen):
         if active_project and fetched_active_project.id == active_project.id:
             return
 
-        #self.active_project.set_active_project(fetched_active_project.name)
+        # self.active_project.set_active_project(fetched_active_project.name)
         await app.set_active_project(fetched_active_project)
 
     # ------------- BINDING ACTIONS -----------------
@@ -239,5 +239,5 @@ class VexProjectsScreen(Screen):
             return
 
         if active_project and str(active_project.id) == project_id:
-            #self.active_project.set_active_project("")
+            # self.active_project.set_active_project("")
             await app.set_active_project(None)

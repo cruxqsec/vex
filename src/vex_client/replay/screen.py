@@ -4,7 +4,7 @@ from textual.screen import Screen
 from textual.binding import Binding
 from textual.widgets import Button, Footer, Input, Select
 
-from vex_client.widgets.bar.navigation_bar import VexNavigationBar
+from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
@@ -36,7 +36,6 @@ class VexReplayScreen(Screen):
         Binding("r", "test", "Test", show=True, priority=True),
     ]
 
-
     def __init__(self, **kwargs):
         self.is_first_mount = True
         # parent constructor
@@ -58,20 +57,18 @@ class VexReplayScreen(Screen):
     def response_area(self) -> VexTextArea:
         return self.query_one("#response-area", VexTextArea)
 
-
     def action_test(self):
         self.notify(str(self.request_area.classes))
         self.notify(str(self.response_area.classes))
-
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar("top", id="navigation-bar")
         with Container(id="main-container"):
             with Horizontal(id="send-request-bar"):
                 pass
-                #yield MethodSelect(value="GET", id="method-select")
-                #yield Input(value="https://", id="request-input")
-                #yield Button("Send", classes="func-btn")
+                # yield MethodSelect(value="GET", id="method-select")
+                # yield Input(value="https://", id="request-input")
+                # yield Button("Send", classes="func-btn")
             with Horizontal(id="req-res-area"):
                 pass
         yield VexLogsPanel()

@@ -1,8 +1,8 @@
-from vex_client.vex_themes import VexTheme, MethodStyles, FileStyle, VexTextAreaTheme
+from vex_client.themes.models import VexTheme, MethodStyles, FileStyle, VexTextAreaTheme
 # ---------------------------------------------------------------------------
 # Built-in themes as VexTheme instances
 # ---------------------------------------------------------------------------
- 
+
 BUILTIN_THEMES: dict[str, VexTheme] = {
     "galaxy": VexTheme(
         name="galaxy",
@@ -13,7 +13,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#00FA9A",
         accent="#FF69B4",
         background="#0F0F1F",
-        #foreground="#F0E6FF",
+        # foreground="#F0E6FF",
         surface="#1E1E3F",
         panel="#2D2B55",
         dark=True,
@@ -57,7 +57,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         surface="#193549",
         panel="#1F4662",
         background="#0D2137",
-        #foreground="#D6EEFF",
+        # foreground="#D6EEFF",
         dark=True,
         method=MethodStyles(
             get="#4A9CFF",
@@ -97,7 +97,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#98D8AA",
         accent="#B983FF",
         background="#2B2139",
-        #foreground="#FFE8D6",
+        # foreground="#FFE8D6",
         surface="#362C47",
         panel="#413555",
         dark=True,
@@ -139,7 +139,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         error="#FF6B6B",
         success="#64FFDA",
         background="#0A1A2F",
-        #foreground="#D4FFEC",
+        # foreground="#D4FFEC",
         surface="#142942",
         panel="#1E3655",
         dark=True,
@@ -181,7 +181,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#32CD32",
         accent="#FF8C00",
         background="#001F3F",
-        #foreground="#E0F0FF",
+        # foreground="#E0F0FF",
         surface="#003366",
         panel="#005A8C",
         dark=True,
@@ -225,7 +225,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         surface="#27343B",
         panel="#2D3E46",
         background="#1F262A",
-        #foreground="#D9E6F2",
+        # foreground="#D9E6F2",
         dark=True,
         method=MethodStyles(
             get="#66B2FF",
@@ -265,7 +265,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#00FA9A",
         accent="#FF7F50",
         background="#191970",
-        #foreground="#F2E6FF",
+        # foreground="#F2E6FF",
         surface="#3B3B6D",
         panel="#4C516D",
         dark=True,
@@ -307,7 +307,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#00DD00",
         accent="#00FF33",
         background="#000000",
-        #foreground="#CCFFCC",
+        # foreground="#CCFFCC",
         surface="#0A0A0A",
         panel="#111111",
         dark=True,
@@ -349,7 +349,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         error="#A94442",
         success="#2D5A27",
         background="#F5F1E9",
-        #foreground="#2B1B17",
+        # foreground="#2B1B17",
         surface="#EBE6D9",
         panel="#E0DAC8",
         dark=False,
@@ -391,7 +391,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#80FF72",
         accent="#4CC9F0",
         background="#0B0B12",
-        #foreground="#E0FFFF",
+        # foreground="#E0FFFF",
         surface="#121225",
         panel="#1A1A32",
         dark=True,
@@ -433,7 +433,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#06FFA5",
         accent="#3A86FF",
         background="#0F0A19",
-        #foreground="#FFE6F0",
+        # foreground="#FFE6F0",
         surface="#1A0F26",
         panel="#251833",
         dark=True,
@@ -470,7 +470,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         name="nightfly",
         primary="#82aaff",
         secondary="#c792ea",
-        warning="#e3d18a", 
+        warning="#e3d18a",
         error="#fc514e",
         success="#a1cd5e",
         accent="#ff5874",
@@ -505,6 +505,6 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             status="#a1cd5e",
             header="#ff5874",
             value="#e3d18a",
+        ),
     ),
-),
 }

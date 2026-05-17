@@ -19,10 +19,10 @@ from vex_cli.locations import vex_pid_file
 from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
 from vex_client.api.health_check import check_health_pid, check_health_retries
-from vex_client.screens.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
+from vex_client.modals.proxy_modal import CreateUpdateProxyScreen, InstanceData
 from vex_client.widgets.center_middle import CenterMiddle
 from vex_client.widgets.footer import VexFooter
-from vex_client.widgets.proxy.proxy_list import VexProxyList, VexProxyListItem
+from vex_client.proxy.list import VexProxyList, VexProxyListItem
 from vex_client.widgets.logs_panel import VexLogsPanel
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,14 @@ banner = """
   ░██░██   ░██         ░██  ░██  
    ░███     ░███████  ░██    ░██
         
+"""
+
+banner_2 = """
+░██    ░██  ░███████  ░██    ░██ 
+░██    ░██ ░██    ░██  ░██  ░██  
+ ░██  ░██  ░█████████   ░█████   
+  ░██░██   ░██         ░██  ░██  
+   ░███     ░███████  ░██    ░██ 
 """
 
 
@@ -59,7 +67,7 @@ class VexProxyScreen(Screen):
         return self.query_one(VexFooter)
 
     def compose(self) -> ComposeResult:
-        yield CenterMiddle(Static(banner, id="banner"), id="banner-container")
+        yield CenterMiddle(Static(banner_2, id="banner"), id="banner-container")
         yield VexProxyList(id="proxy-list")
         yield VexLogsPanel()
         yield VexFooter()
@@ -117,7 +125,7 @@ class VexProxyScreen(Screen):
             )
 
             if health_check_pid_result == pid_data.pid:
-                app.log_vex("Found running instance.", severity="info")
+                app.log_vex("Found running instance", severity="info")
                 app.vex_controller.server_info = server_info
                 app.vex_controller.cli_pid = pid_data.pid
                 instance.toggle_active()

@@ -9,8 +9,8 @@ from textual.reactive import reactive
 from textual.widgets import Label, ListItem, ListView, Static
 
 from vex_cli.models.pydantic import VexServerInfo
-from vex_client.screens.modals.proxy_modal import InstanceData
-from vex_client.widgets.proxy.status import Status
+from vex_client.modals.proxy_modal import InstanceData
+from vex_client.proxy.status import Status
 
 
 class VexProxyList(ListView, can_focus=True):

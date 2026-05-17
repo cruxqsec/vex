@@ -17,8 +17,8 @@ from textual.screen import Screen
 from textual.widgets import DataTable
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
-from vex_client.widgets.bar.navigation_bar import VexNavigationBar
-from vex_client.widgets.history.history_table import VexHTTPTable, VexHTTPTableContainer
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.history.table import VexHTTPTable, VexHTTPTableContainer
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
@@ -74,7 +74,7 @@ class VexHTTPHistoryScreen(Screen):
         return self.query_one("#response-area", ResponseAreaContainer).query_one(
             VexTextArea
         )
-    
+
     def __init__(self, **kwargs) -> None:
         self._req_res_hidden = False
         self._http_table_hidden = False

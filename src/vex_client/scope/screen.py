@@ -10,7 +10,7 @@ from textual.widgets import (
     TextArea,
 )
 
-from vex_client.widgets.bar.navigation_bar import VexNavigationBar
+from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 
