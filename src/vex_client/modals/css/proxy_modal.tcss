@@ -5,7 +5,7 @@ CreateUpdateProxyScreen {
     #create-modal {
         width: 60;
         height: 16;
-        border: thick $foreground;
+        border: thick $surface;
         background: $background;
     }
 
@@ -37,10 +37,23 @@ CreateUpdateProxyScreen {
         margin-left: 1;
     }
 
+    #name-input {
+        width: 2fr;
+        height: 1;
+        border: none;
+        margin-left: 1;
+       
+    }
+
     #error-label {
         color: $error;
         margin-left: 1;
         margin-bottom: 1;
+    }
+
+    #create-btn {
+        color: $success !important;
+        background: $success-muted;
     }
 
     #cancel-btn {

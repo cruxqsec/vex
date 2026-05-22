@@ -64,7 +64,7 @@ class VexApp(App[str]):
             "Toggle logs menu",
             priority=True,
         ),
-        Binding("ctrl+c", "switch('proxy-screen')", "Quit", priority=True),
+        Binding("ctrl+c", "switch('proxy-screen')", "Quit"),
     ]
 
     SCREENS = {

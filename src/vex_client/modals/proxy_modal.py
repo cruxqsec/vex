@@ -1,5 +1,3 @@
-from typing import List
-from dataclasses import dataclass
 
 from textual import on
 from textual.app import ComposeResult
@@ -7,24 +5,21 @@ from textual.screen import ModalScreen
 from textual.widgets import Label, Input, Button
 from textual.containers import Container, Horizontal
 
-from vex_client.proxy.inputs import AddressInput, PortInput
+from vex_client.modals.inputs import AddressInput, PortInput
+from vex_client.proxy.list import ProxyInstance
 
-
-@dataclass
-class InstanceData:  # internal (just for passing to modal screen and back)
-    name: str
-    address: str
-    proxy_port: int
-    api_port: int
-
-
-class CreateUpdateProxyScreen(ModalScreen[InstanceData]):
+class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
     """Screen with a dialog to create a new project."""
 
     CSS_PATH = "css/proxy_modal.tcss"
+    BINDINGS = [
+        ("escape", "cancel", "Close"),
+        ("ctrl+c", "create", "Create proxy instance"), # TODO: disable if update
+        ("ctrl+u", "update", "Update proxy instance"), # TODO: disable if create
+    ]
 
-    def __init__(self, instance_data: InstanceData | None, **kwargs):
-        self.instance_data = instance_data
+    def __init__(self, instance: ProxyInstance | None, **kwargs):
+        self.instance = instance
         super().__init__(**kwargs)
 
     @property
@@ -66,23 +61,24 @@ class CreateUpdateProxyScreen(ModalScreen[InstanceData]):
             yield Label("", id="error-label")
             with Horizontal():
                 yield Button("", classes="func-btn")
-                yield Button("Cancel", classes="func-btn", id="cancel-btn")
+                yield Button("\[Esc] Cancel", classes="func-btn", id="cancel-btn")
 
     def on_mount(self):
         create_update_btn = self.query("Button").first(Button)
-        if self.instance_data is not None:
+        if self.instance:
             # we are updating an instance
             self.query_one("#title", Label).update("[b]Update proxy instance[/b]")
-            create_update_btn.label = "Update"
+            create_update_btn.label = "\[ctrl+u] Update"
             create_update_btn.id = "update-btn"
 
-            self.name_input.value = self.instance_data.name
-            self.address_input.value = self.instance_data.address
-            self.proxy_port_input.value = str(self.instance_data.proxy_port)
-            self.api_port_input.value = str(self.instance_data.api_port)
+            self.name_input.value = self.instance.name
+            self.address_input.value = self.instance.server_address
+            self.proxy_port_input.value = str(self.instance.proxy_port)
+            self.api_port_input.value = str(self.instance.api_port)
         else:
+            # we are creating
             self.query_one("#title", Label).update("[b]Create proxy instance[/b]")
-            create_update_btn.label = "Create"
+            create_update_btn.label = "\[ctrl+c] Create"
             create_update_btn.id = "create-btn"
 
     @on(Input.Blurred)
@@ -114,14 +110,24 @@ class CreateUpdateProxyScreen(ModalScreen[InstanceData]):
             and self.api_port_input.is_valid
             and len(self.name_input.value) != 0
         ):
-            instance_data = InstanceData(
+            instance_data = ProxyInstance(
                 self.name_input.value,
                 self.address_input.value,
                 int(self.proxy_port_input.value),
                 int(self.api_port_input.value),
+                self.instance.running if self.instance is not None else False
             )
             self.dismiss(instance_data)
 
     @on(Button.Pressed, "#cancel-btn")
     def cancel_btn(self):
+        self.app.pop_screen()
+
+    def action_create(self):
+        self.create_update_instance()
+
+    def action_update(self):
+        self.create_update_instance()
+
+    def action_cancel(self):
         self.app.pop_screen()

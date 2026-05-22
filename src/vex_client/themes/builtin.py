@@ -256,48 +256,6 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             value="#FFAA22",
         ),
     ),
-    "twilight": VexTheme(
-        name="twilight",
-        primary="#367588",
-        secondary="#5F9EA0",
-        warning="#FFD700",
-        error="#FF6347",
-        success="#00FA9A",
-        accent="#FF7F50",
-        background="#191970",
-        # foreground="#F2E6FF",
-        surface="#3B3B6D",
-        panel="#4C516D",
-        dark=True,
-        method=MethodStyles(
-            get="#367588",
-            post="#00FA9A",
-            put="#FFD700",
-            delete="#FF6347",
-            patch="#5F9EA0",
-            options="#FF7F50",
-            head="#d946ef",
-        ),
-        file_extension=FileStyle(
-            html="#00FA9A",
-            css="#367588",
-            js="#FFD700",
-            ts="#5F9EA0",
-            php="#FF7F50",
-            json_ext="#FFD700",
-            pdf="#FF6347",
-            png="#5F9EA0",
-            jpg="#367588",
-            svg="#FF7F50",
-        ),
-        text_area=VexTextAreaTheme(
-            method="#367588",
-            version="#5F9EA0",
-            status="#00FA9A",
-            header="#FF7F50",
-            value="#FFD700",
-        ),
-    ),
     "hacker": VexTheme(
         name="hacker",
         primary="#00FF00",
@@ -338,48 +296,6 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             status="#00DD00",
             header="#00FF33",
             value="#00FF66",
-        ),
-    ),
-    "manuscript": VexTheme(
-        name="manuscript",
-        primary="#2C4251",
-        secondary="#6B4423",
-        accent="#8B4513",
-        warning="#B4846C",
-        error="#A94442",
-        success="#2D5A27",
-        background="#F5F1E9",
-        # foreground="#2B1B17",
-        surface="#EBE6D9",
-        panel="#E0DAC8",
-        dark=False,
-        method=MethodStyles(
-            get="#2C4251",
-            post="#2D5A27",
-            put="#6B4423",
-            delete="#A94442",
-            patch="#8B4513",
-            options="#4A4A4A",
-            head="#5C5C5C",
-        ),
-        file_extension=FileStyle(
-            html="#2D5A27",
-            css="#2C4251",
-            js="#6B4423",
-            ts="#2C4251",
-            php="#8B4513",
-            json_ext="#6B4423",
-            pdf="#A94442",
-            png="#8B4513",
-            jpg="#2C4251",
-            svg="#4A4A4A",
-        ),
-        text_area=VexTextAreaTheme(
-            method="#2C4251",
-            version="#6B4423",
-            status="#2D5A27",
-            header="#8B4513",
-            value="#4A4A4A",
         ),
     ),
     "hypernova": VexTheme(
@@ -505,6 +421,47 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             status="#a1cd5e",
             header="#ff5874",
             value="#e3d18a",
+        ),
+    ),
+    "vex-dark": VexTheme(
+        name="vex-dark",
+        primary="#58a6ff",       # blue — active tabs, selected borders, connect button
+        secondary="#8b949e",     # muted grey — secondary text
+        warning="#d29922",       # amber — pending states, slow timing, put method
+        error="#e05c7a",         # pink/red — section titles, remove buttons, border accents
+        success="#3fb950",       # green — running instances, online indicator, launch
+        accent="#8b5cf6",        # purple — options method, send to replay
+        background="#0d1117",    # near black — main screen background
+        surface="#21262d",       # dark grey — row backgrounds, button backgrounds
+        panel="#161b22",         # dark blue-grey — nav bar, headers, footers
+        dark=True,
+        method=MethodStyles(
+            get="#58a6ff",       # blue
+            post="#3fb950",      # green
+            put="#d29922",       # amber
+            delete="#f85149",    # red
+            patch="#14b8a6",     # teal
+            options="#8b5cf6",   # purple
+            head="#d946ef",      # pink
+        ),
+        file_extension=FileStyle(
+            html="#3fb950",
+            css="#58a6ff",
+            js="#d29922",
+            ts="#58a6ff",
+            php="#8b5cf6",
+            json_ext="#d29922",
+            pdf="#f85149",
+            png="#14b8a6",
+            jpg="#8b5cf6",
+            svg="#d946ef",
+        ),
+        text_area=VexTextAreaTheme(
+            method="#3fb950",    # green — matches POST color from mockups
+            version="#58a6ff",   # blue — HTTP version
+            status="#3fb950",    # green — 200 OK
+            header="#e05c7a",    # pink/red — header names, matches section titles
+            value="#cdd9e5",     # light grey — header values
         ),
     ),
 }

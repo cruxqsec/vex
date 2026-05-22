@@ -146,9 +146,10 @@ class VexFooter(Widget):
     DEFAULT_CSS = """
     VexFooter {
         dock: bottom;
-        height: 1;
+        height: 2;
         background: $panel;
         layout: horizontal;
+        border-top: wide $surface;
     }
 
     #left-side {
