@@ -1,4 +1,86 @@
 $empty-hatch: right $surface-lighten-1 70%;
+$border-divider: $secondary;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Vex Navigation Bar and corresponding widgets
+═══════════════════════════════════════════════════════════════════ */
+
+VexNavigationBar {
+    width: 1fr;
+    height: 2;
+    layout: horizontal;
+    dock: top;
+    border-bottom: wide $secondary-muted;
+
+    &.bottom {
+        dock: bottom;
+    }
+
+    &.left {
+        layout: vertical;
+        dock: left;
+        width: 20;
+    }
+    &.right {
+        layout: vertical;
+        dock: right;
+        width: 20;
+    }
+}
+
+InterceptButton {
+    width: auto;
+    height: 1;
+    dock: right;
+    border-left: wide $secondary-muted;
+    
+    background: $success 20%;
+    color: $success !important;
+
+
+    &:hover {
+        background: $success 50%;
+    }
+
+    &.intercepting {
+        background: $error 20%;
+        color: $error !important;
+        
+        &:hover {
+            background: $error 50%; 
+        }
+    }
+}
+
+NavigationButton {
+    width: auto;
+    height: auto;
+    border-left: wide $secondary-muted;
+
+    text-align: left;
+    background: $surface 50%;
+    color: $text-muted;
+
+    &:hover { background: $surface; }
+
+    &.active {
+        color: $primary;
+        background: $primary 30%;
+        &:hover { background: $primary 50%; }
+    }
+}    
+
+ScopeSelect > SelectCurrent {
+    border-left: wide $secondary-muted;
+    color: $foreground;
+    background: $surface;
+    border: none;
+    height: 1;
+    width: 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════ */
 
 .func-btn {
     padding: 0 1;
@@ -18,15 +100,9 @@ $empty-hatch: right $surface-lighten-1 70%;
     }
 }
 
-ScopeSelect > SelectCurrent {
-    outline: thick transparent;
-    color: $foreground;
-    background: $surface;
-    width: 1fr;
-    height: 1fr;
-    padding: 0 2;
-    margin-top: 0 !important;
-}
+/* ═══════════════════════════════════════════════════════════════════
+   Global VexDataTable widget CSS
+═══════════════════════════════════════════════════════════════════ */
 
 VexDataTable {
     overflow-x: hidden;
@@ -62,6 +138,10 @@ VexDataTable {
 
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   VexTextArea
+═══════════════════════════════════════════════════════════════════ */
+
 VexTextArea {
     background: $background;
     
@@ -91,6 +171,10 @@ VexTextArea {
 
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CommandPallete
+═══════════════════════════════════════════════════════════════════ */
 
 CommandPalette {
     background: black 33%;
@@ -123,4 +207,86 @@ CommandPalette {
         padding-bottom: 1;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Footer and the footer elements
+═══════════════════════════════════════════════════════════════════ */
+
+VexFooter {
+    dock: bottom;
+    height: 2;
+    background: $panel;
+    layout: horizontal;
+    border-top: wide $secondary;
+}
+
+#left-side {
+    dock: left;
+    width: auto;
+    height: 1;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#right-side {
+    dock: right;
+    width: auto;
+    height: 1;
+}
+
+VexCmdKey {
+    background: $panel;
+    layout: horizontal;
+    width: auto;
+
+    & .key {
+        background: $panel;
+        color: $accent;
+    }
+
+    & .description {
+        padding: 0 1;
+        color: $text-muted;
+    }
+}
+
+Seperator {
+    background: $panel;
+    color: $accent;
+    width: auto;
+}
+
+VersionKey {
+    background: $panel;
+    color: $text-muted;
+    width: auto;
+    padding: 0 1;
+    &:hover { background: $surface; }
+}
+
+LogsKey {
+    background: $panel;
+    color: $text-muted;
+    width: auto;
+    padding: 0 1;
+    &:hover { background: $surface; }
+}
+
+CommandPaletteKey {
+    background: $panel;
+    color: $text-muted;
+    width: auto;
+    padding: 0 1;
+    &:hover { background: $surface; }
+}
+
+OnlineKey {
+    color: $background;
+    background: $error;
+    height: 1;
+    padding: 0 1;
+    width: auto;
+    &.online { background: $success; }
+}
+
 

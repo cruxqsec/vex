@@ -82,7 +82,7 @@ class VexScopeScreen(Screen):
         return self.query_one("#out-of-scope-area", OutOfScopeArea)
 
     def compose(self) -> ComposeResult:
-        yield VexNavigationBar("top", id="navigation-bar")
+        yield VexNavigationBar(id="navigation-bar")
         with Horizontal(id="main-container"):
             yield ScopeList(ListItem(Static("Test preset")), id="scope-list")
             with Vertical(id="in-out-container"):

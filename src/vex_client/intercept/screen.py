@@ -31,7 +31,7 @@ class VexInterceptScreen(Screen):
         return self.query_one("#intercept-req-area", VexTextArea)
 
     def compose(self) -> ComposeResult:
-        yield VexNavigationBar("top", id="navigation-bar")
+        yield VexNavigationBar(id="navigation-bar")
         # with Vertical(id="main-container"):
         # yield VexHTTPInterceptTable(id="intercept-table")
         yield VexLogsPanel()

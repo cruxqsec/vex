@@ -82,7 +82,7 @@ class VexHTTPHistoryScreen(Screen):
         super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
-        yield VexNavigationBar("top", id="navigation-bar")
+        yield VexNavigationBar(id="navigation-bar")
         yield VexHTTPTableContainer(id="http-table")
         with Horizontal(id="text-areas"):
             yield RequestAreaContainer(id="request-area")

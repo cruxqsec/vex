@@ -2,20 +2,6 @@ VexProjectsScreen {
     background: $background;
 }
 
-#main-container {
-    margin: 1 4;
-}
-
-#active-project {
-    width: 1fr;
-    height: 1fr;
-}
-
-#navigation-bar {
-    width: 1fr;
-    height: 1fr;
-}
-
 #projects-table {
     background: transparent;
     width: 1fr;

@@ -425,24 +425,24 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
     ),
     "vex-dark": VexTheme(
         name="vex-dark",
-        primary="#58a6ff",       # blue — active tabs, selected borders, connect button
-        secondary="#8b949e",     # muted grey — secondary text
-        warning="#d29922",       # amber — pending states, slow timing, put method
-        error="#e05c7a",         # pink/red — section titles, remove buttons, border accents
-        success="#3fb950",       # green — running instances, online indicator, launch
-        accent="#8b5cf6",        # purple — options method, send to replay
-        background="#0d1117",    # near black — main screen background
-        surface="#21262d",       # dark grey — row backgrounds, button backgrounds
-        panel="#161b22",         # dark blue-grey — nav bar, headers, footers
+        primary="#58a6ff",
+        secondary="#8b949e",
+        warning="#d29922",
+        error="#e05c7a",
+        success="#3fb950",
+        accent="#8b5cf6",
+        background="#0d1117",
+        surface="#21262d",       
+        panel="#161b22",
         dark=True,
         method=MethodStyles(
-            get="#58a6ff",       # blue
-            post="#3fb950",      # green
-            put="#d29922",       # amber
-            delete="#f85149",    # red
-            patch="#14b8a6",     # teal
-            options="#8b5cf6",   # purple
-            head="#d946ef",      # pink
+            get="#58a6ff",
+            post="#3fb950",
+            put="#d29922",
+            delete="#f85149",
+            patch="#14b8a6",
+            options="#8b5cf6",
+            head="#d946ef",
         ),
         file_extension=FileStyle(
             html="#3fb950",
@@ -457,11 +457,11 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             svg="#d946ef",
         ),
         text_area=VexTextAreaTheme(
-            method="#3fb950",    # green — matches POST color from mockups
-            version="#58a6ff",   # blue — HTTP version
-            status="#3fb950",    # green — 200 OK
-            header="#e05c7a",    # pink/red — header names, matches section titles
-            value="#cdd9e5",     # light grey — header values
+            method="#3fb950",
+            version="#58a6ff",
+            status="#3fb950",
+            header="#e05c7a",
+            value="#cdd9e5",
         ),
     ),
 }

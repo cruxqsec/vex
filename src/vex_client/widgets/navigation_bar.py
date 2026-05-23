@@ -8,74 +8,15 @@ from textual.widget import Widget
 from textual.widgets import Button, Select
 
 
-class LogoButton(Button, can_focus=False):
-    """
-    Logo button that goes to vex.sh
-    """
-
-    DEFAULT_CSS = """
-        LogoButton {
-            outline: thick transparent;
-            background: $error-darken-3 !important;
-            width: 1fr;
-            height: 1fr;
-            max-height: 3;
-            max-width: 20;
-        }
-    """
-
-
 class NavigationButton(Button, can_focus=False):
     """
     The sidebar button for switching between screens.
-    """
-
-    DEFAULT_CSS = """
-        NavigationButton {
-            text-align: left;
-            outline: thick transparent;
-            background: $background-lighten-2 !important;
-            width: 1fr;
-            height: 1fr;
-            max-height: 3;
-        }    
     """
 
 
 class InterceptButton(Button, can_focus=False):
     """
     Button for interception. Can be in 2 states. Forwarding and intercepting.
-    """
-
-    DEFAULT_CSS = """
-    
-        InterceptButton {
-            width: 1fr;
-            height: 1fr;
-            max-height: 3;
-            max-width: 20;
-            background: $background !important;
-            outline: round $success;
-            color: $success !important;
-
-            &:hover {
-                background: transparent !important;
-                tint: $background 0%;
-            }
-        }
-        
-        InterceptButton.intercepting {
-            outline: round $error;
-            background: $background;
-            color: $error !important;
-            text-opacity: 0.8;
-            
-            &:hover {
-                background: transparent !important;
-                tint: $background 0%;
-            }
-
-        }
     """
 
     def __init__(self, *args, **kwargs):
@@ -87,11 +28,9 @@ class InterceptButton(Button, can_focus=False):
         self.is_active = not self.is_active
         if self.is_active:
             self.add_class("intercepting")
-            # ⏸
             self.label = " Intercepting"
         else:
             self.remove_class("intercepting")
-            # ⏩
             self.label = " Forwarding"
 
     def on_button_pressed(self):
@@ -101,65 +40,8 @@ class InterceptButton(Button, can_focus=False):
 class ScopeSelect(Select, can_focus=False):
     """Select the scope"""
 
-    DEFAULT_CSS = """
-        ScopeSelect {
-            max-height: 3;
-            height: 1fr;
-            width: 1fr;
-            outline: none !important;
-
-        }
-
-    """
-
 
 class VexNavigationBar(Widget):
-    DEFAULT_CSS = """
-    
-        VexNavigationBar.top {
-            layout: horizontal;
-            dock: top;
-            width: 1fr;
-            height: 1fr;
-            max-height: 3;
-            InterceptButton {
-                offset-x: 0.5fr;
-            }
-        }
-    
-        VexNavigationBar.bottom {
-            layout: horizontal;
-            dock: bottom;
-            width: 1fr;
-            height: 1fr;
-            max-height: 3;
-            InterceptButton {
-                offset-x: 0.5fr;
-            }
-
-        }
-        
-        VexNavigationBar.left {
-            layout: vertical;
-            dock: left;
-            width: 20;
-            height: 1fr;
-        }
-        
-        VexNavigationBar.right {
-            layout: vertical;
-            dock: right;
-            width: 20;
-            height: 1fr;
-        }
-        """
-
-    def __init__(self, dock_position: str, **kwargs):
-        self.dock_position = dock_position
-        self.last_class = None
-
-        super().__init__(**kwargs)
-
     @property
     def history_nav_btn(self) -> NavigationButton:
         return self.query_one("#history-nav-btn", NavigationButton)
@@ -218,21 +100,11 @@ class VexNavigationBar(Widget):
     def on_mount(self):
         app = cast("VexApp", self.app)
 
-        self.set_bar_position(self.dock_position)
         self.set_navigation_btn_color()
 
         # all buttons except the project one are disabled until a project is picked
         self.watch(app, "is_project_active", self.on_project_active)
         self.buttons_disabled(not app.is_project_active)
-
-    def set_bar_position(self, position: str = "top") -> None:
-        if self.last_class is None:
-            self.add_class(position)
-        else:
-            self.remove_class(self.last_class)
-            self.add_class(position)
-
-        self.last_class = position
 
     def on_project_active(self, active: bool) -> None:
         self.buttons_disabled(not active)
@@ -246,18 +118,17 @@ class VexNavigationBar(Widget):
 
     def set_navigation_btn_color(self) -> None:
         """Sets the corresponding button color of the page we're on"""
-        color = self.app.get_css_variables()["primary-darken-3"]
 
         app = cast("VexApp", self.app)
         screen_name = app.get_screen_name()
 
         if screen_name == "history-screen":
-            self.history_nav_btn.styles.background = color
+            self.history_nav_btn.add_class("active")
         elif screen_name == "intercept-screen":
-            self.intercept_nav_btn.styles.background = color
+            self.intercept_nav_btn.add_class("active")
         elif screen_name == "replay-screen":
-            self.replay_nav_btn.styles.background = color
+            self.replay_nav_btn.add_class("active")
         elif screen_name == "scope-screen":
-            self.scope_nav_btn.styles.background = color
+            self.scope_nav_btn.add_class("active")
         elif screen_name == "projects-screen":
-            self.project_nav_btn.styles.background = color
+            self.project_nav_btn.add_class("active")

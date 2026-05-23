@@ -62,7 +62,7 @@ class VexReplayScreen(Screen):
         self.notify(str(self.response_area.classes))
 
     def compose(self) -> ComposeResult:
-        yield VexNavigationBar("top", id="navigation-bar")
+        yield VexNavigationBar(id="navigation-bar")
         with Container(id="main-container"):
             with Horizontal(id="send-request-bar"):
                 pass

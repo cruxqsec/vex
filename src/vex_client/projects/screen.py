@@ -59,7 +59,7 @@ class VexProjectsScreen(Screen):
         return self.query_one("#active-project", ActiveProject)
 
     def compose(self) -> ComposeResult:
-        yield VexNavigationBar("top", id="navigation-bar")
+        yield VexNavigationBar(id="navigation-bar")
         with Container(id="main-container"):
             # yield ActiveProject(id="active-project")
             # with Horizontal(id="projects-bar"):
@@ -241,3 +241,6 @@ class VexProjectsScreen(Screen):
         if active_project and str(active_project.id) == project_id:
             # self.active_project.set_active_project("")
             await app.set_active_project(None)
+
+    def action_test(self) -> None:
+        self.log(self.navigation_bar.styles)
