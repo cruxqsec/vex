@@ -1,3 +1,5 @@
+$border-divider: $secondary-darken-3;
+
 CreateUpdateProxyScreen {
     align: center middle;
     background: $background 60%;
@@ -5,7 +7,7 @@ CreateUpdateProxyScreen {
     #create-modal {
         width: 60;
         height: 16;
-        border: thick $surface;
+        border: thick $border-divider;
         background: $background;
     }
 

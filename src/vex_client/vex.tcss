@@ -5,7 +5,7 @@ $border-divider: $secondary-darken-3;
    VexButton class (all buttons)
 ═══════════════════════════════════════════════════════════════════ */
 
-VexButton.btn {
+.btn {
     width: auto;
     height: 1;
     border: none !important;

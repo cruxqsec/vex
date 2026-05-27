@@ -1,5 +1,4 @@
 from textual import on
-from textual.events import Key
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.containers import  Horizontal, Container
@@ -11,7 +10,9 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
     CSS_PATH = "css/project_modal.tcss"
     
     BINDINGS = [
-        ("v", "action_cancel_btn", "Quit modal")
+        ("escape", "cancel", "Close"),
+        ("ctrl+c", "create", "Create proxy instance"), # TODO: disable if update
+        ("ctrl+u", "update", "Update proxy instance"), # TODO: disable if create
     ]
     
     def __init__(self, project_name: str | None, **kwargs):
@@ -32,20 +33,20 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
             yield Label("", id="error-label")
             with Horizontal():
                 yield Button("", classes="func-btn")
-                yield Button("Cancel", classes="func-btn", id="cancel-btn")
+                yield Button("\[esc] Cancel", classes="func-btn", id="cancel-btn")
     
     def on_mount(self):
         create_update_btn = self.query("Button").first(Button)
         if self.project_name is not None and self.project_name != "":
             # we are updating the project
             self.query_one("#title", Label).update("[b]Update the project[/b]")
-            create_update_btn.label = "Update"
+            create_update_btn.label = "\[ctrl+u] Update"
             create_update_btn.id = "update-btn"
             
             self.name_input.value = self.project_name
         else:
             self.query_one("#title", Label).update("[b]Create a project[/b]")
-            create_update_btn.label = "Create"
+            create_update_btn.label = "\[ctrl+c] Create"
             create_update_btn.id = "create-btn"
 
     @on(Input.Blurred)
@@ -69,11 +70,12 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
     def cancel_btn(self):
         self.app.pop_screen()
         
-    @on(Key)
-    def quit_modal(self, event: Key):
-        if event.key == "ctrl+c":
-            event.stop()  # optional (prevents further handling)
-            self.app.pop_screen()
+    def action_create(self):
+        self.create_btn()
 
-    
+    def action_update(self):
+        self.create_btn()
+
+    def action_cancel(self):
+        self.app.pop_screen()
     

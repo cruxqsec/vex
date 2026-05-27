@@ -3,9 +3,7 @@ from datetime import datetime
 
 from textual import on
 from textual.app import ComposeResult
-from textual.events import Mount
 from textual.widgets.data_table import CellDoesNotExist, RowDoesNotExist
-from textual.widget import Widget
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
 
@@ -29,7 +27,6 @@ class VexProjectTableContainer(Vertical):
 
     def on_mount(self) -> None:
         self.query_one("#project-table-helper", Static).add_class("empty")
-
 
     @on(EmptyStateChanged)
     def empty_state_changed(self, event: EmptyStateChanged):

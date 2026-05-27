@@ -21,6 +21,7 @@ from vex_client.api.project_api import (
     update_project,
 )
 from vex_client.modals.project_modal import CreateUpdateProjectScreen
+from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.projects.table import (
     VexProjectTableContainer,
@@ -216,10 +217,6 @@ class VexProjectsScreen(Screen):
         self.app.push_screen(CreateUpdateProjectScreen(project_name), update)  # type: ignore
 
     async def action_delete_project(self):
-        """
-        Delete a project by calling vex-cli API.
-        If successful delete highlighted in the table.
-        """
         app = cast("VexApp", self.app)
         project_id = self.projects_table.get_highlighted_row_key()
 
@@ -230,19 +227,27 @@ class VexProjectsScreen(Screen):
         if host is None or port is None:
             return
 
-        is_deleted = await delete_project(project_id, host, port)
-        active_project = app.vex_active_project
+        project = self.projects_table.get_project(project_id)
+        project_name = project.name if project else "this project"
 
-        if is_deleted:
-            self.projects_table.remove_row(project_id)
-            self.projects_table.post_message(VexDataTable.RowRemoved())
-        else:
-            self.notify("Project couldn't be deleted", severity="error")
-            return
+        async def do_delete(confirmed: bool):
+            if not confirmed:
+                return
 
-        if active_project and str(active_project.id) == project_id:
-            self.active_project_card.set_empty()
-            await app.set_active_project(None)
+            is_deleted = await delete_project(project_id, host, port)
+            active_project = app.vex_active_project
+
+            if is_deleted:
+                self.projects_table.remove_row(project_id)
+                self.projects_table.post_message(VexDataTable.RowRemoved())
+            else:
+                self.notify("Project couldn't be deleted", severity="error")
+                return
+            if active_project and str(active_project.id) == project_id:
+                self.active_project_card.set_empty()
+                await app.set_active_project(None)
+
+        app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete) # type: ignore
 
     def action_copy_path(self):
         try:

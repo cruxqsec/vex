@@ -22,6 +22,7 @@ from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
 from vex_client.api.health_check import check_health_pid
 from vex_client.modals.proxy_modal import CreateUpdateProxyScreen
+from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
 from vex_client.proxy.list import (
     VexProxyListWidget,
@@ -253,18 +254,24 @@ class VexProxyScreen(Screen):
         if not app.vex_controller.is_cli_running:
             return
 
-        successful_stop = app.vex_controller.stop_vex_cli()
+        async def do_stop(confirmed: bool):
+            if not confirmed:
+                return
 
-        if successful_stop:
-            selected_instance.set_running(False)
-            await app.set_active_project(None)
-            self.status_card.set_active(None)
-            app.log_vex(message="Server stopped.")
-        else:
-            app.log_vex(
-                message="Failed to stop server!",
-                severity="error",
-            )
+            successful_stop = app.vex_controller.stop_vex_cli()
+
+            if successful_stop:
+                selected_instance.set_running(False)
+                await app.set_active_project(None)
+                self.status_card.set_active(None)
+                app.log_vex(message="Server stopped.")
+            else:
+                app.log_vex(
+                    message="Failed to stop server!",
+                    severity="error",
+                )
+
+        app.push_screen(ConfirmModal(f'Stop running instance?'), do_stop) # type: ignore
 
     @on(ListView.Highlighted)
     async def update_info_card(self, event: ListView.Highlighted) -> None:

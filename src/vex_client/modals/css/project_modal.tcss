@@ -1,11 +1,13 @@
+$border-divider: $secondary-darken-3;
+
 CreateUpdateProjectScreen {
         align: center middle;
         background: $background 60%;
 
     #modal-window {
-        width: 60;
+        width: 50;
         height: 10;
-        border: thick $foreground;
+        border: thick $border-divider;
         background: $background;
     }
 
