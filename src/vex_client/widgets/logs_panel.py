@@ -29,25 +29,6 @@ class VexLogsPanel(Widget):
 
     BORDER_TITLE = " Logs "
 
-    DEFAULT_CSS = """
-    VexLogsPanel {
-        dock: bottom;
-        height: 8;
-        background: $panel;
-        display: none;
-        offset-y: 0;
-        background: $panel;
-
-        border-top: tab $accent;
-        border-title-align: left;
-        margin-bottom: 1;
-    }
-
-    VexLogsPanel.visible {
-        display: block;
-    }
-    """
-
     @property
     def rich_log(self) -> RichLog:
         return self.query_one("#log-output", RichLog)

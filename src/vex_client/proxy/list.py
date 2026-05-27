@@ -7,7 +7,9 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.widget import Widget
-from textual.widgets import ListItem, ListView, Static, Button
+from textual.widgets import ListItem, ListView, Static
+
+from vex_client.widgets.button import VexButton
 
 
 @dataclass
@@ -19,10 +21,6 @@ class ProxyInstance:
     running: bool
 
 
-class InstanceButton(Button, can_focus=False):
-    """Used in the proxy screen"""
-
-
 class VexProxyListWidget(Widget):
     def __init__(self, instances: list[ProxyInstance], **kwargs) -> None:
         self.instances = instances
@@ -31,9 +29,9 @@ class VexProxyListWidget(Widget):
     def compose(self) -> ComposeResult:
         with Horizontal(id="proxy-list-header"):
             yield Static("── Instances ───", id="proxy-list-title")
-            yield InstanceButton("\[c] Create", id="btn-create", classes="btn")
-            yield InstanceButton("\[e] Edit", id="btn-edit", classes="btn")
-            yield InstanceButton("\[d] Delete", id="btn-delete", classes="btn")
+            yield VexButton("\[c] Create", id="btn-create")
+            yield VexButton("\[e] Edit", id="btn-edit")
+            yield VexButton("\[d] Delete", id="btn-delete")
         yield ProxyList(
             *[ProxyListItem(i) for i in self.instances],
             id="proxy-listview",
@@ -87,9 +85,9 @@ class ProxyListItem(ListItem):
             yield Static("○", id="instance-dot", classes="row-indicator")
             yield Static(self.instance.name, id="instance-name", classes="row-name")
             with Horizontal(classes="row-actions"):
-                yield InstanceButton("\[s] Stop", id="btn-stop", classes="btn")
-                yield InstanceButton("\[↵] Connect", id="btn-connect", classes="btn")
-                yield InstanceButton("\[↵] Start", id="btn-start", classes="btn")
+                yield VexButton("\[s] Stop", id="btn-stop")
+                yield VexButton("\[↵] Connect", id="btn-connect")
+                yield VexButton("\[↵] Start", id="btn-start")
 
     def on_mount(self) -> None:
         self._apply_running_state()
@@ -103,9 +101,9 @@ class ProxyListItem(ListItem):
         self.set_class(running, "row-running")
         instance_dot = self.query_one("#instance-dot", Static)
         instance_dot.set_class(running, "running")
-        self.query_one("#btn-stop", InstanceButton).set_class(running, "running")
-        self.query_one("#btn-connect", InstanceButton).set_class(running, "running")
-        self.query_one("#btn-start", InstanceButton).set_class(running, "running")
+        self.query_one("#btn-stop", VexButton).set_class(running, "running")
+        self.query_one("#btn-connect", VexButton).set_class(running, "running")
+        self.query_one("#btn-start", VexButton).set_class(running, "running")
 
         if running:
             instance_dot.update("●") 

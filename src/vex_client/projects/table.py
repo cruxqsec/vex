@@ -1,22 +1,47 @@
 import uuid
 from datetime import datetime
 
+from textual import on
+from textual.app import ComposeResult
+from textual.events import Mount
 from textual.widgets.data_table import CellDoesNotExist, RowDoesNotExist
+from textual.widget import Widget
+from textual.containers import Horizontal, Vertical
+from textual.widgets import Static
 
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.pydantic import Project
 from vex_client.get_size import get_directory_size, human_readable
 from vex_client.widgets.table import VexDataTable
-from vex_client.widgets.empty_message_widget import EmptyMessageWidget
+from vex_client.widgets.empty_message_widget import EmptyMessageWidget, EmptyStateChanged
+from vex_client.widgets.button import VexButton
 
 
-class VexProjectTableContainer(EmptyMessageWidget):
-    """Container that holds VexProjectTable"""
+class VexProjectTableContainer(Vertical):
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="project-table-header"):
+            yield Static("── Projects ───", id="project-table-title")
+            yield VexButton("\[c] Create", id="btn-create", classes="btn")
+            yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+            yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
+        yield VexProjectTableEmpty(id="project-table-empty")
+        yield Static("↵ enter to select a project", id="project-table-helper")
 
-    BORDER_TITLE = "Projects"
+    def on_mount(self) -> None:
+        self.query_one("#project-table-helper", Static).add_class("empty")
+
+
+    @on(EmptyStateChanged)
+    def empty_state_changed(self, event: EmptyStateChanged):
+        self.query_one("#project-table-helper", Static).set_class(event.is_empty, "empty")
+
+class VexProjectTableEmpty(EmptyMessageWidget):
+    """Container that holds VexProjectTable and an empty message"""
 
     def __init__(self, **kwargs):
-        self.table = VexProjectTable(cursor_type="row", zebra_stripes=True)
+        self.table = VexProjectTable(
+            cursor_type="row", zebra_stripes=True, id="project-table"
+        )
         super().__init__(
             widget=self.table,
             empty_message="No projects found. Create a new one to begin.",
@@ -32,15 +57,13 @@ class VexProjectTable(VexDataTable, can_focus=True):
     def __init__(self, **kwargs):
         # column with percent ration, have to add to 100 for proper display
         projects_columns = (
-            ("Name", 40),
-            ("Size", 10),
-            ("Created at", 25),
-            ("Updated at", 25),
+            ("Name", 20),
+            ("Size", 20),
+            ("Created at", 30),
+            ("Updated at", 30),
         )
         # parent constructor
-        super().__init__(
-            percent_columns=projects_columns, **kwargs
-        )
+        super().__init__(percent_columns=projects_columns, **kwargs)
 
     def insert(self, project: Project):
         """Calculate the size of the project directory and insert the row into the table."""

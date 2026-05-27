@@ -37,21 +37,6 @@ $border-divider: $secondary-darken-3;
     margin: 1 1 0 1;
 }
 
-.btn {
-    width: auto;
-    height: 1;
-    border: none;
-
-    text-style: b;
-    &:hover {
-        background-tint: $text-accent 10%;
-    }
-    
-    &:focus {
-        background-tint: $text-accent 30%;
-    }
-}
-
 /* ═══════════════════════════════════════════════════════════════════
    Left panel — VexProxyList
 ═══════════════════════════════════════════════════════════════════ */
@@ -60,8 +45,8 @@ $border-divider: $secondary-darken-3;
     width: 1fr;
     height: 1fr;
     border: none $error-muted;
-    border-left: inner $border-divider;
-    border-right: inner $border-divider;
+    border-left: tall $border-divider;
+    border-right: tall $border-divider;
 }
 
 /* Header row */

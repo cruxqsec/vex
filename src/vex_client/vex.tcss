@@ -1,5 +1,24 @@
 $empty-hatch: right $surface-lighten-1 70%;
-$border-divider: $secondary;
+$border-divider: $secondary-darken-3;
+
+/* ═══════════════════════════════════════════════════════════════════
+   VexButton class (all buttons)
+═══════════════════════════════════════════════════════════════════ */
+
+VexButton.btn {
+    width: auto;
+    height: 1;
+    border: none !important;
+
+    text-style: b;
+    &:hover {
+        background-tint: $text-accent 10%;
+    }
+    
+    &:focus {
+        background-tint: $text-accent 30%;
+    }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    Vex Navigation Bar and corresponding widgets
@@ -10,7 +29,7 @@ VexNavigationBar {
     height: 2;
     layout: horizontal;
     dock: top;
-    border-bottom: wide $secondary-muted;
+    border-bottom: wide $border-divider;
 
     &.bottom {
         dock: bottom;
@@ -32,7 +51,7 @@ InterceptButton {
     width: auto;
     height: 1;
     dock: right;
-    border-left: wide $secondary-muted;
+    border-left: wide $border-divider;
     
     background: $success 20%;
     color: $success !important;
@@ -55,7 +74,7 @@ InterceptButton {
 NavigationButton {
     width: auto;
     height: auto;
-    border-left: wide $secondary-muted;
+    border-left: wide $border-divider;
 
     text-align: left;
     background: $surface 50%;
@@ -104,11 +123,18 @@ ScopeSelect > SelectCurrent {
    Global VexDataTable widget CSS
 ═══════════════════════════════════════════════════════════════════ */
 
+
+
 VexDataTable {
     overflow-x: hidden;
     scrollbar-size-vertical: 0;
     scrollbar-gutter: auto;
     margin: 0;
+
+    & > .datatable--cursor {
+        background: $primary 30%;
+        color: $text;
+    }
 
     & .vex-datatable--method-get    { color: $method-get; }
     & .vex-datatable--method-post   { color: $method-post; }
@@ -217,7 +243,7 @@ VexFooter {
     height: 2;
     background: $panel;
     layout: horizontal;
-    border-top: wide $secondary;
+    border-top: wide $border-divider;
 }
 
 #left-side {
@@ -289,4 +315,45 @@ OnlineKey {
     &.online { background: $success; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LogsPanel widget
+═══════════════════════════════════════════════════════════════════ */
+
+VexLogsPanel {
+    dock: bottom;
+    display: none;
+    height: 8;
+
+    background: $panel;
+
+    border-top: tab $secondary;
+    border-title-align: left;
+    margin-bottom: 1;
+
+    &.visible {
+        display: block;
+        margin: 0;
+        scrollbar-gutter: auto; 
+    }
+}
+
+EmptyMessageWidget {
+    layers: below above;
+
+    & #empty-message {
+        display: none;
+    }
+
+    &.empty {
+        & VexTextArea { layer: below; }
+        & VexDataTable { layer: below; }
+
+        & #empty-message {
+            color: $text-muted;
+            hatch: $empty-hatch;
+            display: block;
+            layer: above;
+        }
+    }
+}
 

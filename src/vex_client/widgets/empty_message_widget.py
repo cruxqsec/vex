@@ -17,29 +17,6 @@ class EmptyMessageWidget(Widget, can_focus=False):
     Generic widget that takes another widget and displays an empty message over it.
     """
 
-    DEFAULT_CSS = """
-        EmptyMessageWidget {
-            layers: below above;
-        }
-
-        EmptyMessageWidget.empty {
-            & TextArea {
-                layer: below;
-            }
-
-            & #empty-message {
-                color: $text-muted;
-                hatch: right $surface-lighten-1 70%;
-                display: block;
-                layer: above;
-            }
-        }
-        
-        EmptyMessageWidget #empty-message {
-            display: none;
-        }
-    """
-
     def __init__(self, widget: Widget, empty_message: str, **kwargs):
         self._widget = widget
         self.empty_message = empty_message

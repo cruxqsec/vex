@@ -6,11 +6,12 @@ if TYPE_CHECKING:
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container
+from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Button
 
-from vex_cli.models.pydantic import ProjectCreate
+from vex_cli.models.pydantic import ProjectCreate, Project
+from vex_cli.locations import vex_projects_directory
 from vex_client.api.project_api import (
     create_project,
     delete_project,
@@ -21,24 +22,24 @@ from vex_client.api.project_api import (
 )
 from vex_client.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.widgets.navigation_bar import VexNavigationBar
-from vex_client.projects.active import ActiveProject
 from vex_client.projects.table import (
     VexProjectTableContainer,
     VexProjectTable,
 )
+from vex_client.projects.active_project import ActiveProjectWidget, ActiveProjectCard
 from vex_client.widgets.table import VexDataTable
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class VexProjectsScreen(Screen):
-    CSS_PATH = "css/projects.tcss"
+    CSS_PATH = "projects.tcss"
 
     BINDINGS = [
-        Binding("c", "create_project", "Create project", show=True, priority=True),
-        Binding("d", "delete_project", "Delete project", show=True, priority=True),
-        Binding("u", "update_project", "Update project", show=True, priority=True),
-        Binding("r", "test", "test", show=True, priority=True),
+        Binding("c", "create_project", "Create project", priority=True),
+        Binding("d", "delete_project", "Delete project", priority=True),
+        Binding("e", "update_project", "Update project", priority=True),
+        Binding("p", "copy_path", "Copy project path", priority=True),
     ]
 
     def __init__(self, **kwargs):
@@ -52,25 +53,24 @@ class VexProjectsScreen(Screen):
 
     @property
     def projects_table(self) -> VexProjectTable:
-        return self.query_one(VexProjectTable)
+        return self.query_one("#project-table", VexProjectTable)
 
     @property
-    def active_project(self) -> ActiveProject:
-        return self.query_one("#active-project", ActiveProject)
+    def active_project_card(self) -> ActiveProjectCard:
+        return self.query_one("#active-project-card", ActiveProjectCard)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        with Container(id="main-container"):
-            # yield ActiveProject(id="active-project")
-            # with Horizontal(id="projects-bar"):
-            # yield Button("+ Create project", classes="func-btn", id="create-btn")
-            yield VexProjectTableContainer(id="projects-table")
+        with Horizontal(id="main-container"):
+            yield VexProjectTableContainer(id="project-table-container")
+            yield ActiveProjectWidget(id="active-project-container")
         yield VexLogsPanel()
         yield VexFooter()
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
         self.projects_table.set_columns(self.size)
+        self.active_project_card.set_empty()
         self.first_mount = False
 
     async def on_screen_resume(self):
@@ -101,13 +101,14 @@ class VexProjectsScreen(Screen):
         if host is None or port is None:
             return
 
-        project = self.projects_table.get_project(project_id)
-        successfully_selected = await select_project(project_id, host, port)
+        project: Project | None = self.projects_table.get_project(project_id)
+        successfully_selected: bool = await select_project(project_id, host, port)
 
         if successfully_selected and project is not None:
-            # self.active_project.set_active_project(project.name)
+            self.active_project_card.set_project(project.name, "0", "0", "0")
             await app.set_active_project(project)
         else:
+            self.active_project_card.set_empty()
             self.notify("Project couldn't be selected", severity="error")
 
     @work(name="fetch_projects")
@@ -143,9 +144,10 @@ class VexProjectsScreen(Screen):
         if host is None or port is None:
             return
 
-        fetched_active_project = await get_active_project(host, port)
+        fetched_active_project: Project | None = await get_active_project(host, port)
 
         if fetched_active_project is None:
+            self.active_project_card.set_empty()
             return
 
         # check if already set so we don't do startup/cleanup if it's the same
@@ -153,7 +155,7 @@ class VexProjectsScreen(Screen):
         if active_project and fetched_active_project.id == active_project.id:
             return
 
-        # self.active_project.set_active_project(fetched_active_project.name)
+        self.active_project_card.set_project(fetched_active_project.name, "0", "0", "0")
         await app.set_active_project(fetched_active_project)
 
     # ------------- BINDING ACTIONS -----------------
@@ -239,8 +241,49 @@ class VexProjectsScreen(Screen):
             return
 
         if active_project and str(active_project.id) == project_id:
-            # self.active_project.set_active_project("")
+            self.active_project_card.set_empty()
             await app.set_active_project(None)
 
-    def action_test(self) -> None:
-        self.log(self.navigation_bar.styles)
+    def action_copy_path(self):
+        try:
+            import pyperclip
+
+            app = cast("VexApp", self.app)
+            project_id = (
+                str(app.vex_active_project.id)
+                if app.vex_active_project is not None
+                else ""
+            )
+            pyperclip.copy(str(vex_projects_directory() / project_id))
+        except pyperclip.PyperclipException as exc:
+            self.notify(
+                str(exc),
+                title="Clipboard error",
+                severity="error",
+                timeout=10,
+            )
+        else:
+            self.notify("Project directory path copied to clipboard")
+
+    # ------------- BUTTON ACTIONS -----------------
+
+    @on(Button.Pressed, "#btn-create")
+    async def on_create(self, event: Button.Pressed) -> None:
+        self.action_create_project()
+
+    @on(Button.Pressed, "#btn-edit")
+    async def on_edit(self, event: Button.Pressed) -> None:
+        self.action_update_project()
+
+    @on(Button.Pressed, "#btn-delete")
+    async def on_delete(self, event: Button.Pressed) -> None:
+        await self.action_delete_project()
+
+    @on(Button.Pressed, "#btn-export")
+    async def on_export(self, event: Button.Pressed) -> None:
+        # TODO: implement project exporting and importing
+        pass
+
+    @on(Button.Pressed, "#btn-copy-path")
+    async def on_copy_path(self, event: Button.Pressed) -> None:
+        self.action_copy_path()
