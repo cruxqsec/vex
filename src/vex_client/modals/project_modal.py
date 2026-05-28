@@ -12,7 +12,7 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
     BINDINGS = [
         ("escape", "cancel", "Close"),
         ("ctrl+c", "create", "Create proxy instance"), # TODO: disable if update
-        ("ctrl+u", "update", "Update proxy instance"), # TODO: disable if create
+        ("ctrl+y", "update", "Update proxy instance"), # TODO: disable if create
     ]
     
     def __init__(self, project_name: str | None, **kwargs):
@@ -32,15 +32,15 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
                             max_length=20, id="name-input")
             yield Label("", id="error-label")
             with Horizontal():
-                yield Button("", classes="func-btn")
-                yield Button("\[esc] Cancel", classes="func-btn", id="cancel-btn")
+                yield Button("", classes="btn")
+                yield Button("\[esc] Cancel", classes="btn", id="cancel-btn")
     
     def on_mount(self):
         create_update_btn = self.query("Button").first(Button)
         if self.project_name is not None and self.project_name != "":
             # we are updating the project
             self.query_one("#title", Label).update("[b]Update the project[/b]")
-            create_update_btn.label = "\[ctrl+u] Update"
+            create_update_btn.label = "\[ctrl+y] Update"
             create_update_btn.id = "update-btn"
             
             self.name_input.value = self.project_name

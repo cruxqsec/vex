@@ -1,0 +1,110 @@
+$border-divider: $secondary-darken-3;
+
+VexHTTPHistoryScreen {
+    background: $panel;
+}
+
+#http-table-container {
+    width: 1.01fr;
+    height: 1fr;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: $panel;
+    display: block;
+    &.hidden { display: none; }
+}
+
+#http-table-empty {
+    width: 1fr;
+    height: 1fr;
+    background: $panel;
+    border-bottom: tall $border-divider !important;
+}
+
+#http-table {
+    width: 1fr;
+    height: 1fr;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#http-table-header {
+    width: 1fr;
+    height: 3;
+    background: $surface;
+    border-top: tall $border-divider !important;
+    border-bottom: tall $border-divider !important;
+}
+
+#http-search-title {
+    width: auto;
+    height: 1;
+    text-style: b;
+    margin-left: 1;
+}
+
+#http-search-bar {
+    background: $secondary-muted;
+    width: 1fr;
+    height: 1;
+    border: none;
+    margin-left: 1;
+    margin-right: 3;
+}
+
+#text-areas {
+    display: block;
+    &.hidden { display: none; }
+    background: $panel;
+    padding: 0;
+    margin: 0;
+
+}
+
+#request-area-container {
+    height: 1fr;
+    width: 1fr;
+    border: none !important;
+    padding-top: 1;
+    margin: 0;
+
+    border-right: tall $border-divider !important;
+    border-bottom: tall $border-divider;
+}
+
+#response-area-container {
+    height: 1fr;
+    width: 1fr;
+    border: none;
+    padding-top: 1;
+    margin: 0;
+
+    border-left: tall $border-divider !important;
+    border-bottom: tall $border-divider;
+}
+
+#request-area {
+    width: 1fr;
+    height: 1fr;
+    background: $panel;
+    border: none !important;
+    padding-left: 1 !important;
+    margin: 0 !important;
+    border-bottom: tall $border-divider !important;
+}
+
+#response-area {
+    width: 1fr;
+    height: 1fr;
+    background: $panel;
+    border: none !important;
+    padding-left: 1 !important;
+    margin: 0 !important;
+    border-bottom: tall $border-divider !important;
+}
+
+#vim-status-bar {
+}
+

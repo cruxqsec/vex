@@ -60,8 +60,8 @@ class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
                 yield PortInput(placeholder="default: 9000", id="api-port-input")
             yield Label("", id="error-label")
             with Horizontal():
-                yield Button("", classes="func-btn")
-                yield Button("\[Esc] Cancel", classes="func-btn", id="cancel-btn")
+                yield Button("", classes="btn")
+                yield Button("\[Esc] Cancel", classes="btn", id="cancel-btn")
 
     def on_mount(self):
         create_update_btn = self.query("Button").first(Button)

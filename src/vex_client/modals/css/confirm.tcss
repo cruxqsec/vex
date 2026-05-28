@@ -36,14 +36,14 @@ ConfirmModal {
     }
 
     #confirm-yes {
-        color: $success !important;
-        background: $success-muted;
+        color: $success;
+        background: $success-muted 50%;
         margin-right: 1;
     }
 
     #confirm-no {
-        background: $error-muted !important;
-        color: $text-error !important;
+        background: $error-muted 50%;
+        color: $text-error;
         margin-left: 1;
     }
 }

@@ -26,10 +26,11 @@ $border-divider: $secondary-darken-3;
 
 VexNavigationBar {
     width: 1fr;
-    height: 2;
+    height: 1;
     layout: horizontal;
     dock: top;
     border-bottom: wide $border-divider;
+    box-sizing: content-box;
 
     &.bottom {
         dock: bottom;
@@ -72,7 +73,7 @@ InterceptButton {
 }
 
 NavigationButton {
-    width: auto;
+    width: 1fr;
     height: auto;
     border-left: wide $border-divider;
 
@@ -90,40 +91,17 @@ NavigationButton {
 }    
 
 ScopeSelect > SelectCurrent {
-    border-left: wide $secondary-muted;
-    color: $foreground;
-    background: $surface;
-    border: none;
     height: 1;
     width: 1fr;
-}
 
-/* ═══════════════════════════════════════════════════════════════════
-═══════════════════════════════════════════════════════════════════ */
-
-.func-btn {
-    padding: 0 1;
-    width: auto;
-    height: 1;
-    border: none;
-
-    background: $accent-muted;
-    color: $text-accent;
-    text-style: b;
-    &:hover {
-        background-tint: $text-accent 10%;
-    }
-    
-    &:focus {
-        background-tint: $text-accent 30%;
-    }
+    border: none !important;
+    color: $foreground;
+    background: $surface;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    Global VexDataTable widget CSS
 ═══════════════════════════════════════════════════════════════════ */
-
-
 
 VexDataTable {
     overflow-x: hidden;
@@ -134,6 +112,10 @@ VexDataTable {
     & > .datatable--cursor {
         background: $primary 30%;
         color: $text;
+    }
+    & > .datatable--header {
+        background: $secondary-darken-2 30%;
+
     }
 
     & .vex-datatable--method-get    { color: $method-get; }
@@ -198,6 +180,40 @@ VexTextArea {
     }
 }
 
+VexTextAreaWidget {
+    & #vim-status-bar {
+        height: 1;
+        background: $surface;
+    }
+
+    & #vim-mode {
+        height: auto;
+        width: auto;
+        dock: left;
+
+        background: $primary-muted;
+        color: $text;
+
+        margin-left: 3;
+        padding: 0 2;
+    }
+
+    & #vim-position {
+        width: auto;
+        height: auto;
+        dock: right;
+
+        color: $text;
+        margin-right: 3;
+    }
+
+    & #vim-mode.vim-visual {
+        background: $accent-muted;
+    }
+
+    
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    CommandPallete
 ═══════════════════════════════════════════════════════════════════ */
@@ -240,10 +256,11 @@ CommandPalette {
 
 VexFooter {
     dock: bottom;
-    height: 2;
+    height: 1;
     background: $panel;
     layout: horizontal;
     border-top: wide $border-divider;
+    box-sizing: content-box;
 }
 
 #left-side {

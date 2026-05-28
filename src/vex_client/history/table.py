@@ -4,7 +4,13 @@ from datetime import datetime
 from rich.text import Text
 from rich.style import Style
 from rich.color import Color
+
+from textual import on
+from textual.widgets import Static, Input
+from textual.app import ComposeResult
+from textual.containers import Horizontal, Vertical
 from textual.widgets.data_table import CellDoesNotExist
+
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
 from vex_client.widgets.table import VexDataTable, IconColumnCell
@@ -23,10 +29,16 @@ EXT_TO_ICON = {
     ".pdf": "󰈦",
 }
 
-class VexHTTPTableContainer(EmptyMessageWidget):
-    """Container that holds VexHTTPTable."""
 
-    BORDER_TITLE = "HTTP History"
+class VexHTTPTableContainer(Vertical):
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="http-table-header"):
+            yield Static("\[/] Search", id="http-search-title")
+            yield Input(id="http-search-bar")
+        yield VexHTTPTableEmpty(id="http-table-empty")
+
+class VexHTTPTableEmpty(EmptyMessageWidget):
+    """Container that holds VexHTTPTable plus an empty widget"""
 
     def __init__(self, **kwargs):
         # custom icons for columns
@@ -56,7 +68,8 @@ class VexHTTPTableContainer(EmptyMessageWidget):
             cursor_type="row",
             zebra_stripes=True,
             cell_padding=1,
-            columns=history_columns
+            columns=history_columns,
+            id="http-table",
         )
         super().__init__(
             widget=self.table,
@@ -123,14 +136,18 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             row: FlowSummary = self._row_cache[flow_id]
 
             self.update_cell(str(flow_id), "Method", self.render_method(row.method))
-            self.update_cell(str(flow_id), "Extension", self.render_extension(row.file_extension))
+            self.update_cell(
+                str(flow_id), "Extension", self.render_extension(row.file_extension)
+            )
 
             if row.status_code:
                 self.update_cell(
                     str(flow_id), "Status", self.render_status(row.status_code)
                 )
             if row.cookie:
-                self.update_cell(str(flow_id), "Cookie", self.render_cookie(bool(row.cookie)))
+                self.update_cell(
+                    str(flow_id), "Cookie", self.render_cookie(bool(row.cookie))
+                )
         self.set_loading(False)
 
     def _style_for(self, component: str) -> Style:
@@ -175,6 +192,10 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         # Format: HH:MM:SS Day/Month
         return Text(dt_object.strftime("%H:%M:%S %d/%m"), style="italic")
 
+    def clear_table(self) -> None:
+        self.clear(columns=False)
+        self.post_message(VexDataTable.RowRemoved())
+
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
             self._add_to_cache(request_summary)
@@ -184,7 +205,12 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 self.render_method(request_summary.method),
                 request_summary.path,
                 request_summary.query,
-                None, None, None, None, None, None,  # RequestSummmary field are empty
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,  # RequestSummmary field are empty
                 self.render_extension(request_summary.file_extension),
                 key=str(request_summary.flow_id),
             )
@@ -240,7 +266,9 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         except ValueError:
             self.notify("Error inserting summary!", severity="error")
 
-    def _add_to_cache(self, summary: RequestSummary | ResponseSummary | FlowSummary) -> None:
+    def _add_to_cache(
+        self, summary: RequestSummary | ResponseSummary | FlowSummary
+    ) -> None:
         if isinstance(summary, RequestSummary):
             self._row_cache[summary.flow_id] = FlowSummary(**summary.model_dump())
         if isinstance(summary, ResponseSummary):

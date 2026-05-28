@@ -29,7 +29,7 @@ from vex_client.widgets.logs_panel import VexLogsPanel
 
 
 class VexHTTPHistoryScreen(Screen):
-    CSS_PATH = "css/http_history.tcss"
+    CSS_PATH = "http_history.tcss"
 
     BINDINGS = [
         Binding(
@@ -65,15 +65,11 @@ class VexHTTPHistoryScreen(Screen):
 
     @property
     def request_area(self) -> VexTextArea:
-        return self.query_one("#request-area", RequestAreaContainer).query_one(
-            VexTextArea
-        )
+        return self.query_one("#request-area", VexTextArea)
 
     @property
     def response_area(self) -> VexTextArea:
-        return self.query_one("#response-area", ResponseAreaContainer).query_one(
-            VexTextArea
-        )
+        return self.query_one("#response-area", VexTextArea)
 
     def __init__(self, **kwargs) -> None:
         self._req_res_hidden = False
@@ -83,10 +79,10 @@ class VexHTTPHistoryScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        yield VexHTTPTableContainer(id="http-table")
+        yield VexHTTPTableContainer(id="http-table-container")
         with Horizontal(id="text-areas"):
-            yield RequestAreaContainer(id="request-area")
-            yield ResponseAreaContainer(id="response-area")
+            yield RequestAreaContainer(id="request-area-container")
+            yield ResponseAreaContainer(id="response-area-container")
         yield VexLogsPanel()
         yield VexFooter()
 

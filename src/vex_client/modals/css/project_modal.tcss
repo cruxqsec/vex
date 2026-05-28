@@ -40,6 +40,14 @@ CreateUpdateProjectScreen {
         margin-bottom: 1;
     }
 
+    #create-btn {
+        background: $success-muted !important;
+    }
+
+    #update-btn {
+        background: $accent-muted !important;
+    }
+
     #cancel-btn {
         background: $error-muted !important;
         color: $text-error !important;

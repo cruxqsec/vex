@@ -271,7 +271,7 @@ class VexProxyScreen(Screen):
                     severity="error",
                 )
 
-        app.push_screen(ConfirmModal(f'Stop running instance?'), do_stop) # type: ignore
+        app.push_screen(ConfirmModal('Stop running instance?'), do_stop) # type: ignore
 
     @on(ListView.Highlighted)
     async def update_info_card(self, event: ListView.Highlighted) -> None:

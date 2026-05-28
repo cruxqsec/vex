@@ -192,7 +192,7 @@ class VexApp(App[str]):
 
     async def project_switch_cleanup(self) -> None:
         http_screen = self.get_screen("history-screen", VexHTTPHistoryScreen)
-        http_screen.http_table.clear(columns=False)
+        http_screen.http_table.clear_table()
 
     async def project_switch_startup(self) -> None:
         await self.project_switch_cleanup()
