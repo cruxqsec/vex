@@ -43,11 +43,6 @@ class VexProjectsScreen(Screen):
         Binding("p", "copy_path", "Copy project path", priority=True),
     ]
 
-    def __init__(self, **kwargs):
-        self.first_mount = True
-        # parent constructor
-        super().__init__(**kwargs)
-
     @property
     def navigation_bar(self) -> VexNavigationBar:
         return self.query_one("#navigation-bar", VexNavigationBar)
@@ -59,6 +54,10 @@ class VexProjectsScreen(Screen):
     @property
     def active_project_card(self) -> ActiveProjectCard:
         return self.query_one("#active-project-card", ActiveProjectCard)
+
+    def __init__(self, **kwargs):
+        # parent constructor
+        super().__init__(**kwargs)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
@@ -72,12 +71,8 @@ class VexProjectsScreen(Screen):
         self.navigation_bar.set_navigation_btn_color()
         self.projects_table.set_columns(self.size)
         self.active_project_card.set_empty()
-        self.first_mount = False
 
     async def on_screen_resume(self):
-        if self.first_mount:
-            return
-
         self.projects_table.set_loading(True)
         self._fetch_all_projects()
         self._check_active_project()
@@ -107,7 +102,7 @@ class VexProjectsScreen(Screen):
 
         if successfully_selected and project is not None:
             self.active_project_card.set_project(project.name, "0", "0", "0")
-            await app.set_active_project(project)
+            app.set_active_project(project)
         else:
             self.active_project_card.set_empty()
             self.notify("Project couldn't be selected", severity="error")
@@ -152,12 +147,12 @@ class VexProjectsScreen(Screen):
             return
 
         # check if already set so we don't do startup/cleanup if it's the same
-        active_project = app.vex_active_project
+        active_project = app.active_project
         if active_project and fetched_active_project.id == active_project.id:
             return
 
         self.active_project_card.set_project(fetched_active_project.name, "0", "0", "0")
-        await app.set_active_project(fetched_active_project)
+        app.set_active_project(fetched_active_project)
 
     # ------------- BINDING ACTIONS -----------------
 
@@ -235,7 +230,7 @@ class VexProjectsScreen(Screen):
                 return
 
             is_deleted = await delete_project(project_id, host, port)
-            active_project = app.vex_active_project
+            active_project = app.active_project
 
             if is_deleted:
                 self.projects_table.remove_row(project_id)
@@ -245,7 +240,7 @@ class VexProjectsScreen(Screen):
                 return
             if active_project and str(active_project.id) == project_id:
                 self.active_project_card.set_empty()
-                await app.set_active_project(None)
+                app.set_active_project(None)
 
         app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete) # type: ignore
 
@@ -255,8 +250,8 @@ class VexProjectsScreen(Screen):
 
             app = cast("VexApp", self.app)
             project_id = (
-                str(app.vex_active_project.id)
-                if app.vex_active_project is not None
+                str(app.active_project.id)
+                if app.active_project is not None
                 else ""
             )
             pyperclip.copy(str(vex_projects_directory() / project_id))

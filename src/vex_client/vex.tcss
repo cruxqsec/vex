@@ -1,6 +1,10 @@
 $empty-hatch: right $surface-lighten-1 70%;
 $border-divider: $secondary-darken-3;
 
+Screen {
+    scrollbar-size: 0 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    VexButton class (all buttons)
 ═══════════════════════════════════════════════════════════════════ */
@@ -339,18 +343,17 @@ OnlineKey {
 VexLogsPanel {
     dock: bottom;
     display: none;
-    height: 8;
+    height: 20;
 
     background: $panel;
 
     border-top: tab $secondary;
     border-title-align: left;
-    margin-bottom: 1;
+    margin-bottom: 5;
 
     &.visible {
         display: block;
         margin: 0;
-        scrollbar-gutter: auto; 
     }
 }
 

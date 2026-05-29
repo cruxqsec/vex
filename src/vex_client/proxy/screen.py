@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
-import websockets
 import time
 
 if TYPE_CHECKING:
@@ -9,7 +8,7 @@ if TYPE_CHECKING:
 
 import logging
 
-from textual import on, work
+from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
@@ -64,6 +63,7 @@ BANNER_3 = """\
 
 TAGLINE = "SECURITY TOOLKIT IN THE TERMINAL"
 NOT_STARTED = -1
+
 
 class VexProxyScreen(Screen):
     CSS_PATH = "proxy.tcss"
@@ -123,6 +123,8 @@ class VexProxyScreen(Screen):
             self.status_card.set_active(None, self._elapsed_str())
 
     def _elapsed_str(self) -> str:
+        if self._proxy_start_time == NOT_STARTED:
+            return "not started"
         elapsed = int(time.monotonic() - self._proxy_start_time)
         mins = elapsed // 60
         if mins < 1:
@@ -187,32 +189,6 @@ class VexProxyScreen(Screen):
         except (OSError, ValidationError):
             app.log_vex("Error reading vex.pid file!", severity="error")
 
-    @work(name="server_monitor", exclusive=True)
-    async def _server_monitor(self):
-        app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        if host is None or port is None:
-            return
-
-        try:
-            async with websockets.connect(
-                f"ws://{host}:{port}/ws/ping",
-                ping_interval=20,
-                ping_timeout=10,
-            ) as ws:
-                app.server_online = True
-                app.log_vex("Server connected")
-                await ws.wait_closed()
-                app.log_vex("Server shutdown")
-        except websockets.ConnectionClosed:
-            app.log_vex("Server closed connection unexpectedly", "warning")
-        except OSError:
-            app.log_vex("Could not reach server, is it running?", "error")
-        except Exception as e:
-            app.log_vex(f"Unexpected error in server monitor: {e}", "error")
-        finally:
-            app.server_online = False
-    
     async def _start_vex(self, selected_item: ProxyListItem):
         app = cast("VexApp", self.app)
         server_info = VexServerInfo(
@@ -245,7 +221,7 @@ class VexProxyScreen(Screen):
 
     async def _enter_vex(self):
         app = cast("VexApp", self.app)
-        self._server_monitor()
+        app._server_monitor()
         app.switch_screen("projects-screen")
 
     async def _stop_vex(self, selected_instance: ProxyListItem):
@@ -262,7 +238,7 @@ class VexProxyScreen(Screen):
 
             if successful_stop:
                 selected_instance.set_running(False)
-                await app.set_active_project(None)
+                app.set_active_project(None)
                 self.status_card.set_active(None)
                 app.log_vex(message="Server stopped.")
             else:
@@ -271,7 +247,7 @@ class VexProxyScreen(Screen):
                     severity="error",
                 )
 
-        app.push_screen(ConfirmModal('Stop running instance?'), do_stop) # type: ignore
+        app.push_screen(ConfirmModal("Stop running instance?"), do_stop)  # type: ignore
 
     @on(ListView.Highlighted)
     async def update_info_card(self, event: ListView.Highlighted) -> None:
@@ -330,8 +306,9 @@ class VexProxyScreen(Screen):
         def edit_instance(instance_data: ProxyInstance):
             selected_item.update_instance(instance_data)
 
-        self.app.push_screen(
-            CreateUpdateProxyScreen(selected_item.instance), edit_instance)  # type: ignore
+        self.app.push_screen( 
+            CreateUpdateProxyScreen(selected_item.instance), edit_instance # type: ignore
+        )  
 
     # ------------ button logic -----------------
 
@@ -345,7 +322,7 @@ class VexProxyScreen(Screen):
 
     @on(Button.Pressed, "#btn-delete")
     async def on_delete(self, event: Button.Pressed) -> None:
-        # TODO: check if the clicked button is on the highlighted element 
+        # TODO: check if the clicked button is on the highlighted element
         self.proxy_list.action_delete_item()
 
     @on(Button.Pressed, "#btn-stop")
@@ -353,7 +330,7 @@ class VexProxyScreen(Screen):
         row = event.button.ancestors_with_self
         selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
         await self._stop_vex(selected_instance)
-    
+
     @on(Button.Pressed, "#btn-connect")
     async def on_connect(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self

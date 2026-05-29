@@ -1,28 +1,21 @@
-import asyncio
-import json
 from uuid import UUID
+
 from typing import TYPE_CHECKING, cast
-
-import websockets
-from pydantic import ValidationError
-
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-from textual import work, on
+from textual import on
 from textual.binding import Binding
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import DataTable
 
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.history.table import VexHTTPTable, VexHTTPTableContainer
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
-from vex_client.api.summaries_api import get_all_summaries
 from vex_client.api.raw_api import get_raw_request, get_raw_response
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
@@ -89,96 +82,28 @@ class VexHTTPHistoryScreen(Screen):
     def on_mount(self) -> None:
         self.navigation_bar.set_navigation_btn_color()
         self.http_table.set_columns(self.size)
-        self._history_websocket_manager()
+
+        app: VexApp = cast("VexApp", self.app)
+
+        app.history_screen = self
+        self.populate_table()
+
+    def on_unmount(self) -> None:
+        cast("VexApp", self.app).history_screen = None
 
     async def on_screen_resume(self) -> None:
         self.set_focus(self.http_table)
 
-    # ------------- Socket manager and related ---------------
+    def populate_table(self) -> None:
+        self.http_table.set_loading(True)
+        self.http_table.clear_table()
+        self.request_area.clear()
+        self.response_area.clear()
+        for summary in cast("VexApp", self.app).history_summary_cache.values():
+            self.http_table.insert_full_summary(summary)
+        self.http_table.set_loading(False)
 
-    def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
-        data = json.loads(raw_data)
-        try:
-            return RequestSummary.model_validate(data)
-        except ValidationError:
-            return ResponseSummary.model_validate(data)
-
-    @work(name="history_manager", exclusive=True)
-    async def _history_websocket_manager(self) -> None:
-        app: VexApp = cast("VexApp", self.app)
-
-        while True:
-            await app.is_project_active_event.wait()  # waits if not set (cleared)
-            self.notify("History manager activated")
-            await self._handle_history_connection()
-            await asyncio.sleep(5)  # so we don't spam the server
-
-    async def _handle_history_connection(self) -> None:
-        """Connects to vex-cli websocket and processes messages (summaries)"""
-        app: VexApp = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-
-        if host is None or port is None:
-            return
-
-        self.uri = f"ws://{host}:{port}/ws/history"
-
-        try:
-            async with websockets.connect(self.uri) as websocket:
-                self.notify("Connection to websocket successful!")
-                async for raw_message in websocket:
-                    if not app.is_project_active_event.is_set():
-                        # skips processing but keeps loop/connection alive
-                        continue
-                    self._handle_message(raw_message)
-        except Exception as e:
-            self.notify(f"Unexpected error: {e}")
-
-    def _handle_message(self, raw_message: websockets.Data) -> None:
-        try:
-            message = self.parse_summary_message(str(raw_message))
-
-            if isinstance(message, RequestSummary):
-                self.http_table.insert_request_summary(message)
-            elif isinstance(message, ResponseSummary):
-                self.http_table.insert_response_summary(message)
-
-        except ValidationError as e:
-            self.notify(f"Received invalid JSON structure: {e}")
-        except json.JSONDecodeError:
-            self.notify("Received data that wasn't even JSON!")
-
-    # ------------------ Fetching and selecting summaries ---------------
-
-    @work(exclusive=True)
-    async def fetch_all_summaries(self) -> None:
-        """
-        Worker function that fetches all summaries of a project
-        through vex-cli API and adds them to the table.
-        """
-        app: VexApp = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        skip: int = 0
-
-        if host is None or port is None:
-            return
-
-        while True:
-            full_summaries: list[FlowSummary] = await get_all_summaries(
-                host, port, skip, 50
-            )
-
-            if not full_summaries:
-                break
-
-            for summary in full_summaries:
-                if self.http_table.row_exists(str(summary.flow_id)):
-                    self.notify(f"Row with key {summary.flow_id} exists")
-                    continue
-
-                self.http_table.insert_full_summary(summary)
-
-            skip += 50
+    # ------------------ Selecting summaries ---------------
 
     @on(DataTable.RowSelected)
     async def select_summary(self, event: DataTable.RowSelected) -> None:
@@ -203,7 +128,7 @@ class VexHTTPHistoryScreen(Screen):
         if raw_request:
             self.request_area.text = raw_request.data.decode("utf-8")
         else:
-            self.notify("Couldn't fetch request/response data!", severity="error")
+            app.log_vex("Couldn't fetch request/response data!", severity="error")
 
         if raw_response:
             self.response_area.text = (
@@ -220,8 +145,11 @@ class VexHTTPHistoryScreen(Screen):
 
     def action_hide_show_http_table(self) -> None:
         self._http_table_hidden = not self._http_table_hidden
-        self.query_one("#http-table", VexHTTPTableContainer).set_class(
+        self.query_one("#http-table-container", VexHTTPTableContainer).set_class(
             self._http_table_hidden, "hidden"
+        )
+        self.query_one("#text-areas", Horizontal).set_class(
+            self._http_table_hidden, "table-hidden"
         )
 
     def action_test(self) -> None:

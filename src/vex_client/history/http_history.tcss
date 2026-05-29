@@ -61,6 +61,7 @@ VexHTTPHistoryScreen {
     padding: 0;
     margin: 0;
 
+    &.table-hidden { border-top: wide $border-divider !important; }
 }
 
 #request-area-container {

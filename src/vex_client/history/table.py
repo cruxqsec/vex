@@ -1,11 +1,16 @@
 from uuid import UUID
 from datetime import datetime
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from vex_client.app import VexApp
+
+
 from rich.text import Text
 from rich.style import Style
 from rich.color import Color
 
-from textual import on
 from textual.widgets import Static, Input
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -36,6 +41,7 @@ class VexHTTPTableContainer(Vertical):
             yield Static("\[/] Search", id="http-search-title")
             yield Input(id="http-search-bar")
         yield VexHTTPTableEmpty(id="http-table-empty")
+
 
 class VexHTTPTableEmpty(EmptyMessageWidget):
     """Container that holds VexHTTPTable plus an empty widget"""
@@ -113,8 +119,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     }
 
     def __init__(self, columns: tuple, **kwargs):
-        self._row_cache: dict[UUID, FlowSummary] = {}
-
         # parent constructor
         super().__init__(percent_columns=columns, **kwargs)
 
@@ -124,16 +128,16 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def _on_app_theme_changed(self, theme: str) -> None:
         self.set_loading(True)
         self._recolor_cells()
-        self.log(self._row_cache)
 
     def _recolor_cells(self) -> None:
         """Recolor the custom cells on theme change which we display with theme colors."""
+        app: VexApp = cast("VexApp", self.app)
         for row_key in self._data:
             flow_id: UUID = UUID(row_key.value)
-            if flow_id not in self._row_cache:
+            if flow_id not in app.history_summary_cache:
                 continue
 
-            row: FlowSummary = self._row_cache[flow_id]
+            row: FlowSummary = app.history_summary_cache[flow_id]
 
             self.update_cell(str(flow_id), "Method", self.render_method(row.method))
             self.update_cell(
@@ -198,7 +202,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
-            self._add_to_cache(request_summary)
             self.add_row(
                 request_summary.id,
                 request_summary.host,
@@ -210,18 +213,17 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 None,
                 None,
                 None,
-                None,  # RequestSummmary field are empty
+                None,  # ResponseSummmary field are empty
                 self.render_extension(request_summary.file_extension),
                 key=str(request_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())
-        except ValueError:
-            self.notify("Error inserting summary!", severity="error")
+        except ValueError as e:
+            self.app.log_vex(f"Error: {e}")  # type: ignore
 
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:
         flow_id = str(response_summary.flow_id)
         try:
-            self._add_to_cache(response_summary)
             self.update_cell(
                 flow_id, "Status", self.render_status(response_summary.status_code)
             )
@@ -236,17 +238,21 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 flow_id, "Sent at", self.time_display(response_summary.timestamp)
             )
             self.update_cell(
-                flow_id, "Cookies", self.render_cookie(bool(response_summary.cookie))
+                flow_id, "Cookie", self.render_cookie(bool(response_summary.cookie))
             )
         except CellDoesNotExist:
-            self.notify(
-                "Could not find corresponding request summary!", severity="error"
+            self.app.log_vex(  # type: ignore
+                "Error inserting response summary, could not find corresponding request summary!",
+                severity="error",
             )
-            return
+        except Exception as e:
+            self.app.log_vex(  # type: ignore
+                f"Error: {e}",
+                severity="error",
+            )
 
     def insert_full_summary(self, full_summary: FlowSummary) -> None:
         try:
-            self._add_to_cache(full_summary)
             self.add_row(
                 full_summary.id,
                 full_summary.host,
@@ -265,21 +271,3 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             self.post_message(VexDataTable.RowAdded())
         except ValueError:
             self.notify("Error inserting summary!", severity="error")
-
-    def _add_to_cache(
-        self, summary: RequestSummary | ResponseSummary | FlowSummary
-    ) -> None:
-        if isinstance(summary, RequestSummary):
-            self._row_cache[summary.flow_id] = FlowSummary(**summary.model_dump())
-        if isinstance(summary, ResponseSummary):
-            if summary.flow_id not in self._row_cache:
-                unfinished_summary = self._row_cache[summary.flow_id]
-                unfinished_summary.status_code = summary.status_code
-                unfinished_summary.response_size = summary.response_size
-                unfinished_summary.mime = summary.mime
-                unfinished_summary.http_title = summary.http_title
-                unfinished_summary.cookie = summary.cookie
-                unfinished_summary.duration_ms = summary.duration_ms
-                unfinished_summary.timestamp = summary.timestamp
-        if isinstance(summary, FlowSummary):
-            self._row_cache[summary.flow_id] = summary
