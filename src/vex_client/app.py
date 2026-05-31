@@ -186,7 +186,6 @@ class VexApp(App[str]):
 
         self.log_vex("History manager: worker started")
         while self.server_online:
-            #self.log_vex("History manager: active", "success")
             self.log_vex("History manager: attempting connection")
             await self._handle_history_connection()
             self.log_vex(f"History manager: post-connection, server_online={self.server_online}")
@@ -204,11 +203,8 @@ class VexApp(App[str]):
         self.uri = f"ws://{host}:{port}/ws/history"
         try:
             async with websockets.connect(self.uri) as websocket:
-                #self.log_vex("History manager: connected", "success")
-                self.log("RAW: connected")
+                self.log_vex("History manager: connected", "success")
                 async for raw_message in websocket:
-                    self.log("RAW: got message")
-                    #self.log_vex(f"History manager: raw message received")
                     self._handle_message(raw_message)
                 self.log_vex("History manager: connection closed cleanly")
         except Exception as e:
@@ -222,11 +218,9 @@ class VexApp(App[str]):
             message = self.parse_summary_message(str(raw_message))
             self.add_to_summary_cache(message)
 
-            self.log_vex("History manager: message parsed and added to cache")
             if self.history_screen is None:
                 return
 
-            self.log_vex("History manager: message parsed and added to cache")
             if isinstance(message, RequestSummary):
                 self.history_screen.http_table.insert_request_summary(message)
             else:
@@ -238,7 +232,6 @@ class VexApp(App[str]):
             self.log_vex("History manager: received data that wasn't even JSON!")
         except Exception as e:
                 self.log_vex(f"History manager: handling message failed: {type(e).__name__}: {e}", "error")
-
 
     def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
         data = json.loads(raw_data)
@@ -297,13 +290,6 @@ class VexApp(App[str]):
             if isinstance(current_screen, screen):  # type: ignore
                 return name
         return ""
-
-    """
-    async def preload_screen(self, screen_name: str) -> None:
-        await self.push_screen(screen_name)
-        await asyncio.sleep(0.5)
-        await self.pop_screen()
-    """
 
     # ------------ Actions related -------------
 

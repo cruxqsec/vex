@@ -107,7 +107,7 @@ class VexProjectsScreen(Screen):
             self.active_project_card.set_empty()
             self.notify("Project couldn't be selected", severity="error")
 
-    @work(name="fetch_projects")
+    @work(name="fetch_projects", group="fetch_projects", exclusive=True)
     async def _fetch_all_projects(self):
         """
         Worker function that fetches available projects through vex-cli API
@@ -128,7 +128,7 @@ class VexProjectsScreen(Screen):
 
         self.projects_table.set_loading(False)
 
-    @work(name="check_active_project")
+    @work(name="check_active_project", group="check_active_projects", exclusive=True)
     async def _check_active_project(self):
         """
         Worker function that checks if any project is active,

@@ -95,13 +95,17 @@ class VexHTTPHistoryScreen(Screen):
         self.set_focus(self.http_table)
 
     def populate_table(self) -> None:
-        self.http_table.set_loading(True)
+        self.set_loading(True)
+
+        # clear all the areas
         self.http_table.clear_table()
         self.request_area.clear()
         self.response_area.clear()
+
         for summary in cast("VexApp", self.app).history_summary_cache.values():
             self.http_table.insert_full_summary(summary)
-        self.http_table.set_loading(False)
+
+        self.set_loading(False)
 
     # ------------------ Selecting summaries ---------------
 

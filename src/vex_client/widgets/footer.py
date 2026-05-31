@@ -71,8 +71,8 @@ class VexFooter(Widget):
         return self.query_one(OnlineKey)
 
     @property
-    def logs_key(self) -> OnlineKey:
-        return self.query_one(OnlineKey)
+    def logs_key(self) -> LogsKey:
+        return self.query_one(LogsKey)
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="left-side"):

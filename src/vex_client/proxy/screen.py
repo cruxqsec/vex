@@ -34,25 +34,6 @@ from vex_client.widgets.logs_panel import VexLogsPanel
 
 logger = logging.getLogger(__name__)
 
-BANNER = """
-░██    ░██                       
-░██    ░██                       
-░██    ░██  ░███████  ░██    ░██ 
-░██    ░██ ░██    ░██  ░██  ░██  
- ░██  ░██  ░█████████   ░█████   
-  ░██░██   ░██         ░██  ░██  
-   ░███     ░███████  ░██    ░██
-        
-"""
-
-BANNER_2 = """
-░██    ░██  ░███████  ░██    ░██ 
-░██    ░██ ░██    ░██  ░██  ░██  
- ░██  ░██  ░█████████   ░█████   
-  ░██░██   ░██         ░██  ░██  
-   ░███     ░███████  ░██    ░██ 
-"""
-
 BANNER_3 = """\
  ██╗   ██╗███████╗██╗  ██╗
  ██║   ██║██╔════╝╚██╗██╔╝
@@ -115,7 +96,11 @@ class VexProxyScreen(Screen):
         await self.check_for_running_instance()
 
     def on_screen_resume(self) -> None:
-        running_instance = next((obj for obj in self._instances if obj.running), None)
+        running_instance = next(
+            (child.instance for child in self.proxy_list.children
+            if isinstance(child, ProxyListItem) and child.instance.running),
+            None,
+        )
 
         if running_instance:
             self.status_card.set_active(running_instance, self._elapsed_str())
@@ -134,10 +119,13 @@ class VexProxyScreen(Screen):
         hours, _ = divmod(mins, 60)
         return f"{hours} hours ago"
 
+
+    # ------------ Startup logic -----------------
+
     async def check_for_running_instance(self):
         """
         Checks for any running instances of vex-cli.
-        If it exists it adds it
+        If it exists it adds it.
         """
 
         app = cast("VexApp", self.app)
@@ -188,6 +176,8 @@ class VexProxyScreen(Screen):
 
         except (OSError, ValidationError):
             app.log_vex("Error reading vex.pid file!", severity="error")
+
+    # ------------ List actions -----------------
 
     async def _start_vex(self, selected_item: ProxyListItem):
         app = cast("VexApp", self.app)
@@ -254,8 +244,6 @@ class VexProxyScreen(Screen):
         if isinstance(event.item, ProxyListItem):
             self.info_card.update_instance(event.item.instance)
 
-    # ------------ actions -----------------
-
     @on(ListView.Selected)
     async def start_enter_vex(self, event: ListView.Selected) -> None:
         """
@@ -270,6 +258,8 @@ class VexProxyScreen(Screen):
             return
 
         await self._start_vex(selected_item)
+
+    # ------------ Binding actions -----------------
 
     async def action_stop_instance(self) -> None:
         """Stop the instance if currently running"""
@@ -289,7 +279,6 @@ class VexProxyScreen(Screen):
         def create_instance(instance_data: ProxyInstance):
             item = ProxyListItem(instance_data)
             self.proxy_list.append(item)
-            self._instances.append(instance_data)
 
         self.app.push_screen(CreateUpdateProxyScreen(None), create_instance)  # type: ignore
 
@@ -306,11 +295,12 @@ class VexProxyScreen(Screen):
         def edit_instance(instance_data: ProxyInstance):
             selected_item.update_instance(instance_data)
 
-        self.app.push_screen( 
-            CreateUpdateProxyScreen(selected_item.instance), edit_instance # type: ignore
-        )  
+        self.app.push_screen(
+            CreateUpdateProxyScreen(selected_item.instance),
+            edit_instance,  # type: ignore
+        )
 
-    # ------------ button logic -----------------
+    # ------------ Button actions -----------------
 
     @on(Button.Pressed, "#btn-create")
     async def on_create(self, event: Button.Pressed) -> None:
