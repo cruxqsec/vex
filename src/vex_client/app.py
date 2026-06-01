@@ -281,6 +281,14 @@ class VexApp(App[str]):
         if host is None or port is None:
             self.log_vex("Cannot load summaries: no server info available", "error")
             return
+
+        self.history_summary_cache.clear()
+        if self.history_screen is not None:
+            self.history_screen.http_table_empty.set_loading(True)
+            self.history_screen.http_table.clear_table()
+            self.history_screen.request_area.clear()
+            self.history_screen.response_area.clear()
+
         skip = 0
         while True:
             try:
@@ -296,7 +304,7 @@ class VexApp(App[str]):
 
         # only populate table after full fetch is done
         if self.history_screen is not None:
-            self.history_screen.populate_table()
+            await self.history_screen.populate_table()
 
     # ------------ Screen related -------------
 
