@@ -18,10 +18,10 @@ async def get_all_projects(host: str, port: int) -> list[Project]:
                 return result
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -33,10 +33,10 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
                 return Project.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -53,10 +53,10 @@ async def create_project(
                 return Project.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -71,10 +71,10 @@ async def update_project(updated_project: Project, host: str, port: int) -> bool
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -86,10 +86,10 @@ async def delete_project(id: str, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -103,10 +103,10 @@ async def select_project(id: str, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -119,8 +119,8 @@ async def get_active_project(host: str, port: int) -> Project | None:
 
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None

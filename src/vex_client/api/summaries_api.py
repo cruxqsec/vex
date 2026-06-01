@@ -24,10 +24,10 @@ async def get_all_request_summaries(
                 return [RequestSummary.model_validate(r) for r in response.json()]
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -41,10 +41,10 @@ async def get_request_summary(id: UUID, host: str, port: int) -> RequestSummary 
                 return RequestSummary.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -61,10 +61,10 @@ async def create_request_summary(
                 return RequestSummary.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -81,10 +81,10 @@ async def update_request_summary(
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -98,10 +98,10 @@ async def delete_request_summary(id: UUID, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -121,10 +121,10 @@ async def get_all_response_summaries(
                 return [ResponseSummary.model_validate(r) for r in response.json()]
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -140,10 +140,10 @@ async def get_response_summary(
                 return ResponseSummary.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -160,10 +160,10 @@ async def create_response_summary(
                 return ResponseSummary.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -180,10 +180,10 @@ async def update_response_summary(
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -197,10 +197,10 @@ async def delete_response_summary(id: UUID, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -220,10 +220,10 @@ async def get_all_summaries(
                 return [FlowSummary.model_validate(r) for r in response.json()]
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -235,8 +235,8 @@ async def get_summary(id: UUID, host: str, port: int) -> FlowSummary | None:
                 return FlowSummary.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None

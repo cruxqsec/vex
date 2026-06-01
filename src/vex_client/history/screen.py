@@ -1,4 +1,5 @@
 from uuid import UUID
+import httpx
 
 from typing import TYPE_CHECKING, cast
 
@@ -127,8 +128,17 @@ class VexHTTPHistoryScreen(Screen):
         if host is None or port is None:
             return
 
-        raw_request = await get_raw_request(summary_id, host, port)
-        raw_response = await get_raw_response(summary_id, host, port)
+        try:
+            raw_request = await get_raw_request(summary_id, host, port)
+        except httpx.HTTPError:
+            app.log_vex("Couldn't fetch request data! Check logs.", severity="error")
+            raw_request = None
+
+        try:
+            raw_response = await get_raw_response(summary_id, host, port)
+        except httpx.HTTPError:
+            app.log_vex("Couldn't fetch response data! Check logs.", severity="error")
+            raw_response = None
 
         if raw_request:
             self.request_area.text = raw_request.data.decode("utf-8")

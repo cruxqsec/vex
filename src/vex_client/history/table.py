@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-logger = logging.getLogger(__name__)
-
 
 from rich.text import Text
 from rich.style import Style
@@ -23,6 +21,9 @@ from textual.widgets.data_table import CellDoesNotExist
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
 from vex_client.widgets.table import VexDataTable, IconColumnCell
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
+
+
+logger = logging.getLogger(__name__)
 
 EXT_TO_ICON = {
     ".js": "",
@@ -221,7 +222,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 key=str(request_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())
-        except ValueError as e:
+        except ValueError:
             self.app.log_vex("Error inserting request into table. Check logs.", "error")  # type: ignore
             logger.exception("Error inserting request summary into table")
 
@@ -249,7 +250,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 "Error inserting response summary, could not find corresponding request summary!",
                 severity="error",
             )
-        except Exception as e:
+        except Exception:
             self.app.log_vex("Error updating response in table. Check logs.", "error")  # type: ignore
             logger.exception("Error updating response summary in table")
 

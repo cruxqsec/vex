@@ -24,10 +24,10 @@ async def get_all_raw_requests(
                 return [RawRequest.model_validate(r) for r in response.json()]
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -39,10 +39,10 @@ async def get_raw_request(id: UUID, host: str, port: int) -> RawRequest | None:
                 return RawRequest.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -59,10 +59,10 @@ async def create_raw_request(
                 return RawRequest.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -77,10 +77,10 @@ async def update_raw_request(raw_req: RawRequest, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -92,10 +92,10 @@ async def delete_raw_request(id: UUID, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -115,10 +115,10 @@ async def get_all_raw_responses(
                 return [RawResponse.model_validate(r) for r in response.json()]
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return []
 
 
@@ -130,10 +130,10 @@ async def get_raw_response(id: UUID, host: str, port: int) -> RawResponse | None
                 return RawResponse.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -150,10 +150,10 @@ async def create_raw_response(
                 return RawResponse.model_validate(response.json())
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return None
 
 
@@ -168,10 +168,10 @@ async def update_raw_response(raw_res: RawResponse, host: str, port: int) -> boo
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False
 
 
@@ -185,8 +185,8 @@ async def delete_raw_response(id: UUID, host: str, port: int) -> bool:
                 return True
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
+        raise
     except httpx.RequestError:
         logger.exception("Request failed")
-    except Exception:
-        logger.exception("Unexpected error")
+        raise
     return False

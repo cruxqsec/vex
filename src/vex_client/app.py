@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import json
+import httpx
 import websockets
 from uuid import UUID
 from pydantic import ValidationError
@@ -282,7 +283,11 @@ class VexApp(App[str]):
             return
         skip = 0
         while True:
-            summaries = await get_all_summaries(host, port, skip, 50)
+            try:
+                summaries = await get_all_summaries(host, port, skip, 50)
+            except httpx.HTTPError:
+                self.log_vex("Failed to load summaries. Check logs.", "error")
+                break
             if not summaries:
                 break
             for summary in summaries:
