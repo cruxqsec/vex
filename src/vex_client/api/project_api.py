@@ -47,7 +47,7 @@ async def create_project(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"http://{host}:{port}/api/projects/",
-                json=new_project.model_dump(),
+                json=new_project.model_dump(mode="json"),
             )
             if response.status_code == 201:
                 return Project.model_validate(response.json())

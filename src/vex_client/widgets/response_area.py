@@ -8,8 +8,8 @@ class ResponseAreaContainer(EmptyMessageWidget):
     """
 
     def __init__(self, **kwargs):
-        self.text_area = VexTextArea(text="asdfasdf",
-            read_only=True, tab_behavior="focus", id="response-area"
+        self.text_area = VexTextArea(
+            text="", read_only=True, tab_behavior="focus", id="response-area"
         )
         self.text_area.cursor_blink = False
         super().__init__(

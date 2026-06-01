@@ -323,13 +323,17 @@ class VexProxyScreen(Screen):
     @on(Button.Pressed, "#btn-stop")
     async def on_stop(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         await self._stop_vex(selected_instance)
 
     @on(Button.Pressed, "#btn-connect")
     async def on_connect(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         app = cast("VexApp", self.app)
 
         if app.vex_controller.is_cli_running and selected_instance.instance.running:
@@ -338,5 +342,7 @@ class VexProxyScreen(Screen):
     @on(Button.Pressed, "#btn-start")
     async def on_start(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         await self._start_vex(selected_instance)

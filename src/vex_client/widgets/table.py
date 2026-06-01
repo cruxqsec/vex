@@ -119,7 +119,7 @@ class VexDataTable(DataTable, can_focus=True):
             return
 
         total_width = self.size.width
-        total_padding = 2 * (self.cell_padding * len(self.percent_columns))
+        total_padding = 2 * (self.cell_padding * len(self.percent_columns)) + 1
         one_percent = (total_width - total_padding) / 100
 
         for column, percent_width in self.percent_columns:

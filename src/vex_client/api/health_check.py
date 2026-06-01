@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import httpx
 
@@ -15,13 +16,12 @@ async def check_health_retries(retries: int, host: str, port: int) -> bool:
                 if response.status_code == 200:
                     return True
         except httpx.TimeoutException:
-            retries -= 1
             logger.debug("Health check timeout, retrying")
-            continue
         except httpx.RequestError:
-            retries -= 1
             logger.debug("Health check request error, retrying")
-            continue
+        retries -= 1
+        if retries > 0:
+            await asyncio.sleep(1)
 
     return False
 
