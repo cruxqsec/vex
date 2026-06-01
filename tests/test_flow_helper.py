@@ -149,6 +149,18 @@ def test_extract_query_found(mock_flow: http.HTTPFlow):
     assert extract_query(mock_flow) == "query=test&query2=test2"
 
 
+def test_extract_query_empty_returns_none():
+    req = tutils.treq(
+        host="example.com",
+        scheme="http",
+        method="GET",
+        path="/path/no/query",
+        content=b"",
+    )
+    flow = tflow.tflow(req=req)
+    assert extract_query(flow) is None
+
+
 def test_has_cookies_true(mock_flow: http.HTTPFlow):
     assert has_cookies(mock_flow)
 
@@ -168,6 +180,7 @@ def test_extract_cookies_no_response(mock_flow_no_resp: http.HTTPFlow):
 def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
     # Create a flow with response but no cookies
     import mitmproxy.test.tflow as tflow_module
+
     req = tutils.treq(
         host="example.com",
         scheme="http",
@@ -180,7 +193,7 @@ def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
 
     if flow.response:
         flow.response.cookies.clear()
-    
+
     assert extract_cookies(flow) == ""
 
 

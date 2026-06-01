@@ -11,7 +11,6 @@ from vex_cli.api.projects_routes import projects_router
 from vex_cli.api.raw_routes import (
     raw_request_router,
     raw_response_router,
-    raw_router,
 )
 from vex_cli.api.summary_routes import (
     request_summary_router,
@@ -55,6 +54,7 @@ async def start_fastapi(app_state: VexState):
         except Exception as e:
             logger.error(f"Error during FastAPI cleanup: {e}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -66,12 +66,10 @@ async def lifespan(app: FastAPI):
         # cleanup
         pass
 
+
 def create_app() -> FastAPI:
     """Creates app object, registers exception handlers and adds all routes."""
-    app = FastAPI(
-        title="Vex API",
-        lifespan=lifespan
-    )
+    app = FastAPI(title="Vex API", lifespan=lifespan)
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
@@ -104,7 +102,6 @@ def create_app() -> FastAPI:
     app.include_router(response_summary_router, prefix="/api")
     app.include_router(raw_request_router, prefix="/api")
     app.include_router(raw_response_router, prefix="/api")
-    app.include_router(raw_router, prefix="/api")
     app.include_router(scope_router, prefix="/api")
 
     return app

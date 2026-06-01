@@ -4,7 +4,6 @@ import pytest
 import pytest_asyncio
 
 from vex_cli.models.pydantic import Project, VexServerInfo
-from vex_cli.errors import AppException
 from vex_cli.state import VexState
 
 
@@ -171,5 +170,4 @@ async def test_shutdown_without_db_manager_does_not_raise(
     s = VexState(server_info)
     # never called initialize_db_manager so _db_manager is not set
 
-    with pytest.raises(AppException):
-        await s.shutdown()
+    await s.shutdown()  # should not raise

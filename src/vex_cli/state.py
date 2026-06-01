@@ -20,6 +20,7 @@ class VexState:
         self.server_info = server_info
         self._lock = asyncio.Lock()
         self._active_project: Project | None = None
+        self._db_manager: DatabaseManager | None = None
 
         self._flow_history: FlowHistory = FlowHistory()
         self._flow_scope: FlowScope = FlowScope()
@@ -32,7 +33,11 @@ class VexState:
 
     @property
     def is_project_active(self) -> bool:
-        return self._db_manager.is_project_active and bool(self._active_project)
+        return (
+            self._db_manager is not None
+            and self._db_manager.is_project_active
+            and bool(self._active_project)
+        )
 
     def get_server_info(self) -> VexServerInfo:
         return self.server_info
@@ -51,6 +56,8 @@ class VexState:
         return self._flow_scope
 
     def get_db_manager(self) -> DatabaseManager:
+        if self._db_manager is None:
+            raise AppException("Database manager not initialized", 500)
         return self._db_manager
 
     def _configure_logging(self):
@@ -62,7 +69,5 @@ class VexState:
         )
 
     async def shutdown(self):
-        if hasattr(self, "_db_manager") and self._db_manager:
+        if self._db_manager is not None:
             await self._db_manager.close()
-        else:
-            raise AppException("Database manager was not initialized in state.")

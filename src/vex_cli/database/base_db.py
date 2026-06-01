@@ -48,7 +48,9 @@ class BaseDatabase:
                 if self._engine:
                     return
 
-                self._engine = create_async_engine(f"sqlite+aiosqlite:///{self.db_path}")
+                self._engine = create_async_engine(
+                    f"sqlite+aiosqlite:///{self.db_path}"
+                )
 
                 self._session_maker = async_sessionmaker(
                     bind=self._engine,
@@ -117,7 +119,7 @@ class BaseDatabase:
             return obj
 
     # accepts both because some models have int and others UUID as PK!
-    async def get(self, model: type[T], id: UUID | int) -> T | None:
+    async def get(self, model: type[T], id: UUID | int) -> T:
         async with self.session() as s:
             obj = await s.get(model, id)
             if not obj:

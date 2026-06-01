@@ -8,7 +8,7 @@ from vex_cli.pid_func import (
     is_process_running,
     read_pid_file,
     write_pid_file,
-    pid_file_lock,
+    pid_file_check,
 )
 
 
@@ -78,41 +78,41 @@ def test_delete_pid_file_does_not_raise_if_missing(pid_file):
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_creates_pid_file(server_info, tmp_path, mocker):
+async def test_pid_file_check_creates_pid_file(server_info, tmp_path, mocker):
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
-    async with pid_file_lock(server_info) as pf:
+    async with pid_file_check(server_info) as pf:
         assert pf.exists()  # file exists during context
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_deletes_pid_file_on_exit(server_info, tmp_path, mocker):
+async def test_pid_file_check_deletes_pid_file_on_exit(server_info, tmp_path, mocker):
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
-    async with pid_file_lock(server_info):
+    async with pid_file_check(server_info):
         pass
 
-    assert not pid_file.exists()  
+    assert not pid_file.exists()
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_deletes_pid_file_on_exception(
+async def test_pid_file_check_deletes_pid_file_on_exception(
     server_info, tmp_path, mocker
 ):
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
     with pytest.raises(RuntimeError, match="test error"):
-        async with pid_file_lock(server_info):
+        async with pid_file_check(server_info):
             raise RuntimeError("test error")
 
     assert not pid_file.exists()
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_raises_if_already_running(server_info, tmp_path, mocker):
+async def test_pid_file_check_raises_if_already_running(server_info, tmp_path, mocker):
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
     mocker.patch("vex_cli.pid_func.is_process_running", return_value=True)
@@ -120,12 +120,12 @@ async def test_pid_file_lock_raises_if_already_running(server_info, tmp_path, mo
     write_pid_file("127.0.0.1", 8080, 8081, pid_file)
 
     with pytest.raises(RuntimeError, match="already running"):
-        async with pid_file_lock(server_info):
+        async with pid_file_check(server_info):
             pass
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_cleans_stale_pid_file(server_info, tmp_path, mocker):
+async def test_pid_file_check_cleans_stale_pid_file(server_info, tmp_path, mocker):
     """If pid file exists but process is dead, it should be cleaned up and proceed."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
@@ -133,17 +133,17 @@ async def test_pid_file_lock_cleans_stale_pid_file(server_info, tmp_path, mocker
 
     write_pid_file("127.0.0.1", 8080, 8081, pid_file)
 
-    async with pid_file_lock(server_info):
-        pass 
+    async with pid_file_check(server_info):
+        pass
 
 
 @pytest.mark.asyncio
-async def test_pid_file_lock_cleans_corrupt_pid_file(server_info, tmp_path, mocker):
+async def test_pid_file_check_cleans_corrupt_pid_file(server_info, tmp_path, mocker):
     """If pid file is corrupt/unreadable, it should be deleted and proceed."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
     pid_file.write_text("this is not valid json {{{{")
 
-    async with pid_file_lock(server_info):
-        pass  
+    async with pid_file_check(server_info):
+        pass

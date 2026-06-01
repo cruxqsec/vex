@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from pathlib import Path
 
 from vex_cli.database.projects_db import ProjectsDatabase
@@ -6,6 +7,8 @@ from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.errors import DatabaseError
 from vex_cli.locations import vex_projects_db_path
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
@@ -56,8 +59,8 @@ class DatabaseManager:
         """Initializes the ProjectsDatabase and create tables if they don't exist."""
         await self._projects_db.initialize()
 
-    async def switch_project_databases(self, new_db_path: Path):
-        """Switches and initializes another project database."""
+    async def close_project_databases(self):
+        """Close project databases without opening new ones."""
         async with self._lock:
             if self._summaries_db:
                 await self._summaries_db.close()
@@ -66,12 +69,14 @@ class DatabaseManager:
                 await self._raw_db.close()
                 self._raw_db = None
 
-            self._summaries_db = SummariesDatabase(new_db_path / "main.db")
-            self._raw_db = RawDatabase(new_db_path / "raw.db")
+    async def switch_project_databases(self, new_db_path: Path):
+        """Switches and initializes another project database."""
+        await self.close_project_databases()
 
-            await asyncio.gather(
-                self._summaries_db.initialize(), self._raw_db.initialize()
-            )
+        self._summaries_db = SummariesDatabase(new_db_path / "main.db")
+        self._raw_db = RawDatabase(new_db_path / "raw.db")
+
+        await asyncio.gather(self._summaries_db.initialize(), self._raw_db.initialize())
 
     async def close(self) -> None:
         """Close all databases."""
@@ -80,4 +85,7 @@ class DatabaseManager:
             if db:
                 tasks.append(db.close())
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    logger.error(f"Failed to close database: {result}")
