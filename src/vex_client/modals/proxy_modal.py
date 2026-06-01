@@ -50,7 +50,7 @@ class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
                     id="name-input",
                 )
             with Horizontal():
-                yield Label("Listening address: ", id="name-label")
+                yield Label("Listening address: ", id="address-label")
                 yield AddressInput(placeholder="default: 127.0.0.1", id="address-input")
             with Horizontal():
                 yield Label("Proxy port: ", id="proxy-port-label")

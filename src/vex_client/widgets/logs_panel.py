@@ -55,7 +55,7 @@ class VexLogsPanel(Widget):
     @staticmethod
     def _format(message: str, severity: str) -> Text:
         timestamp = datetime.now().strftime("%H:%M:%S")
-        symbol, color = indicators.get(severity, ("-", "$text-muted"))
+        symbol, color = indicators.get(severity, ("-", "dim"))
 
         text = Text()
         text.append(f"[{timestamp}] ", style="dim")

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, cast
+import httpx
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
@@ -98,7 +99,14 @@ class VexProjectsScreen(Screen):
             return
 
         project: Project | None = self.projects_table.get_project(project_id)
-        successfully_selected: bool = await select_project(project_id, host, port)
+        try:
+            successfully_selected: bool = await select_project(project_id, host, port)
+        except httpx.HTTPError:
+            self.active_project_card.set_empty()
+            self.notify(
+                "Network error selecting project. Check logs.", severity="error"
+            )
+            return
 
         if successfully_selected and project is not None:
             self.active_project_card.set_project(project.name, "0", "0", "0")
@@ -116,9 +124,15 @@ class VexProjectsScreen(Screen):
         app = cast("VexApp", self.app)
         host, port = app.get_api_info()
         if host is None or port is None:
+            app.log_vex("Cannot load projects: no server info available", "error")
             return
 
-        projects = await get_all_projects(host, port)
+        try:
+            projects = await get_all_projects(host, port)
+        except httpx.HTTPError:
+            app.log_vex("Failed to load projects. Check logs.", "error")
+            self.projects_table.set_loading(False)
+            return
 
         for project in projects:
             if self.projects_table.row_exists(str(project.id)):
@@ -138,9 +152,18 @@ class VexProjectsScreen(Screen):
 
         host, port = app.get_api_info()
         if host is None or port is None:
+            app.log_vex(
+                "Cannot check active project: no server info available", "error"
+            )
             return
 
-        fetched_active_project: Project | None = await get_active_project(host, port)
+        try:
+            fetched_active_project: Project | None = await get_active_project(
+                host, port
+            )
+        except httpx.HTTPError:
+            app.log_vex("Failed to check active project. Check logs.", "error")
+            return
 
         if fetched_active_project is None:
             self.active_project_card.set_empty()
@@ -166,7 +189,13 @@ class VexProjectsScreen(Screen):
         async def create(project_name: str):
             new_project = ProjectCreate(name=project_name)
             host, port = self.app.get_api_info()  # type: ignore
-            created_project = await create_project(new_project, host, port)
+            try:
+                created_project = await create_project(new_project, host, port)
+            except httpx.HTTPError:
+                self.notify(
+                    "Network error creating project. Check logs.", severity="error"
+                )
+                return
 
             if created_project:
                 self.projects_table.insert(created_project)
@@ -202,7 +231,13 @@ class VexProjectsScreen(Screen):
             project.name = updated_name
 
             host, port = self.app.get_api_info()  # type: ignore
-            successfully_updated = await update_project(project, host, port)
+            try:
+                successfully_updated = await update_project(project, host, port)
+            except httpx.HTTPError:
+                self.notify(
+                    "Network error updating project. Check logs.", severity="error"
+                )
+                return
 
             if successfully_updated:
                 self.projects_table.update_project_row(project)
@@ -229,7 +264,13 @@ class VexProjectsScreen(Screen):
             if not confirmed:
                 return
 
-            is_deleted = await delete_project(project_id, host, port)
+            try:
+                is_deleted = await delete_project(project_id, host, port)
+            except httpx.HTTPError:
+                self.notify(
+                    "Network error deleting project. Check logs.", severity="error"
+                )
+                return
             active_project = app.active_project
 
             if is_deleted:
@@ -242,7 +283,7 @@ class VexProjectsScreen(Screen):
                 self.active_project_card.set_empty()
                 app.set_active_project(None)
 
-        app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete) # type: ignore
+        app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
 
     def action_copy_path(self):
         try:
@@ -250,9 +291,7 @@ class VexProjectsScreen(Screen):
 
             app = cast("VexApp", self.app)
             project_id = (
-                str(app.active_project.id)
-                if app.active_project is not None
-                else ""
+                str(app.active_project.id) if app.active_project is not None else ""
             )
             pyperclip.copy(str(vex_projects_directory() / project_id))
         except pyperclip.PyperclipException as exc:

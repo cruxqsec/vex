@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 import logging
+import httpx
 
 from textual import on
 from textual.app import ComposeResult
@@ -97,8 +98,11 @@ class VexProxyScreen(Screen):
 
     def on_screen_resume(self) -> None:
         running_instance = next(
-            (child.instance for child in self.proxy_list.children
-            if isinstance(child, ProxyListItem) and child.instance.running),
+            (
+                child.instance
+                for child in self.proxy_list.children
+                if isinstance(child, ProxyListItem) and child.instance.running
+            ),
             None,
         )
 
@@ -118,7 +122,6 @@ class VexProxyScreen(Screen):
             return f"{mins} minutes ago"
         hours, _ = divmod(mins, 60)
         return f"{hours} hours ago"
-
 
     # ------------ Startup logic -----------------
 
@@ -174,8 +177,10 @@ class VexProxyScreen(Screen):
                 self._proxy_start_time = time.monotonic()
                 self.status_card.set_active(list_item.instance, self._elapsed_str())
 
-        except (OSError, ValidationError):
-            app.log_vex("Error reading vex.pid file!", severity="error")
+        except (OSError, ValidationError, httpx.HTTPError):
+            app.log_vex(
+                "Error reading vex.pid file or checking health!", severity="error"
+            )
 
     # ------------ List actions -----------------
 
@@ -318,13 +323,17 @@ class VexProxyScreen(Screen):
     @on(Button.Pressed, "#btn-stop")
     async def on_stop(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         await self._stop_vex(selected_instance)
 
     @on(Button.Pressed, "#btn-connect")
     async def on_connect(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         app = cast("VexApp", self.app)
 
         if app.vex_controller.is_cli_running and selected_instance.instance.running:
@@ -333,5 +342,7 @@ class VexProxyScreen(Screen):
     @on(Button.Pressed, "#btn-start")
     async def on_start(self, event: Button.Pressed) -> None:
         row = event.button.ancestors_with_self
-        selected_instance = next(a for a in row if isinstance(a, ProxyListItem))
+        selected_instance = next((a for a in row if isinstance(a, ProxyListItem)), None)
+        if selected_instance is None:
+            return
         await self._start_vex(selected_instance)

@@ -59,6 +59,7 @@ class VexDataTable(DataTable, can_focus=True):
         self.percent_columns = (
             percent_columns  # custom columns with (name, percent_ratio)
         )
+        self._bulk_mode: bool = False
 
         super().__init__(**kwargs)
 
@@ -86,8 +87,16 @@ class VexDataTable(DataTable, can_focus=True):
     @on(RowRemoved)
     @on(RowAdded)
     def _on_rows_added_removed(self, event: RowAdded | RowRemoved) -> None:
+        if self._bulk_mode:
+            return
         self.post_message(EmptyStateChanged(is_empty=self.row_count == 0))
-        # self.set_class(self.row_count == 0, "empty")
+
+    def begin_bulk_insert(self) -> None:
+        self._bulk_mode = True
+
+    def end_bulk_insert(self) -> None:
+        self._bulk_mode = False
+        self.post_message(EmptyStateChanged(is_empty=self.row_count == 0))
 
     def on_resize(self, event: events.Resize) -> None:
         """Resize while keeping the percentage ratios."""
@@ -110,7 +119,7 @@ class VexDataTable(DataTable, can_focus=True):
             return
 
         total_width = self.size.width
-        total_padding = 2 * (self.cell_padding * len(self.percent_columns))
+        total_padding = 2 * (self.cell_padding * len(self.percent_columns)) + 1
         one_percent = (total_width - total_padding) / 100
 
         for column, percent_width in self.percent_columns:

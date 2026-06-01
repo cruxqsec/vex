@@ -1,17 +1,10 @@
-from typing import TYPE_CHECKING, cast
-if TYPE_CHECKING:
-    from vex_client.app import VexApp
-
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import Screen
-from textual.binding import Binding
-from textual.widgets import Button, Footer, Input, Select
+from textual.widgets import Select
 
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.text_area import VexTextArea
-from vex_client.widgets.request_area import RequestAreaContainer
-from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 
@@ -36,13 +29,8 @@ class MethodSelect(Select, can_focus=True):
 class VexReplayScreen(Screen):
     CSS_PATH = "css/replay.tcss"
 
-    BINDINGS = [
-        Binding("r", "test", "Test", show=True, priority=True),
-    ]
-
     def __init__(self, **kwargs):
         self.is_first_mount = True
-        # parent constructor
         super().__init__(**kwargs)
 
     @property
@@ -61,10 +49,6 @@ class VexReplayScreen(Screen):
     def response_area(self) -> VexTextArea:
         return self.query_one("#response-area", VexTextArea)
 
-    def action_test(self):
-        self.notify(str(self.request_area.classes))
-        self.notify(str(self.response_area.classes))
-
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
         with Container(id="main-container"):
@@ -81,5 +65,5 @@ class VexReplayScreen(Screen):
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
 
-        #app: VexApp = cast("VexApp", self.app)
-        #app.populate_log_panel(self)
+        # app: VexApp = cast("VexApp", self.app)
+        # app.populate_log_panel(self)
