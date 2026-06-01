@@ -1,0 +1,272 @@
+$border-divider: $secondary-darken-3;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Banner
+═══════════════════════════════════════════════════════════════════ */
+
+#banner-container {
+    width: 1fr;
+    height: auto;
+    align: center top;
+    margin-top: 2;
+}
+
+#banner {
+    width: 1fr;
+    height: auto;
+    color: $error;
+    text-align: center;
+}
+
+#tagline {
+    width: 1fr;
+    height: 1;
+    color: $text-muted;
+    text-align: center;
+}
+
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main layout
+═══════════════════════════════════════════════════════════════════ */
+
+#proxy-main {
+    width: 1fr;
+    height: 1fr;
+    margin: 1 1 0 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Left panel — VexProxyList
+═══════════════════════════════════════════════════════════════════ */
+
+#proxy-list {
+    width: 1fr;
+    height: 1fr;
+    border: none $error-muted;
+    border-left: tall $border-divider;
+    border-right: tall $border-divider;
+}
+
+/* Header row */
+#proxy-list-header {
+    text-style: bold;
+    width: 1fr;
+    height: 3;
+    background: $panel;
+    align: left middle;
+    border-top: tall $border-divider;
+    border-bottom: tall $border-divider;
+}
+
+#proxy-list-title {
+    width: 1fr;
+    height: 1;
+    color: $error;
+    content-align: left middle;
+    margin: 0 1;
+}
+
+#btn-create {
+    background: $success-muted;
+    color: $success;
+    margin: 0 1;
+}
+
+#btn-edit {
+    background: $warning-muted;
+    color: $warning;
+    margin: 0 1;
+}
+
+#btn-delete {
+    background: $error-muted;
+    color: $error;
+    margin: 0 1;
+}
+
+/* ListView */
+#proxy-listview {
+    width: 1fr;
+    height: 1fr;
+    background: $background;
+    padding: 0;
+    border-bottom: tall $border-divider;
+    scrollbar-size: 0 0;
+}
+
+#proxy-listview > ListItem {
+    height: 3;
+    padding: 1 0;
+}
+#proxy-listview > ListItem.-highlight {
+    color: $text;
+    background: $primary 30%;
+    border-left: wide $primary;
+}
+
+/* ══════════ Proxy row ═════════════════*/
+
+ProxyListItem {
+    width: 1fr;
+    border-left: wide $surface;
+}
+
+ProxyListItem.row-running {
+    border-left: wide $success;
+    background: $success 5%;
+}
+
+.row-inner {
+    width: 1fr;
+    height: 1fr;
+    align: left middle;
+}
+
+#instance-dot {
+    width: 2;
+    height: 1;
+    color: $text-muted;
+    content-align: left middle;
+
+    &.running {color: $success;}
+}
+
+.row-info {
+    width: 1fr;
+    height: auto;
+}
+
+.row-name {
+    width: auto;
+    height: 1;
+    color: $text;
+}
+
+.name-running {
+    color: $success;
+}
+
+.row-actions {
+    align: right middle;
+}
+
+#btn-stop {
+    background: $error-muted;
+    color: $error;
+    margin: 0 1;
+    display: none;
+
+    &.running { display: block; }
+}
+
+
+#btn-connect {
+    background: $primary-muted;
+    color: $primary;
+    margin: 0 1;
+    display: none;
+
+    &.running { display: block; }
+}
+
+#btn-start {
+    background: $success-muted;
+    color: $success;
+    margin: 0 1;
+    display: block;
+
+    &.running { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Right panel
+═══════════════════════════════════════════════════════════════════ */
+
+#proxy-right {
+    width: 0.5fr;
+    height: 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Status card
+═══════════════════════════════════════════════════════════════════ */
+
+#proxy-status-card {
+    width: 1fr;
+    height: auto;
+    margin-bottom: 1;
+    border: tall $error-muted;
+    background: $error-muted 30%;
+
+    &.active {
+        background: $success 10%;
+        border: tall $success-muted;
+    }
+}
+
+#status-name {
+    height: 1;
+    padding: 0 1;
+    color: $error;
+
+    &.active { color: $success; }
+}
+
+#status-meta {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Info card
+═══════════════════════════════════════════════════════════════════ */
+
+#proxy-info-card {
+    width: 1fr;
+    height: auto;
+    border: tall $surface;
+    background: $panel;
+    padding: 0 1;
+}
+
+#info-divider {
+    color: $text-muted 30%;
+    margin: 0;
+}
+
+#info-title {
+    height: 1;
+    color: $error;
+}
+
+#info-status {
+    color: $error;
+    &.running { color: $success; }
+}
+
+.info-row {
+    height: 1;
+    width: 1fr;
+    align: left middle;
+}
+
+.info-label {
+    width: 10;
+    color: $text-muted;
+}
+
+.info-value {
+    width: 1fr;
+    color: $text;
+    text-align: right;
+}
+
+.action-connect {
+    color: $primary;
+}
+
+.action-launch {
+    color: $success;
+}

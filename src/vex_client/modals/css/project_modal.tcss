@@ -1,0 +1,57 @@
+$border-divider: $secondary-darken-3;
+
+CreateUpdateProjectScreen {
+        align: center middle;
+        background: $background 60%;
+
+    #modal-window {
+        width: 50;
+        height: 10;
+        border: thick $border-divider;
+        background: $background;
+    }
+
+    Horizontal {
+        margin: 1 1 0 1;
+    }
+
+    #title {
+        width: 1fr;
+        height: 1;
+        content-align: left middle;
+        background: $background-lighten-2;
+        padding-left: 1;
+    }
+
+    #name-label {
+        width: auto;
+        height: 0.15fr;
+    }
+
+    #name-input {
+        width: 1fr;
+        height: 1;
+        border: none;
+    }
+    
+    #error-label {
+        color: $error;
+        margin-left: 1;
+        margin-bottom: 1;
+    }
+
+    #create-btn {
+        background: $success-muted !important;
+    }
+
+    #update-btn {
+        background: $accent-muted !important;
+    }
+
+    #cancel-btn {
+        background: $error-muted !important;
+        color: $text-error !important;
+        margin-left: 1;
+    }
+
+}

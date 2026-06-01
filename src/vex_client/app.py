@@ -1,25 +1,36 @@
 import asyncio
 import logging
+import json
+import websockets
+from uuid import UUID
+from pydantic import ValidationError
 
+from textual import work
 from textual.app import App
 from textual.binding import Binding
 from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
 from textual.reactive import reactive
 
-from vex_cli.models.pydantic import Project
+from vex_cli.models.pydantic import (
+    RequestSummary,
+    ResponseSummary,
+    FlowSummary,
+    Project,
+)
 from vex_client.cli_controller import VexController
-from vex_client.screens.http_history import VexHTTPHistoryScreen
-from vex_client.screens.intercept import VexInterceptScreen
-from vex_client.screens.project import VexProjectsScreen
-from vex_client.screens.proxy import VexProxyScreen
-from vex_client.screens.replay import VexReplayScreen
-from vex_client.screens.scope import VexScopeScreen
+from vex_client.history.screen import VexHTTPHistoryScreen
+from vex_client.intercept.screen import VexInterceptScreen
+from vex_client.projects.screen import VexProjectsScreen
+from vex_client.proxy.screen import VexProxyScreen
+from vex_client.replay.screen import VexReplayScreen
+from vex_client.scope.screen import VexScopeScreen
 from vex_client.settings import Settings
-from vex_client.vex_builtin_themes import BUILTIN_THEMES
-from vex_client.vex_themes import VexTheme
+from vex_client.themes.builtin import BUILTIN_THEMES
+from vex_client.themes.models import VexTheme
 from vex_client.widgets.text_area import VexTextArea
-from vex_client.vex_themes import MethodStyles, FileStyle
+from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
+from vex_client.api.summaries_api import get_all_summaries
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +75,19 @@ class VexApp(App[str]):
             "Toggle logs menu",
             priority=True,
         ),
-        Binding("ctrl+c", "switch('proxy-screen')", "Quit", priority=True),
+        Binding("ctrl+c", "switch('proxy-screen')", "Quit"),
+        Binding(
+            "ctrl+n",
+            "check_workers()",
+            "Test",
+            priority=True,
+        ),
+        Binding(
+            "ctrl+b",
+            "check_screens()",
+            "Test",
+            priority=True,
+        )
     ]
 
     SCREENS = {
@@ -76,25 +99,23 @@ class VexApp(App[str]):
         "projects-screen": VexProjectsScreen,
     }
 
-    is_project_active: reactive[bool] = reactive(False, init=False)
-    server_online: reactive[bool] = reactive(False, init=False)
-    _log_history: list[LogMessage] = []
+    is_project_active: reactive[bool] = reactive(False, init=False, always_update=True)
+    server_online: reactive[bool] = reactive(False, init=False, always_update=False)
 
     async def on_mount(self) -> None:
         self.vex_controller: VexController = VexController()
         self.settings: Settings = Settings()
 
-        self.vex_active_project: Project | None = None
-        self.is_project_active_event: asyncio.Event = asyncio.Event()
+        self._log_history: list[LogMessage] = []
+        self.active_project: Project | None = None
+        self.history_summary_cache: dict[UUID, FlowSummary] = {}
+
+        # reference to the history screen so we don't have to query it each time
+        self.history_screen: VexHTTPHistoryScreen | None = None
 
         self._register_themes()
         self.watch(self.app, "theme", self.on_theme_change, init=False)
         self.theme = self.settings.theme
-
-        # preload all screens so we don't have widget
-        # lookup problems and we can add data to tables
-        for screen_name in self.SCREENS.keys():
-            await self.preload_screen(screen_name)
 
         # Start with the proxy selection screen
         self.push_screen("proxy-screen")
@@ -108,6 +129,198 @@ class VexApp(App[str]):
 
         return server_info.server_address, server_info.api_port
 
+    # ------------ Watcher methods -------------
+
+    def watch_server_online(self, online: bool) -> None:
+        self.log(f"RAW: watch_server_online fired: {online}")
+        if online:
+            self._history_websocket_manager()
+
+    def watch_is_project_active(self, active: bool) -> None:
+        if active:
+            self._fetch_all_summaries()
+        else:
+            self.history_summary_cache.clear()
+
+    # ------------ Project related -------------
+
+    def set_active_project(self, active_project: Project | None) -> None:
+        """Sets the project object and toggles reactive"""
+
+        self.active_project = active_project
+        if self.active_project is None:
+            self.is_project_active = False
+        else:
+            self.is_project_active = True
+
+    # ------------ Server monitor worker -------------
+
+    @work(name="server_monitor", group="monitor", exclusive=True)
+    async def _server_monitor(self):
+        host, port = self.get_api_info()
+        if host is None or port is None:
+            return
+        try:
+            async with websockets.connect(
+                f"ws://{host}:{port}/ws/ping",
+                ping_interval=20,
+                ping_timeout=10,
+            ) as ws:
+                self.server_online = True
+                self.log_vex("Server connected")
+                await ws.wait_closed()
+                self.log_vex("Server shutdown")
+        except websockets.ConnectionClosed:
+            self.log_vex("Server closed connection unexpectedly", "warning")
+        except OSError:
+            self.log_vex("Could not reach server, is it running?", "error")
+        except Exception as e:
+            self.log_vex(f"Unexpected error in server monitor: {e}", "error")
+        finally:
+            self.server_online = False
+
+    # ------------ History manager and summary cache -------------
+
+    @work(name="history_manager", group="history", exclusive=True)
+    async def _history_websocket_manager(self) -> None:
+
+        self.log_vex("History manager: worker started")
+        while self.server_online:
+            self.log_vex("History manager: attempting connection")
+            await self._handle_history_connection()
+            self.log_vex(f"History manager: post-connection, server_online={self.server_online}")
+            await asyncio.sleep(5)  # so we don't spam the server after reconnect
+        self.log_vex("History manager: exiting loop, server_online is False", "error")
+
+    async def _handle_history_connection(self) -> None:
+        """Connects to vex-cli websocket and processes messages (summaries)"""
+        host, port = self.get_api_info()
+        self.log_vex(f"History manager: connecting to {host}:{port}")
+        if host is None or port is None:
+            self.log_vex("History manager: no API info, aborting", "error")
+            return
+
+        self.uri = f"ws://{host}:{port}/ws/history"
+        try:
+            async with websockets.connect(self.uri) as websocket:
+                self.log_vex("History manager: connected", "success")
+                async for raw_message in websocket:
+                    self._handle_message(raw_message)
+                self.log_vex("History manager: connection closed cleanly")
+        except Exception as e:
+                self.log_vex(f"History manager: connection failed: {type(e).__name__}: {e}", "error")
+
+    def _handle_message(self, raw_message: websockets.Data) -> None:
+        # skips processing but keeps loop/connection alive
+        if not self.is_project_active:
+            return
+        try:
+            message = self.parse_summary_message(str(raw_message))
+            self.add_to_summary_cache(message)
+
+            if self.history_screen is None:
+                return
+
+            if isinstance(message, RequestSummary):
+                self.history_screen.http_table.insert_request_summary(message)
+            else:
+                self.history_screen.http_table.insert_response_summary(message)
+            self.log_vex("History manager: everything should work")
+        except ValidationError as e:
+            self.log_vex(f"History manager: received invalid JSON structure {e}")
+        except json.JSONDecodeError:
+            self.log_vex("History manager: received data that wasn't even JSON!")
+        except Exception as e:
+                self.log_vex(f"History manager: handling message failed: {type(e).__name__}: {e}", "error")
+
+    def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
+        data = json.loads(raw_data)
+        try:
+            return RequestSummary.model_validate(data)
+        except ValidationError:
+            return ResponseSummary.model_validate(data)
+
+    def add_to_summary_cache(
+        self, summary: RequestSummary | ResponseSummary | FlowSummary
+    ) -> None:
+        if isinstance(summary, RequestSummary):
+            self.history_summary_cache[summary.flow_id] = FlowSummary(
+                **summary.model_dump()
+            )
+        elif isinstance(summary, ResponseSummary):
+            if summary.flow_id in self.history_summary_cache:
+                # get the unfinished summary
+                unfinished_summary = self.history_summary_cache[summary.flow_id]
+                # fill it
+                unfinished_summary.status_code = summary.status_code
+                unfinished_summary.response_size = summary.response_size
+                unfinished_summary.mime = summary.mime
+                unfinished_summary.http_title = summary.http_title
+                unfinished_summary.cookie = summary.cookie
+                unfinished_summary.duration_ms = summary.duration_ms
+                unfinished_summary.timestamp = summary.timestamp
+        elif isinstance(summary, FlowSummary):
+            self.history_summary_cache[summary.flow_id] = summary
+
+    @work(name="fetch_summaries", group="summaries", exclusive=True)
+    async def _fetch_all_summaries(self) -> None:
+        host, port = self.get_api_info()
+        if host is None or port is None:
+            return
+        skip = 0
+        while True:
+            summaries = await get_all_summaries(host, port, skip, 50)
+            if not summaries:
+                break
+            for summary in summaries:
+                self.add_to_summary_cache(summary)
+            skip += 50
+
+        # only populate table after full fetch is done
+        if self.history_screen is not None:
+            self.history_screen.populate_table()
+
+    # ------------ Screen related -------------
+
+    def get_screen_name(self) -> str:
+        """Get screen name for the screen we use to install it and is defined in the SCREENS."""
+        current_screen = self.app.screen
+
+        for name, screen in self.app.SCREENS.items():
+            if isinstance(current_screen, screen):  # type: ignore
+                return name
+        return ""
+
+    # ------------ Actions related -------------
+
+    def action_switch(self, screen_name: str) -> None:
+        self.switch_screen(screen_name)
+
+    def action_toggle_logs(self) -> None:
+        self.toggle_logs()
+
+    def action_check_workers(self) -> None:
+        self.log_vex(f"{self.app.workers._workers}")
+
+    def action_check_screens(self) -> None:
+        self.log_vex(f"{self.app.screen_stack}")
+        self.log_vex(f"installed: {self.app._installed_screens}")
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Check if we can switch screen."""
+        if action == "switch" and (
+            self.screen.is_modal or isinstance(self.screen, VexProxyScreen)
+        ):
+            return False
+        elif (
+            action == "switch"
+            and len(parameters) == 1
+            and parameters[0] not in {"proxy-screen", "projects-screen"}
+            and not self.is_project_active
+        ):
+            return False
+        return True
+
     # ------------ Logs related -------------
 
     def log_vex(self, message: str, severity: str = "info") -> None:
@@ -117,11 +330,13 @@ class VexApp(App[str]):
             logs_panel = screen.query_one_optional(VexLogsPanel)
             if logs_panel:
                 logs_panel.write_to_log(message, severity)
-
+    
     def toggle_logs(self) -> None:
         for screen_name in self.app.SCREENS:
             screen = self.get_screen(screen_name)
-            screen.query_one(VexLogsPanel).toggle_panel()
+            logs_panel = screen.query_one_optional(VexLogsPanel)
+            if logs_panel:
+                logs_panel.toggle_panel()
 
     # ------------ Theme related -------------
 
@@ -171,76 +386,3 @@ class VexApp(App[str]):
 
         for name, vex_theme in BUILTIN_THEMES.items():
             self.register_theme(vex_theme.to_textual_theme())
-
-    # ------------ Project related -------------
-
-    async def set_active_project(self, active_project: Project | None) -> None:
-        """
-        Sets the active project, fires the event that controls managers and fetches
-        all the other project related information(flows, scopes).
-        If set to None also performs cleanup.
-        """
-        self.vex_active_project = active_project
-        if self.vex_active_project is None:
-            self.is_project_active = False
-            self.is_project_active_event.clear()  # set flag to off -> workers wait
-            await self.project_switch_cleanup()
-        else:
-            self.is_project_active = True
-            await self.project_switch_startup()
-            self.is_project_active_event.set()  # set flag to on -> workers can work
-
-    async def project_switch_cleanup(self) -> None:
-        http_screen = self.get_screen("history-screen", VexHTTPHistoryScreen)
-        http_screen.http_table.clear(columns=False)
-
-    async def project_switch_startup(self) -> None:
-        await self.project_switch_cleanup()
-        fetch_all_summaries_worker = self.get_screen(
-            "history-screen", VexHTTPHistoryScreen
-        ).fetch_all_summaries()
-        await fetch_all_summaries_worker.wait()
-
-    # ------------ Screen related -------------
-
-    def get_screen_name(self) -> str:
-        """Get screen name for the screen we use to install it and is defined in the SCREENS."""
-        current_screen = self.app.screen
-
-        for name, screen in self.app.SCREENS.items():
-            if isinstance(current_screen, screen):  # type: ignore
-                return name
-
-        return ""
-
-    async def preload_screen(self, screen_name: str) -> None:
-        """
-        Preload all the screens by pushing them waiting a bit and then popping them.
-        We do this so we have all the main widgets of each screen mounted.
-        """
-        await self.push_screen(screen_name)
-        await asyncio.sleep(0.5)
-        await self.pop_screen()
-
-    # ------------ Actions related -------------
-
-    def action_switch(self, screen_name: str) -> None:
-        self.switch_screen(screen_name)
-
-    def action_toggle_logs(self) -> None:
-        self.toggle_logs()
-
-    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
-        """Check if we can switch screen."""
-        if action == "switch" and (
-            self.screen.is_modal or isinstance(self.screen, VexProxyScreen)
-        ):
-            return False
-        elif (
-            action == "switch"
-            and len(parameters) == 1
-            and parameters[0] not in {"proxy-screen", "projects-screen"}
-            and not self.is_project_active
-        ):
-            return False
-        return True

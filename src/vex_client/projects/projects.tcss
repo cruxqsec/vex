@@ -1,0 +1,173 @@
+$border-divider: $secondary-darken-3;
+
+#main-container {
+    margin: 0;
+    padding: 0;
+}
+
+#project-table-container {
+    background: transparent;
+    width: 1.5fr;
+    height: 1fr;
+    border-right: tall $border-divider;
+    border-left: tall $border-divider;
+    border-bottom: tall $border-divider;
+}
+
+#project-table-empty {
+    width: 1fr;
+    height: auto;
+
+    &.empty {
+        height: 1fr;
+        margin: 1;
+    }
+}
+
+#project-table {
+    background: $panel;
+    width: 1fr;
+    height: auto;
+}
+
+#project-table-header {
+    text-style: bold;
+    width: 1fr;
+    height: 3;
+    background: $panel;
+    align: left middle;
+    border-bottom: tall $border-divider;
+    border-top: tall $border-divider;
+}
+
+#project-table-title {
+    width: 1fr;
+    height: 1;
+    color: $error;
+    content-align: left middle;
+    margin: 0 1;
+}
+
+#project-table-helper {
+    width: 1fr;
+    height: auto;
+    border: round $secondary-muted;
+    display: block;
+
+    color: $text-muted;
+    padding: 0 1;
+    margin: 0 1;
+
+    &.empty { display: none; }
+}
+
+#btn-create {
+    background: $success-muted;
+    color: $success;
+    margin: 0 1;
+}
+
+#btn-edit {
+    background: $warning-muted;
+    color: $warning;
+    margin: 0 1;
+}
+
+#btn-delete {
+    background: $error-muted;
+    color: $error;
+    margin: 0 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ActiveProject container
+═══════════════════════════════════════════════════════════════════ */
+
+ActiveProjectWidget {
+    width: 1fr;
+    height: auto;
+    background: $panel;
+    border: tall $border-divider;
+    padding: 0 1;
+}
+
+#ap-section-title {
+    height: 1;
+    color: $error;
+    text-style: b;
+}
+
+#btn-export {
+    background: $success-muted;
+    color: $success;
+    margin-right: 1;
+}
+
+#btn-copy-path {
+    background: $primary-muted;
+    color: $primary;
+    margin: 0 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ActiveProjectCard — left border variant
+═══════════════════════════════════════════════════════════════════ */
+
+ActiveProjectCard {
+    width: 1fr;
+    height: auto;
+    background: $success 10%;
+    border: wide $success-muted;
+    padding-top: 1;
+
+    &.not-active {
+        background: $error 10%;
+        border: wide $error-muted;
+        padding: 1;
+
+        & #ap-name {
+            margin-bottom: 0;
+            color: $error;
+        }
+
+        & #ap-rule { display: none;}
+        & .ap-row { display: none;}
+        & #btn-export { display: none;}
+        & #btn-copy-path { display: none;}
+    }
+}
+
+#ap-name {
+    height: 1;
+    color: $success;
+}
+
+#ap-rule {
+    color: $secondary;
+    margin: 0;
+}
+
+.ap-row {
+    width: 1fr;
+    height: 1;
+    margin-bottom: 1;
+    align: left middle;
+
+}
+
+.ap-label {
+    width: 10;
+    color: $text-muted;
+    height: 1;
+}
+
+.ap-value {
+    width: 1fr;
+    color: $text;
+    text-align: right;
+    height: 1;
+}
+
+.ap-green  { color: $success; }
+.ap-yellow { color: $warning; }
+.ap-blue   { color: $primary; }

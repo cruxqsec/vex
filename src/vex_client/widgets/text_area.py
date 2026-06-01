@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -5,10 +6,14 @@ if TYPE_CHECKING:
 
 from dataclasses import dataclass
 
+from textual import on
+from textual.widgets import Static
+from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import TextArea
+from textual.containers import Vertical, Horizontal
 from textual.widgets.text_area import Selection
 
 from vex_client.widgets.empty_message_widget import EmptyStateChanged
@@ -19,8 +24,6 @@ class VexTextArea(TextArea, can_focus=True):
     """
     Vex text area with VIM keybindings and custom syntax highlight.
     """
-
-    BORDER_SUBTITLE = "NORMAL"
 
     BINDINGS = [
         Binding("up,k", "cursor_up", "Cursor Up", show=False),
@@ -110,11 +113,6 @@ class VexTextArea(TextArea, can_focus=True):
         self.visual_mode = not self.visual_mode
 
     def watch_visual_mode(self, value: bool) -> None:
-        if value:
-            self.border_subtitle = "VISUAL"
-        else:
-            self.border_subtitle = "NORMAL"
-
         self.cursor_blink = value
         if not value:
             self.selection = Selection.cursor(self.selection.end)
@@ -198,3 +196,46 @@ class VexTextArea(TextArea, can_focus=True):
 
     def on_blur(self) -> None:
         self.post_message(self.Blurred())
+
+
+class VexTextAreaWidget(Vertical):
+    """
+    Widget that uses VexTextArea plus a vim like status bar
+    """
+
+    def __init__(self, text_area: VexTextArea, **kwargs):
+        self.text_area = text_area
+        super().__init__(**kwargs)
+
+    def compose(self) -> ComposeResult:
+        yield self.text_area
+        with Horizontal(id="vim-status-bar"):
+            yield Static("NORMAL", id="vim-mode")
+            yield Static("", id="vim-position")
+
+    def on_mount(self) -> None:
+        mode = "VISUAL" if self.text_area.visual_mode else "NORMAL"
+        self._update_mode(mode)
+        self._update_position()
+
+    @on(VexTextArea.VisualModeToggled, selector="VexTextArea")
+    def _on_visual_mode_toggled(self, event: VexTextArea.VisualModeToggled):
+        mode = "VISUAL" if event.value else "NORMAL"
+        self._update_mode(mode)
+
+    def _update_mode(self, mode: str) -> None:
+        label = self.query_one("#vim-mode", Static)
+        label.update(f"{mode}")
+        label.set_class(mode == "VISUAL", "vim-visual")
+
+    @on(TextArea.SelectionChanged, selector="VexTextArea")
+    def _on_selection_changed(self, event: TextArea.SelectionChanged):
+        if event.text_area is not self.text_area:
+            return
+        self._update_position()
+
+    def _update_position(self) -> None:
+        cursor = self.text_area.cursor_location
+        pos = self.query_one("#vim-position", Static)
+        row, col = cursor  # 0-based
+        pos.update(f"{row + 1}:{col + 1}")

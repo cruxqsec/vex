@@ -1,0 +1,67 @@
+$border-divider: $secondary-darken-3;
+
+CreateUpdateProxyScreen {
+    align: center middle;
+    background: $background 60%;
+
+    #create-modal {
+        width: 60;
+        height: 16;
+        border: thick $border-divider;
+        background: $background;
+    }
+
+    #title {
+        width: 1fr;
+        height: 1;
+        content-align: left middle;
+        background: $background-lighten-2;
+        padding-left: 1;
+        margin-bottom: 1;
+    }
+
+    Horizontal Label {
+        width: 1fr;
+        height: 0.15fr;
+    }
+
+    Horizontal {
+        margin-left: 1;
+        margin-right: 1;
+        margin-bottom: 1;
+        margin-top: 1;
+    }
+
+    Input {
+        width: 2fr;
+        height: 1;
+        border: none;
+        margin-left: 1;
+    }
+
+    #name-input {
+        width: 2fr;
+        height: 1;
+        border: none;
+        margin-left: 1;
+       
+    }
+
+    #error-label {
+        color: $error;
+        margin-left: 1;
+        margin-bottom: 1;
+    }
+
+    #create-btn {
+        color: $success !important;
+        background: $success-muted;
+    }
+
+    #cancel-btn {
+        background: $error-muted !important;
+        color: $text-error !important;
+        margin-left: 1;
+    }
+
+}

@@ -81,11 +81,11 @@ class VexCapture:
         summary: RequestSummary | ResponseSummary,
         raw: RawRequest | RawResponse,
     ):
-        await asyncio.gather(
+        created_orm, _ = await asyncio.gather(
             self.db_manager.summaries_db.create(summary.to_orm()),
             self.db_manager.raw_db.create(raw.to_orm()),
         )
-
+        summary.id = created_orm.id
         await self.flow_history.broadcast_summary(summary)
 
 
