@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from typing import TYPE_CHECKING, cast
+
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
@@ -132,12 +133,14 @@ class VexHTTPHistoryScreen(Screen):
         if raw_request:
             self.request_area.text = raw_request.data.decode("utf-8")
         else:
-            app.log_vex("Couldn't fetch request/response data!", severity="error")
+            app.log_vex("Couldn't fetch request data!", severity="error")
 
         if raw_response:
             self.response_area.text = (
                 raw_response.data.decode("utf-8") if raw_response.data else ""
             )
+        else:
+            app.log_vex("Couldn't fetch response data!", severity="error")
 
     # -------------- ACTIONS -----------------------
 

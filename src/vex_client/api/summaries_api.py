@@ -22,12 +22,12 @@ async def get_all_request_summaries(
             )
             if response.status_code == 200:
                 return [RequestSummary.model_validate(r) for r in response.json()]
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return []
 
 
@@ -39,12 +39,12 @@ async def get_request_summary(id: UUID, host: str, port: int) -> RequestSummary 
             )
             if response.status_code == 200:
                 return RequestSummary.model_validate(response.json())
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return None
 
 
@@ -59,12 +59,12 @@ async def create_request_summary(
             )
             if response.status_code == 201:
                 return RequestSummary.model_validate(response.json())
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return None
 
 
@@ -79,12 +79,12 @@ async def update_request_summary(
             )
             if response.status_code == 202:
                 return True
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return False
 
 
@@ -96,12 +96,12 @@ async def delete_request_summary(id: UUID, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return False
 
 
@@ -119,12 +119,12 @@ async def get_all_response_summaries(
             )
             if response.status_code == 200:
                 return [ResponseSummary.model_validate(r) for r in response.json()]
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return []
 
 
@@ -138,12 +138,12 @@ async def get_response_summary(
             )
             if response.status_code == 200:
                 return ResponseSummary.model_validate(response.json())
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return None
 
 
@@ -158,12 +158,12 @@ async def create_response_summary(
             )
             if response.status_code == 201:
                 return ResponseSummary.model_validate(response.json())
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return None
 
 
@@ -178,12 +178,12 @@ async def update_response_summary(
             )
             if response.status_code == 202:
                 return True
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return False
 
 
@@ -195,12 +195,12 @@ async def delete_response_summary(id: UUID, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return False
 
 
@@ -218,12 +218,12 @@ async def get_all_summaries(
             )
             if response.status_code == 200:
                 return [FlowSummary.model_validate(r) for r in response.json()]
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return []
 
 
@@ -233,10 +233,10 @@ async def get_summary(id: UUID, host: str, port: int) -> FlowSummary | None:
             response = await client.get(f"http://{host}:{port}/api/summary/{id}")
             if response.status_code == 200:
                 return FlowSummary.model_validate(response.json())
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout occurred: {e}")
-    except httpx.RequestError as e:
-        logger.error(f"Request failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+    except httpx.RequestError:
+        logger.exception("Request failed")
+    except Exception:
+        logger.exception("Unexpected error")
     return None

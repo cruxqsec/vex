@@ -116,6 +116,7 @@ class VexProjectsScreen(Screen):
         app = cast("VexApp", self.app)
         host, port = app.get_api_info()
         if host is None or port is None:
+            app.log_vex("Cannot load projects: no server info available", "error")
             return
 
         projects = await get_all_projects(host, port)
@@ -138,6 +139,9 @@ class VexProjectsScreen(Screen):
 
         host, port = app.get_api_info()
         if host is None or port is None:
+            app.log_vex(
+                "Cannot check active project: no server info available", "error"
+            )
             return
 
         fetched_active_project: Project | None = await get_active_project(host, port)
@@ -242,7 +246,7 @@ class VexProjectsScreen(Screen):
                 self.active_project_card.set_empty()
                 app.set_active_project(None)
 
-        app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete) # type: ignore
+        app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
 
     def action_copy_path(self):
         try:
@@ -250,9 +254,7 @@ class VexProjectsScreen(Screen):
 
             app = cast("VexApp", self.app)
             project_id = (
-                str(app.active_project.id)
-                if app.active_project is not None
-                else ""
+                str(app.active_project.id) if app.active_project is not None else ""
             )
             pyperclip.copy(str(vex_projects_directory() / project_id))
         except pyperclip.PyperclipException as exc:

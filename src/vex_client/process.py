@@ -41,13 +41,13 @@ def start_detached_process(cmd: list[str]) -> int:
         return proc.pid
 
     except FileNotFoundError:
-        logger.error("vex-cli could not be found in $PATH")
+        logger.exception("vex-cli could not be found in $PATH")
         return -1
     except PermissionError:
-        logger.error("No permission to execute vex-cli")
+        logger.exception("No permission to execute vex-cli")
         return -1
-    except Exception as e:
-        logger.error(f"Unexpected exception occurred trying to run vex-cli {e}")
+    except Exception:
+        logger.exception("Unexpected exception occurred trying to run vex-cli")
         return -1
 
 
@@ -60,12 +60,12 @@ def terminate_process(pid: int):
         return True
 
     except psutil.NoSuchProcess:
-        logger.error(f"No process with {pid} PID exists")
+        logger.warning(f"No process with {pid} PID exists")
         return True
     except psutil.TimeoutExpired:
         return False
     except psutil.AccessDenied:
-        logger.error(f"Could not terminate process with {pid} PID")
+        logger.exception(f"Could not terminate process with {pid} PID")
         return False
 
 
@@ -77,8 +77,8 @@ def kill_process(pid: int):
         return True
 
     except psutil.NoSuchProcess:
-        logger.error(f"No process with {pid} PID exists")
+        logger.warning(f"No process with {pid} PID exists")
         return True
     except psutil.AccessDenied:
-        logger.error(f"Could not kill process with {pid} PID")
+        logger.exception(f"Could not kill process with {pid} PID")
         return False

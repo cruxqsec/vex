@@ -34,6 +34,13 @@ from vex_client.api.summaries_api import get_all_summaries
 
 logger = logging.getLogger(__name__)
 
+_SEVERITY_TO_LEVEL = {
+    "info": logging.INFO,
+    "success": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+}
+
 
 class VexApp(App[str]):
     CSS_PATH = "vex.tcss"
@@ -87,7 +94,7 @@ class VexApp(App[str]):
             "check_screens()",
             "Test",
             priority=True,
-        )
+        ),
     ]
 
     SCREENS = {
@@ -174,8 +181,9 @@ class VexApp(App[str]):
             self.log_vex("Server closed connection unexpectedly", "warning")
         except OSError:
             self.log_vex("Could not reach server, is it running?", "error")
-        except Exception as e:
-            self.log_vex(f"Unexpected error in server monitor: {e}", "error")
+        except Exception:
+            self.log_vex("Server monitor error. Check logs.", "error")
+            logger.exception("Server monitor error")
         finally:
             self.server_online = False
 
@@ -184,18 +192,20 @@ class VexApp(App[str]):
     @work(name="history_manager", group="history", exclusive=True)
     async def _history_websocket_manager(self) -> None:
 
-        self.log_vex("History manager: worker started")
+        logger.info("History manager: worker started")
         while self.server_online:
-            self.log_vex("History manager: attempting connection")
+            logger.info("History manager: attempting connection")
             await self._handle_history_connection()
-            self.log_vex(f"History manager: post-connection, server_online={self.server_online}")
+            logger.info(
+                f"History manager: post-connection, server_online={self.server_online}"
+            )
             await asyncio.sleep(5)  # so we don't spam the server after reconnect
-        self.log_vex("History manager: exiting loop, server_online is False", "error")
+        logger.info("History manager: exiting loop, server_online is False")
 
     async def _handle_history_connection(self) -> None:
         """Connects to vex-cli websocket and processes messages (summaries)"""
         host, port = self.get_api_info()
-        self.log_vex(f"History manager: connecting to {host}:{port}")
+        logger.info(f"History manager: connecting to {host}:{port}")
         if host is None or port is None:
             self.log_vex("History manager: no API info, aborting", "error")
             return
@@ -207,8 +217,9 @@ class VexApp(App[str]):
                 async for raw_message in websocket:
                     self._handle_message(raw_message)
                 self.log_vex("History manager: connection closed cleanly")
-        except Exception as e:
-                self.log_vex(f"History manager: connection failed: {type(e).__name__}: {e}", "error")
+        except Exception:
+            self.log_vex("History manager connection failed. Check logs.", "error")
+            logger.exception("History manager connection failed")
 
     def _handle_message(self, raw_message: websockets.Data) -> None:
         # skips processing but keeps loop/connection alive
@@ -225,13 +236,14 @@ class VexApp(App[str]):
                 self.history_screen.http_table.insert_request_summary(message)
             else:
                 self.history_screen.http_table.insert_response_summary(message)
-            self.log_vex("History manager: everything should work")
-        except ValidationError as e:
-            self.log_vex(f"History manager: received invalid JSON structure {e}")
+        except ValidationError:
+            self.log_vex("Received invalid data from server. Check logs.", "warning")
+            logger.exception("Invalid JSON structure from server")
         except json.JSONDecodeError:
-            self.log_vex("History manager: received data that wasn't even JSON!")
-        except Exception as e:
-                self.log_vex(f"History manager: handling message failed: {type(e).__name__}: {e}", "error")
+            self.log_vex("Received invalid data from server. Check logs.", "warning")
+        except Exception:
+            self.log_vex("Message handling failed. Check logs.", "error")
+            logger.exception("Message handling failed")
 
     def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
         data = json.loads(raw_data)
@@ -266,6 +278,7 @@ class VexApp(App[str]):
     async def _fetch_all_summaries(self) -> None:
         host, port = self.get_api_info()
         if host is None or port is None:
+            self.log_vex("Cannot load summaries: no server info available", "error")
             return
         skip = 0
         while True:
@@ -330,7 +343,8 @@ class VexApp(App[str]):
             logs_panel = screen.query_one_optional(VexLogsPanel)
             if logs_panel:
                 logs_panel.write_to_log(message, severity)
-    
+        logger.log(_SEVERITY_TO_LEVEL.get(severity, logging.INFO), message)
+
     def toggle_logs(self) -> None:
         for screen_name in self.app.SCREENS:
             screen = self.get_screen(screen_name)

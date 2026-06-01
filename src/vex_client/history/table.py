@@ -1,10 +1,13 @@
 from uuid import UUID
 from datetime import datetime
+import logging
 
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
+
+logger = logging.getLogger(__name__)
 
 
 from rich.text import Text
@@ -219,7 +222,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             )
             self.post_message(VexDataTable.RowAdded())
         except ValueError as e:
-            self.app.log_vex(f"Error: {e}")  # type: ignore
+            self.app.log_vex("Error inserting request into table. Check logs.", "error")  # type: ignore
+            logger.exception("Error inserting request summary into table")
 
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:
         flow_id = str(response_summary.flow_id)
@@ -246,10 +250,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 severity="error",
             )
         except Exception as e:
-            self.app.log_vex(  # type: ignore
-                f"Error: {e}",
-                severity="error",
-            )
+            self.app.log_vex("Error updating response in table. Check logs.", "error")  # type: ignore
+            logger.exception("Error updating response summary in table")
 
     def insert_full_summary(self, full_summary: FlowSummary) -> None:
         try:
@@ -270,4 +272,5 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             )
             self.post_message(VexDataTable.RowAdded())
         except ValueError:
-            self.notify("Error inserting summary!", severity="error")
+            self.app.log_vex("Error inserting summary into table. Check logs.", "error")  # type: ignore
+            logger.exception("Error inserting full summary into table")
