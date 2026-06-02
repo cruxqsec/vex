@@ -42,7 +42,7 @@ def extract_http_title(flow: http.HTTPFlow) -> str | None:
 
     match = re.search(
         r"<title>(.*?)</title>",
-        (flow.response.get_text() or ""),
+        (flow.response.get_text(strict=False) or ""),
         re.IGNORECASE | re.DOTALL,
     )
     if match:
@@ -97,10 +97,10 @@ def flow_to_raw_request(flow: http.HTTPFlow) -> bytes:
     # CRLF before body
     lines.append("\r\n")
 
-    # Body
-    lines.append(flow.request.get_text() or "")
+    header_bytes = "".join(lines).encode("utf-8")
+    body_bytes = flow.request.get_content() or b""
 
-    return "".join(lines).encode("utf-8")
+    return header_bytes + body_bytes
 
 
 def flow_to_raw_response(flow: http.HTTPFlow) -> bytes | None:
@@ -124,11 +124,10 @@ def flow_to_raw_response(flow: http.HTTPFlow) -> bytes | None:
     # CRLF before body
     lines.append("\r\n")
 
-    # Body
-    lines.append(flow.response.get_text() or "")
+    header_bytes = "".join(lines).encode("utf-8")
+    body_bytes = flow.response.get_content() or b""
 
-    # Combine headers + body
-    return "".join(lines).encode("utf-8")
+    return header_bytes + body_bytes
 
 
 def get_status_text(status_code: int) -> str:

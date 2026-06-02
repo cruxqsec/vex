@@ -52,7 +52,7 @@ async def start_fastapi(app_state: VexState):
         try:
             await server.shutdown()
         except Exception as e:
-            logger.error(f"Error during FastAPI cleanup: {e}")
+            logger.exception("Error during FastAPI cleanup")
 
 
 @asynccontextmanager

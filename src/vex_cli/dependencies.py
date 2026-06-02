@@ -33,9 +33,9 @@ def get_projects_db(request: Request) -> ProjectsDatabase:
     return request.app.state.vex_state.get_db_manager().projects_db
 
 
-def get_summaries_db(request: Request) -> SummariesDatabase | None:
+def get_summaries_db(request: Request) -> SummariesDatabase:
     return request.app.state.vex_state.get_db_manager().summaries_db
 
 
-def get_raw_db(request: Request) -> RawDatabase | None:
+def get_raw_db(request: Request) -> RawDatabase:
     return request.app.state.vex_state.get_db_manager().raw_db

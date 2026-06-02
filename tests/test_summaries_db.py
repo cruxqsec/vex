@@ -6,8 +6,8 @@ import pytest_asyncio
 
 from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.errors import NotFoundError
-from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
-from vex_cli.models.pydantic import FlowSummary
+from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM, ScopeORM
+from vex_cli.models.pydantic import FlowSummary, Scope
 
 
 @pytest_asyncio.fixture
@@ -171,13 +171,59 @@ async def test_get_full_summary_by_id_with_response(db):
 
     # check the presence of all the req and res summary keys
     for k in req_summary_keys:
-        assert hasattr(result, k) 
+        assert hasattr(result, k)
 
     for k in res_summary_keys:
-        assert hasattr(result, k) 
+        assert hasattr(result, k)
 
 
 @pytest.mark.asyncio
 async def test_get_full_summary_by_id_not_found(db):
     with pytest.raises(NotFoundError):
         await db.get_full_summary_by_id(uuid4())
+
+
+# --- ScopeORM tests ---
+
+
+@pytest.mark.asyncio
+async def test_scope_orm_default_definitions(db):
+    scope = await db.create(ScopeORM())
+    assert scope.id is not None
+    assert scope.definitions == "{}"
+
+    result = await db.get(ScopeORM, scope.id)
+    assert result.definitions == "{}"
+
+
+@pytest.mark.asyncio
+async def test_scope_orm_custom_definitions(db):
+    scope = await db.create(
+        ScopeORM(definitions='{"allow": ["example.com"], "deny": []}')
+    )
+    assert scope.definitions == '{"allow": ["example.com"], "deny": []}'
+
+    result = await db.get(ScopeORM, scope.id)
+    assert result.definitions == '{"allow": ["example.com"], "deny": []}'
+
+
+@pytest.mark.asyncio
+async def test_scope_orm_roundtrip_via_from_orm(db):
+    scope_orm = await db.create(
+        ScopeORM(definitions='{"allow": ["10.0.0.1"], "deny": ["evil.com"]}')
+    )
+    scope = Scope.from_orm(scope_orm)
+
+    assert scope.id == scope_orm.id
+    assert scope.allow_endpoints == ["10.0.0.1"]
+    assert scope.deny_endpoints == ["evil.com"]
+
+
+@pytest.mark.asyncio
+async def test_scope_orm_default_roundtrip_via_from_orm(db):
+    scope_orm = await db.create(ScopeORM())
+    scope = Scope.from_orm(scope_orm)
+
+    assert scope.id == scope_orm.id
+    assert scope.allow_endpoints == []
+    assert scope.deny_endpoints == []

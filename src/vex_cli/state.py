@@ -28,7 +28,7 @@ class VexState:
         self._configure_logging()
 
     async def initialize_db_manager(self) -> None:
-        self._db_manager: DatabaseManager = DatabaseManager()
+        self._db_manager = DatabaseManager()
         await self._db_manager.initialize()
 
     @property

@@ -8,8 +8,10 @@ from vex_cli.models.pydantic import (
     RequestSummary,
     ResponseSummary,
     RawRequest,
-    RawResponse
+    RawResponse,
+    Scope,
 )
+
 
 @pytest.fixture
 def mock_flow() -> http.HTTPFlow:
@@ -55,6 +57,7 @@ def mock_flow() -> http.HTTPFlow:
 
     return flow
 
+
 def test_request_summary(mock_flow: http.HTTPFlow):
     summary = RequestSummary.from_flow(mock_flow)
     now = datetime.timestamp(datetime.now())
@@ -71,6 +74,7 @@ def test_request_summary(mock_flow: http.HTTPFlow):
     # we round the timestamp to an int
     # because there is a few fractions of a ms difference
     assert int(summary.timestamp) == int(now)
+
 
 def test_response_summary(mock_flow: http.HTTPFlow):
     summary = ResponseSummary.from_flow(mock_flow)
@@ -91,6 +95,7 @@ def test_response_summary(mock_flow: http.HTTPFlow):
     # we round the timestamp to an int
     # because there is a few fractions of a ms difference
     assert int(summary.timestamp) == int(now)
+
 
 def test_req_summary_serialize(mock_flow: http.HTTPFlow):
     """Problematic test because of the problems of SQLModel"""
@@ -125,6 +130,7 @@ def test_raw_request(mock_flow: http.HTTPFlow):
     assert type(raw_req.id) is UUID
     assert raw_req.data == raw_result
 
+
 def test_raw_response(mock_flow: http.HTTPFlow):
     html = b"""<!doctype html>
     <html lang="en">
@@ -146,8 +152,7 @@ def test_raw_response(mock_flow: http.HTTPFlow):
         b"Vary: Accept-Encoding\r\n"
         b"Set-Cookie: test_token=random-test-cookie\r\n"
         b"Content-Length: 338\r\n"
-        b"Connection: keep-alive\r\n\r\n"
-        + html
+        b"Connection: keep-alive\r\n\r\n" + html
     )
 
     raw_res = RawResponse.from_flow(mock_flow)
@@ -162,3 +167,31 @@ def test_raw_req_serialize():
 
 def test_raw_res_serialize():
     pass
+
+
+def test_scope_to_orm_and_back_roundtrip():
+    scope = Scope(
+        id=42,
+        allow_endpoints=["192.168.1.1"],
+        deny_endpoints=["10.0.0.1", "evil.com"],
+    )
+
+    orm = scope.to_orm()
+    assert orm.id == 42
+
+    back = Scope.from_orm(orm)
+    assert back.id == 42
+    assert back.allow_endpoints == ["192.168.1.1"]
+    assert back.deny_endpoints == ["10.0.0.1", "evil.com"]
+
+
+def test_scope_to_orm_and_back_roundtrip_empty():
+    scope = Scope(id=1, allow_endpoints=[], deny_endpoints=[])
+
+    orm = scope.to_orm()
+    assert orm.id == 1
+
+    back = Scope.from_orm(orm)
+    assert back.id == 1
+    assert back.allow_endpoints == []
+    assert back.deny_endpoints == []

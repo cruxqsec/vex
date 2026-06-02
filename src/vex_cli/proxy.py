@@ -52,8 +52,8 @@ class VexCapture:
 
             await self._save_and_broadcast(summary, raw)
 
-        except Exception as e:
-            logger.error(f"Proxy error in request processing: {e}")
+        except Exception:
+            logger.exception("Proxy error in request processing")
 
     async def response(self, flow: http.HTTPFlow):
         """Called when response is received"""
@@ -69,8 +69,8 @@ class VexCapture:
 
             await self._save_and_broadcast(summary, raw)
 
-        except Exception as e:
-            logger.error(f"Proxy error in response processing: {e}")
+        except Exception:
+            logger.exception("Proxy error in response processing")
 
     async def error(self, flow: http.HTTPFlow):
         """Called when request errors and no response is captured"""
@@ -110,5 +110,5 @@ async def start_proxy(app_state: VexState):
     finally:
         try:
             master.shutdown()
-        except Exception as e:
-            logger.error(f"Error during proxy cleanup: {e}")
+        except Exception:
+            logger.exception("Error during proxy cleanup")
