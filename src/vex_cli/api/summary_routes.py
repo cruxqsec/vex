@@ -193,37 +193,4 @@ async def get_summary(
     return await summaries_db.get_full_summary_by_id(id)
 
 
-# -------------------------------------------------------------------
 
-
-@summary_router.post("/summary/", status_code=201)
-async def create_summary(
-    data: ResponseSummary,
-    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
-):
-    pass
-
-
-# -------------------------------------------------------------------
-
-
-@summary_router.put("/summary/", status_code=202)
-async def update_summary(
-    data: ResponseSummary,
-    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
-):
-    pass
-
-
-# -------------------------------------------------------------------
-
-
-@summary_router.delete("/summary/{id}", status_code=202)
-async def delete_summary(
-    id: UUID | int,
-    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
-):
-    pass
-
-
-# -------------------------------------------------------------------

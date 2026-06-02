@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 websocket_router = APIRouter(tags=["Websockets"])
 
+
 @websocket_router.websocket("/ping")
 async def ping(websocket: WebSocket):
     await websocket.accept()
@@ -19,7 +20,8 @@ async def ping(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     except CancelledError:
-        pass  
+        pass
+
 
 @websocket_router.websocket("/history")
 async def history_websocket(
@@ -35,9 +37,9 @@ async def history_websocket(
     except WebSocketDisconnect:
         logger.info("Flow history client disconnected")
     except CancelledError:
-        pass  
-    except Exception as e:
-        logger.error(f"Error in websocket: {e}")
+        pass
+    except Exception:
+        logger.exception("Error in websocket")
     finally:
         await flow_history.unsubscribe(client_queue)
 

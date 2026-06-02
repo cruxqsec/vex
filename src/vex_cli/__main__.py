@@ -9,8 +9,9 @@ import click
 
 from vex_cli.app import start_fastapi
 from vex_cli.bind import try_bind_ports
+from vex_cli.locations import vex_log_directory
 from vex_cli.models.pydantic import VexServerInfo
-from vex_cli.pid_func import pid_file_lock
+from vex_cli.pid_func import pid_file_check
 from vex_cli.proxy import start_proxy
 from vex_cli.state import VexState
 
@@ -25,14 +26,25 @@ def cli() -> None:
 
 async def main(server_info: VexServerInfo) -> int:
     try:
-        async with pid_file_lock(server_info):
+        async with pid_file_check(server_info):
             await _run_vex_tasks(server_info)
+        print("Shutting down.")
         return 0
     except RuntimeError as e:
-        print(e)
+        print(f"Error: {e}")
         return 1
-    except Exception as e:
-        print(e)
+    except ExceptionGroup as e:
+        logger.exception("Multiple errors occurred during server startup")
+        print(
+            f"Multiple errors occurred ({len(e.exceptions)} exceptions). "
+            f"See {vex_log_directory() / 'vex-cli.log'}"
+        )
+        return 1
+    except Exception:
+        logger.exception("Fatal error in Vex CLI")
+        print(
+            f"An unexpected error occurred. See {vex_log_directory() / 'vex-cli.log'}"
+        )
         return 1
 
 
@@ -61,28 +73,29 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
         if shutdown_task in pending:
             # gather exceptions from all completed non-shutdown tasks
             crashed = [t for t in done if t is not shutdown_task and not t.cancelled()]
+            exceptions: list[Exception] = []
             for task in crashed:
                 exc = task.exception()
-                if exc:
-                    raise exc
+                if exc is not None and isinstance(exc, Exception):
+                    exceptions.append(exc)
 
-    except (asyncio.CancelledError, asyncio.TimeoutError):
-        # Expected during shutdown - no error logging
+            if exceptions:
+                if len(exceptions) == 1:
+                    raise exceptions[0]
+                else:
+                    raise ExceptionGroup("Multiple tasks crashed", exceptions)
+
+    except asyncio.CancelledError:
         pass
-    except Exception:
-        logger.exception("Fatal error occurred.")
-        print("Unexpected error happened. Check logs in.")
-        raise
     finally:
         for task in tasks:
             if task and not task.done():
                 task.cancel()
 
         if tasks:
-            await asyncio.wait([t for t in tasks if t], timeout=3.0)
+            await asyncio.gather(*[t for t in tasks if t], return_exceptions=True)
 
         await app_state.shutdown()
-        print("Shutting down. See ya later alligator!")
 
 
 @cli.command()

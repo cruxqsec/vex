@@ -39,7 +39,7 @@ def delete_pid_file(pid_file: Path) -> None:
 
 
 @asynccontextmanager
-async def pid_file_lock(server_info: VexServerInfo):
+async def pid_file_check(server_info: VexServerInfo):
     pid_file = vex_pid_file()
 
     if pid_file.exists():

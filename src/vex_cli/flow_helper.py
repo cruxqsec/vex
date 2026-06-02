@@ -10,7 +10,7 @@ def uses_tls(flow: http.HTTPFlow) -> bool:
 
 
 def extract_url_path(flow: http.HTTPFlow) -> str:
-    return "".join(urlparse(flow.request.pretty_url)[2])
+    return urlparse(flow.request.pretty_url).path
 
 
 def extract_extension(flow: http.HTTPFlow) -> str | None:
@@ -42,7 +42,7 @@ def extract_http_title(flow: http.HTTPFlow) -> str | None:
 
     match = re.search(
         r"<title>(.*?)</title>",
-        (flow.response.get_text() or ""),
+        (flow.response.get_text(strict=False) or ""),
         re.IGNORECASE | re.DOTALL,
     )
     if match:
@@ -52,7 +52,8 @@ def extract_http_title(flow: http.HTTPFlow) -> str | None:
 
 def extract_query(flow: http.HTTPFlow) -> str | None:
     query = urlparse(flow.request.pretty_url).query
-    return query if query is not None else None
+    return query or None
+
 
 def extract_cookies(flow: http.HTTPFlow) -> str:
     if flow.response is None:
@@ -60,6 +61,7 @@ def extract_cookies(flow: http.HTTPFlow) -> str:
     if flow.response.cookies:
         return "; ".join(f"{k}={v[0]}" for k, v in flow.response.cookies.items())
     return ""
+
 
 def has_cookies(flow: http.HTTPFlow) -> bool:
     if flow.response is None:
@@ -74,7 +76,7 @@ def calculate_response_time_ms(flow: http.HTTPFlow) -> int:
 
 
 def flow_to_raw_request(flow: http.HTTPFlow) -> bytes:
-    lines = ""
+    lines = []
 
     # Request line format:
     # METHOD /path HTTP/1.1
@@ -85,48 +87,47 @@ def flow_to_raw_request(flow: http.HTTPFlow) -> bytes:
 
     http_version = flow.request.http_version
     request_line = f"{flow.request.method} {path_and_query} {http_version}\r\n"
-    lines += request_line
+    lines.append(request_line)
 
     # Headers format
     # Header-name: Header-value\r\n
     for key, value in flow.request.headers.items():
-        lines += f"{key}: {value}\r\n"
+        lines.append(f"{key}: {value}\r\n")
 
     # CRLF before body
-    lines += "\r\n"
+    lines.append("\r\n")
 
-    # Body
-    lines += flow.request.get_text() or ""
+    header_bytes = "".join(lines).encode("utf-8")
+    body_bytes = flow.request.get_content() or b""
 
-    return lines.encode("utf-8")
+    return header_bytes + body_bytes
 
 
 def flow_to_raw_response(flow: http.HTTPFlow) -> bytes | None:
     if not flow.response:
         return None
 
-    lines = ""
+    lines = []
 
     # Status line format
     # HTTP/1.1 200 OK\r\n
     http_version = flow.response.http_version
     status_text = flow.response.reason or get_status_text(flow.response.status_code)
     status_line = f"{http_version} {flow.response.status_code} {status_text}\r\n"
-    lines += status_line
+    lines.append(status_line)
 
     # Headers format
     # Header-name: Header-value\r\n
     for name, value in flow.response.headers.items():
-        lines += f"{name}: {value}\r\n"
+        lines.append(f"{name}: {value}\r\n")
 
     # CRLF before body
-    lines += "\r\n"
+    lines.append("\r\n")
 
-    # Body
-    lines += flow.response.get_text() or ""
+    header_bytes = "".join(lines).encode("utf-8")
+    body_bytes = flow.response.get_content() or b""
 
-    # Combine headers + body
-    return lines.encode("utf-8")
+    return header_bytes + body_bytes
 
 
 def get_status_text(status_code: int) -> str:

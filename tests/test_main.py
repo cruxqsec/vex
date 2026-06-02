@@ -29,7 +29,7 @@ def make_pid_lock_mock(raise_exc=None):
 
 @pytest.mark.asyncio
 async def test_main_returns_0_on_success(server_info, mocker):
-    mocker.patch("vex_cli.__main__.pid_file_lock", return_value=make_pid_lock_mock())
+    mocker.patch("vex_cli.__main__.pid_file_check", return_value=make_pid_lock_mock())
     mocker.patch("vex_cli.__main__._run_vex_tasks", new_callable=AsyncMock)
 
     assert await main(server_info) == 0
@@ -37,7 +37,7 @@ async def test_main_returns_0_on_success(server_info, mocker):
 
 @pytest.mark.asyncio
 async def test_main_returns_1_on_runtime_error(server_info, mocker):
-    mocker.patch("vex_cli.__main__.pid_file_lock", return_value=make_pid_lock_mock())
+    mocker.patch("vex_cli.__main__.pid_file_check", return_value=make_pid_lock_mock())
     mocker.patch(
         "vex_cli.__main__._run_vex_tasks",
         new_callable=AsyncMock,
@@ -49,7 +49,7 @@ async def test_main_returns_1_on_runtime_error(server_info, mocker):
 
 @pytest.mark.asyncio
 async def test_main_returns_1_on_unexpected_exception(server_info, mocker):
-    mocker.patch("vex_cli.__main__.pid_file_lock", return_value=make_pid_lock_mock())
+    mocker.patch("vex_cli.__main__.pid_file_check", return_value=make_pid_lock_mock())
     mocker.patch(
         "vex_cli.__main__._run_vex_tasks",
         new_callable=AsyncMock,

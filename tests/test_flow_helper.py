@@ -149,6 +149,18 @@ def test_extract_query_found(mock_flow: http.HTTPFlow):
     assert extract_query(mock_flow) == "query=test&query2=test2"
 
 
+def test_extract_query_empty_returns_none():
+    req = tutils.treq(
+        host="example.com",
+        scheme="http",
+        method="GET",
+        path="/path/no/query",
+        content=b"",
+    )
+    flow = tflow.tflow(req=req)
+    assert extract_query(flow) is None
+
+
 def test_has_cookies_true(mock_flow: http.HTTPFlow):
     assert has_cookies(mock_flow)
 
@@ -168,6 +180,7 @@ def test_extract_cookies_no_response(mock_flow_no_resp: http.HTTPFlow):
 def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
     # Create a flow with response but no cookies
     import mitmproxy.test.tflow as tflow_module
+
     req = tutils.treq(
         host="example.com",
         scheme="http",
@@ -180,7 +193,7 @@ def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
 
     if flow.response:
         flow.response.cookies.clear()
-    
+
     assert extract_cookies(flow) == ""
 
 
@@ -243,3 +256,56 @@ def test_flow_to_raw_res(mock_flow: http.HTTPFlow):
     raw_res = flow_to_raw_response(mock_flow)
 
     assert raw_res == result
+
+
+# --- Binary content tests ---
+
+
+@pytest.fixture
+def mock_binary_flow() -> http.HTTPFlow:
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+    resp_headers = [
+        (b"Content-Type", b"image/png"),
+        (b"Content-Length", str(len(png_bytes)).encode()),
+    ]
+    req = tutils.treq(
+        host="cdn.example.com",
+        scheme="https",
+        method="GET",
+        path="/img.png",
+        content=b"",
+    )
+    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
+    return tflow.tflow(req=req, resp=resp)
+
+
+def test_flow_to_raw_response_binary_body(mock_binary_flow: http.HTTPFlow):
+    raw = flow_to_raw_response(mock_binary_flow)
+    assert raw is not None
+    assert b"HTTP/1.1 200 OK\r\n" in raw
+    assert b"Content-Type: image/png\r\n" in raw
+    assert b"\x89PNG" in raw
+
+
+def test_flow_to_raw_request_binary_body():
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
+    req = tutils.treq(
+        host="cdn.example.com",
+        scheme="https",
+        method="POST",
+        path="/upload",
+        content=png_bytes,
+    )
+    flow = tflow.tflow(req=req)
+    raw = flow_to_raw_request(flow)
+    assert b"POST /upload HTTP/1.1\r\n" in raw
+    assert b"\x89PNG" in raw
+
+
+def test_extract_http_title_binary_response(mock_binary_flow: http.HTTPFlow):
+    assert extract_http_title(mock_binary_flow) is None
+
+
+def test_response_total_size_binary_body(mock_binary_flow: http.HTTPFlow):
+    size = response_total_size(mock_binary_flow)
+    assert size > 0

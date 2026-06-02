@@ -1,7 +1,7 @@
 # Vex the web security toolkit that lives in your termianl
 
 ## Description
-Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the main features in the terminal. It is keyboard driven tool that utilizes vim keybindings and enables security researchers to speed up their research. This tool is still under development and many things may change.
+Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the main features in the terminal. It is keyboard driven tool that utilizes vim keybindings and enables security researchers to speed up their research.
 
 ## Structure
 1. vex - client terminal app built with Textual
@@ -14,23 +14,23 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 
 ### General widgets
 
-- [ ] Implement custom footer
-- [ ] VexTextArea vim like status bar
+- [x] Implement custom footer
+- [x] VexTextArea vim like status bar
 - [ ] Add help screens
 
 ### History screen
 
-- [ ] Add a search bar
+- [x] Add a search bar
 - [ ] Add copy helper
 - [ ] Sorting for History table
 - [x] Syntax highlighting for History table
 - [x] Implement some sort of caching
 - [ ] Improve responsivness
-- [ ] Add resizable columns
+- [x] Add resizable columns
 
 ### Projects screen
 
-- [ ] Improve layout (add buttons, search bar)
+- [x] Improve layout (add buttons, search bar)
 - [ ] Sorting for Projects table
 - [ ] Importing/backuping projects
 
@@ -74,8 +74,52 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [ ] better database optimizations (indexing)
 
 ### improve API
-- [ ] improve naming API scheme
+- [x] improve naming API scheme
 - [ ] add functionality (delete all,...)
+
+
+# Complex problems
+
+## Raw HTTP request/response handling & display analysis
+
+### Capture layer (`vex-cli/flow_helper.py`)
+
+`flow_to_raw_request` and `flow_to_raw_response` construct the raw HTTP message that is
+stored in the database and later displayed to the user. The message must be byte-accurate
+so it can be replayed (like in Burp/Caido).
+
+**Fixed (2026-06-02):** Previously these functions used `get_text()` + `.encode("utf-8")` to
+build the body, which caused a lossy decode→re-encode roundtrip and crashed on binary
+content (images, PDFs, etc.). Now they split construction into two parts:
+
+```
+header_bytes = "".join(header_lines).encode("utf-8")   # text headers → UTF-8 bytes
+body_bytes   = flow.request.get_content() or b""       # raw decompressed body bytes
+return header_bytes + body_bytes                       # valid raw HTTP message
+```
+
+`get_content()` returns the decompressed body bytes (handles `Content-Encoding: gzip`
+transparently), matching what Burp/Caido display in their Raw tabs. For wire-accurate
+replay the headers are preserved as-is, so `Content-Encoding` remains in the header.
+
+`extract_http_title` uses `get_text(strict=False)` so binary responses return `None`
+instead of raising `UnicodeDecodeError`.
+
+### Display layer (`vex_client/history/screen.py`)
+
+Currently the client always does `raw.data.decode("utf-8")` regardless of MIME type,
+which will crash when rendering binary responses (images, PDFs, executables).
+
+There is zero MIME-type-aware rendering — the `mime` field from `FlowSummary` is
+populated but never consulted for display decisions.
+
+**To fix (future):**
+- At minimum, use `data.decode("utf-8", errors="replace")` to avoid crashes
+- Ideally, check the MIME type and render accordingly:
+  - `text/*`, `application/json`, `application/xml` → display as text with syntax highlighting
+  - `image/*`, `application/pdf`, binary types → show a hex dump or just the MIME/Content-Type label
+- The `VexTextArea` widget already has tree-sitter HTTP syntax highlighting for the
+  header portion; body rendering needs to be MIME-aware
 
 
 

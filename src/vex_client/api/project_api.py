@@ -96,7 +96,7 @@ async def delete_project(id: str, host: str, port: int) -> bool:
 async def select_project(id: str, host: str, port: int) -> bool:
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
+            response = await client.post(
                 f"http://{host}:{port}/api/projects/select/{id}"
             )
             if response.status_code == 202:

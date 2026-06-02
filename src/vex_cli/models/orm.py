@@ -95,4 +95,4 @@ class ScopeORM(Base):
     __tablename__ = "scopes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    definitions: Mapped[str] = mapped_column(String, nullable=True)
+    definitions: Mapped[str] = mapped_column(String, nullable=False, default="{}")

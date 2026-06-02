@@ -89,6 +89,8 @@ async def delete_project(
 
     if active_project is not None and active_project.id == project_id:
         await state_obj.set_active_project(None)
+        state_obj.get_flow_scope().set_active_scope(None)
+        await db_manager.close_project_databases()
 
     return ResponseStatus(status="Success", msg="Object deleted")
 
@@ -96,7 +98,7 @@ async def delete_project(
 # ==================== other routes ====================
 
 
-@projects_router.get(
+@projects_router.post(
     "/projects/select/{project_id}", response_model=ResponseStatus, status_code=202
 )
 async def select_project(
@@ -120,7 +122,9 @@ async def select_project(
     )
 
 
-@projects_router.get("/projects/active/", status_code=200)
+@projects_router.get(
+    "/projects/active/", response_model=Project | None, status_code=200
+)
 async def active_project(state_obj: Annotated[VexState, Depends(get_state_object)]):
     """
     Returns the active project or None.

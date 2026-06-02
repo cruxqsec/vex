@@ -37,7 +37,7 @@ from vex_cli.models.orm import (
     RequestSummaryORM,
     ResponseSummaryORM,
     ProjectORM,
-    ScopeORM
+    ScopeORM,
 )
 
 # For Pydantic->ORM conversion
@@ -49,12 +49,13 @@ def check_ip(v: str) -> str:
     TypeAdapter(IPvAnyAddress).validate_python(v)
     return v
 
+
 def check_domain(v: str) -> str:
     if "://" in v:
         raise ValueError(f"URLs with schemes are not allowed, got: {v!r}")
-    
+
     url = TypeAdapter(AnyUrl).validate_python(f"https://{v}")
-    
+
     if not url.host:
         raise ValueError(f"Invalid domain: no host found in '{v}'")
     if url.path and url.path != "/":
@@ -63,8 +64,9 @@ def check_domain(v: str) -> str:
         raise ValueError(f"Domain must not contain query parameters: '{url.query}'")
     if url.fragment:
         raise ValueError(f"Domain must not contain a fragment: '#{url.fragment}'")
-    
+
     return v
+
 
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
@@ -86,7 +88,7 @@ class PIDData(BaseModel):
     Data that will be saved to the vex.pid file.
     """
 
-    pid: int = Field(ge=0)
+    pid: int = Field(ge=1)
     host: IPStr
     proxy_port: PortNumber
     api_port: PortNumber
@@ -249,6 +251,7 @@ class RawResponse(BaseModel):
 
 ScopeEndpoint = Union[IPStr, DomainStr]
 
+
 class Scope(BaseModel):
     """
     Scope set on the proxy.
@@ -261,11 +264,11 @@ class Scope(BaseModel):
 
     def to_orm(self) -> ScopeORM:
         return ScopeORM(
-            definitions=json.dumps({
-                "allow": list(self.allow_endpoints),
-                "deny": list(self.deny_endpoints)
-            }),
-    )
+            id=self.id,
+            definitions=json.dumps(
+                {"allow": list(self.allow_endpoints), "deny": list(self.deny_endpoints)}
+            ),
+        )
 
     @classmethod
     def from_orm(cls, orm: ScopeORM) -> "Scope":

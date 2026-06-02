@@ -12,9 +12,7 @@ from vex_cli.models.pydantic import Project, ProjectCreate
 from vex_cli.errors import NotFoundError
 
 
-def make_project_orm(
-    id: UUID | None = None,name: str = "Test Project"
-):
+def make_project_orm(id: UUID | None = None, name: str = "Test Project"):
     project = ProjectORM()
     project.id = uuid4() if id is None else id
     project.name = name
@@ -23,9 +21,7 @@ def make_project_orm(
     return project
 
 
-def make_project(
-    id: UUID | None = None, name: str = "Test Project"
-):
+def make_project(id: UUID | None = None, name: str = "Test Project"):
     project_id = uuid4() if id is None else id
     return Project(
         id=project_id,
@@ -48,6 +44,7 @@ async def mock_projects_db():
 async def mock_state_obj():
     state = MagicMock()
     state.get_db_manager.return_value.projects_db = AsyncMock()
+    state.get_db_manager.return_value.close_project_databases = AsyncMock()
     return state
 
 
@@ -135,11 +132,11 @@ async def test_create_project_returns_201(client, mock_projects_db, mocker):
     project_id = uuid4()
     created_project = make_project(id=project_id, name="New Project")
     mock_projects_db.create.return_value = created_project
-    
+
     # Mock the directory creation
     mocker.patch("vex_cli.api.projects_routes.vex_projects_directory")
     mocker.patch("pathlib.Path.mkdir")
-    
+
     payload = {"name": "New Project"}
 
     response = await client.post("/api/projects/", json=payload)
@@ -205,7 +202,7 @@ async def test_delete_project_returns_202(client, mock_state_obj, mocker):
     project_id = uuid4()
     mock_state_obj.get_db_manager().projects_db.delete.return_value = None
     mock_state_obj.get_active_project.return_value = None
-    
+
     # Mock the directory deletion
     mocker.patch("vex_cli.api.projects_routes.vex_projects_directory")
     mocker.patch("pathlib.Path.exists", return_value=True)
@@ -240,7 +237,6 @@ async def test_delete_project_also_unsets_active_project(
     mock_state_obj.get_active_project.return_value = active_project
     mock_state_obj.set_active_project = AsyncMock()
 
-    
     mocker.patch("vex_cli.api.projects_routes.vex_projects_directory")
     mocker.patch("pathlib.Path.exists", return_value=True)
     mocker.patch("pathlib.Path.is_dir", return_value=True)
@@ -250,9 +246,12 @@ async def test_delete_project_also_unsets_active_project(
 
     assert response.status_code == 202
     mock_state_obj.set_active_project.assert_called_once_with(None)
+    mock_state_obj.get_flow_scope().set_active_scope.assert_called_once_with(None)
+    mock_state_obj.get_db_manager().close_project_databases.assert_called_once()
 
 
-# --- GET /projects/select/{project_id} ---
+# --- POST /projects/select/{project_id} ---
+
 
 @pytest.mark.asyncio
 async def test_select_project_returns_202(client, mock_state_obj, mocker):
@@ -262,7 +261,7 @@ async def test_select_project_returns_202(client, mock_state_obj, mocker):
     mock_state_obj.get_db_manager().switch_project_databases = AsyncMock()
     mock_state_obj.set_active_project = AsyncMock()
 
-    response = await client.get(f"/api/projects/select/{project_id}")
+    response = await client.post(f"/api/projects/select/{project_id}")
 
     assert response.status_code == 202
     assert response.json()["status"] == "Success"
@@ -276,6 +275,6 @@ async def test_select_project_not_found(client, mock_state_obj):
         "Not found"
     )
 
-    response = await client.get(f"/api/projects/select/{project_id}")
+    response = await client.post(f"/api/projects/select/{project_id}")
 
     assert response.status_code == 404
