@@ -40,11 +40,10 @@ def extract_http_title(flow: http.HTTPFlow) -> str | None:
     if flow.response is None:
         return None
 
-    match = re.search(
-        r"<title>(.*?)</title>",
-        (flow.response.get_text(strict=False) or ""),
-        re.IGNORECASE | re.DOTALL,
-    )
+    # Use latin-1 to avoid UTF-8 corruption on binary responses
+    text = (flow.response.content or b"").decode("latin-1", errors="ignore")
+
+    match = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
     if match:
         return match.group(1).strip()
     return None
@@ -76,58 +75,64 @@ def calculate_response_time_ms(flow: http.HTTPFlow) -> int:
 
 
 def flow_to_raw_request(flow: http.HTTPFlow) -> bytes:
-    lines = []
-
-    # Request line format:
-    # METHOD /path HTTP/1.1
     parsed = urlparse(flow.request.url)
     path_and_query = parsed.path or "/"
     if parsed.query:
         path_and_query += f"?{parsed.query}"
 
-    http_version = flow.request.http_version
-    request_line = f"{flow.request.method} {path_and_query} {http_version}\r\n"
-    lines.append(request_line)
+    # Request line format:
+    # METHOD /path HTTP/1.1
+    request_line = (
+        f"{flow.request.method} {path_and_query} {flow.request.http_version}\r\n"
+    )
+
+    # Strip encoding artifacts from request headers (rare but possible)
+    headers = flow.request.headers.copy()
+    headers.pop("Content-Encoding", None)
+    headers.pop("Transfer-Encoding", None)
+
+    body = flow.request.get_content(strict=False) or b""
+
+    # Recalculate to have a more correct Content-Length
+    if "Content-Length" in headers:
+        headers["Content-Length"] = str(len(body))
 
     # Headers format
     # Header-name: Header-value\r\n
-    for key, value in flow.request.headers.items():
-        lines.append(f"{key}: {value}\r\n")
+    header_lines = "".join(f"{header}: {value}\r\n" for header, value in headers.items())
+    header_bytes = (request_line + header_lines + "\r\n").encode("latin-1")
 
-    # CRLF before body
-    lines.append("\r\n")
-
-    header_bytes = "".join(lines).encode("utf-8")
-    body_bytes = flow.request.get_content() or b""
-
-    return header_bytes + body_bytes
+    return header_bytes + body
 
 
 def flow_to_raw_response(flow: http.HTTPFlow) -> bytes | None:
     if not flow.response:
         return None
 
-    lines = []
-
     # Status line format
     # HTTP/1.1 200 OK\r\n
     http_version = flow.response.http_version
     status_text = flow.response.reason or get_status_text(flow.response.status_code)
     status_line = f"{http_version} {flow.response.status_code} {status_text}\r\n"
-    lines.append(status_line)
+
+    # Strip encoding artifacts mitmproxy has already decoded
+    headers = flow.response.headers.copy()
+    headers.pop("Content-Encoding", None)
+    headers.pop("Transfer-Encoding", None)
+
+    # Use strict=False to gracefully handle encoding mismatches
+    body = flow.response.get_content(strict=False) or b""
+
+    # Recalculate to have a more correct Content-Length
+    if "Content-Length" in headers:
+        headers["Content-Length"] = str(len(body))
 
     # Headers format
     # Header-name: Header-value\r\n
-    for name, value in flow.response.headers.items():
-        lines.append(f"{name}: {value}\r\n")
+    header_lines = "".join(f"{header}: {value}\r\n" for header, value in headers.items())
+    header_bytes = (status_line + header_lines + "\r\n").encode("latin-1")
 
-    # CRLF before body
-    lines.append("\r\n")
-
-    header_bytes = "".join(lines).encode("utf-8")
-    body_bytes = flow.response.get_content() or b""
-
-    return header_bytes + body_bytes
+    return header_bytes + body
 
 
 def get_status_text(status_code: int) -> str:
