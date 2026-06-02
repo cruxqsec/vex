@@ -1,11 +1,20 @@
 from uuid import UUID
 from typing import List, Annotated
+import asyncio
+
 from fastapi import APIRouter, Depends, Query
 
-from vex_cli.dependencies import get_summaries_db
+from vex_cli.dependencies import get_raw_db, get_summaries_db
+from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
+from vex_cli.errors import DatabaseError, NotFoundError
 from vex_cli.models.pydantic import ResponseSummary, RequestSummary, ResponseStatus
-from vex_cli.models.orm import ResponseSummaryORM, RequestSummaryORM
+from vex_cli.models.orm import (
+    RawRequestORM,
+    RawResponseORM,
+    ResponseSummaryORM,
+    RequestSummaryORM,
+)
 
 """
 This is all the routes for getting ResponseSummary, RequestSummary and together
@@ -193,4 +202,44 @@ async def get_summary(
     return await summaries_db.get_full_summary_by_id(id)
 
 
+@summary_router.delete(
+    "/summary/{flow_id}", response_model=ResponseStatus, status_code=202
+)
+async def delete_flow(
+    flow_id: UUID,
+    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+    raw_db: Annotated[RawDatabase, Depends(get_raw_db)],
+):
+    await summaries_db.delete_by_flow_id(RequestSummaryORM, flow_id)
+    await raw_db.delete(RawRequestORM, flow_id)
 
+    try:
+        await summaries_db.delete_by_flow_id(ResponseSummaryORM, flow_id)
+    except NotFoundError:
+        pass
+    try:
+        await raw_db.delete(RawResponseORM, flow_id)
+    except NotFoundError:
+        pass
+
+    return ResponseStatus(status="Success", msg=f"Flow {flow_id} deleted")
+
+
+@summary_router.delete("/summary/", response_model=ResponseStatus, status_code=202)
+async def delete_all_flows(
+    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+    raw_db: Annotated[RawDatabase, Depends(get_raw_db)],
+):
+    results = await asyncio.gather(
+        summaries_db.delete_all(RequestSummaryORM),
+        summaries_db.delete_all(ResponseSummaryORM),
+        raw_db.delete_all(RawRequestORM),
+        raw_db.delete_all(RawResponseORM),
+        return_exceptions=True,
+    )
+
+    errors = [e for e in results if isinstance(e, Exception)]
+    if errors:
+        raise DatabaseError("Failed to delete all flows — some records may remain")
+
+    return ResponseStatus(status="Success", msg="All flows deleted")

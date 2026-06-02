@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import RowMapping, select
+from sqlalchemy import RowMapping, delete, select
 
 from vex_cli.database.base_db import BaseDatabase, T
 from vex_cli.errors import NotFoundError
@@ -37,6 +37,12 @@ class SummariesDatabase(BaseDatabase):
             if obj is None:
                 raise NotFoundError("Object not found")
             return obj
+
+    async def delete_by_flow_id(self, model: type[T], flow_id: UUID) -> None:
+        async with self.session() as s:
+            result = await s.execute(delete(model).where(model.flow_id == flow_id))  # type: ignore
+            if result.rowcount == 0:
+                raise NotFoundError("Object not found")
 
     async def get_full_summaries(self, skip: int, size: int) -> list[FlowSummary]:
         """List of full summaries (Request/ResponseSummary)"""

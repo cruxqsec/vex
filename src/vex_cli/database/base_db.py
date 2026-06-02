@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import Table, select, text
+from sqlalchemy import Table, delete as sa_delete, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -144,6 +144,10 @@ class BaseDatabase:
             if not obj:
                 raise NotFoundError("Object could not be deleted")
             await s.delete(obj)
+
+    async def delete_all(self, model: type[T]) -> None:
+        async with self.session() as s:
+            await s.execute(sa_delete(model))
 
     async def close(self) -> None:
         async with self._lock:
