@@ -568,3 +568,27 @@ async def test_delete_all_flows_partial_error_returns_500(
     response = await delete_client.delete("/api/summary/")
 
     assert response.status_code == 500
+
+
+# --- GET /api/summary/count ---
+
+
+@pytest.mark.asyncio
+async def test_count_flows_returns_count(client, mock_summaries_db):
+    mock_summaries_db.count.return_value = 5
+
+    response = await client.get("/api/summary/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 5}
+    mock_summaries_db.count.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_count_flows_empty_returns_zero(client, mock_summaries_db):
+    mock_summaries_db.count.return_value = 0
+
+    response = await client.get("/api/summary/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 0}

@@ -272,6 +272,29 @@ async def test_delete_all_empty_table_does_not_raise(db):
 
 
 @pytest.mark.asyncio
+async def test_count_returns_total_rows(db, make_test_model):
+    for _ in range(5):
+        await db.create(make_test_model())
+
+    assert await db.count(_TestModelORM) == 5
+
+
+@pytest.mark.asyncio
+async def test_count_empty_table_returns_zero(db):
+    assert await db.count(_TestModelORM) == 0
+
+
+@pytest.mark.asyncio
+async def test_count_after_delete_all_returns_zero(db, make_test_model):
+    for _ in range(3):
+        await db.create(make_test_model())
+
+    await db.delete_all(_TestModelORM)
+
+    assert await db.count(_TestModelORM) == 0
+
+
+@pytest.mark.asyncio
 async def test_delete_raises_not_found(db):
     with pytest.raises(NotFoundError):
         await db.delete(_TestModelORM, 99999)

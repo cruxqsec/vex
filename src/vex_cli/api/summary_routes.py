@@ -8,7 +8,12 @@ from vex_cli.dependencies import get_raw_db, get_summaries_db
 from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
 from vex_cli.errors import DatabaseError, NotFoundError
-from vex_cli.models.pydantic import ResponseSummary, RequestSummary, ResponseStatus
+from vex_cli.models.pydantic import (
+    CountResponse,
+    ResponseSummary,
+    RequestSummary,
+    ResponseStatus,
+)
 from vex_cli.models.orm import (
     RawRequestORM,
     RawResponseORM,
@@ -190,6 +195,17 @@ async def get_all_summaries(
     size: int = Query(10, ge=1, le=50),
 ):
     return await summaries_db.get_full_summaries(skip, size)
+
+
+# -------------------------------------------------------------------
+
+
+@summary_router.get("/summary/count", response_model=CountResponse, status_code=200)
+async def count_flows(
+    summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+):
+    count = await summaries_db.count(RequestSummaryORM)
+    return CountResponse(count=count)
 
 
 # -------------------------------------------------------------------

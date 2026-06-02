@@ -234,3 +234,27 @@ async def test_get_active_scope_returns_none_when_unset(client, mock_flow_scope)
 
     assert response.status_code == 200
     assert response.json() is None
+
+
+# --- GET /api/scope/count ---
+
+
+@pytest.mark.asyncio
+async def test_count_scopes_returns_count(client, mock_scope_db):
+    mock_scope_db.count.return_value = 3
+
+    response = await client.get("/api/scope/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 3}
+    mock_scope_db.count.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_count_scopes_empty_returns_zero(client, mock_scope_db):
+    mock_scope_db.count.return_value = 0
+
+    response = await client.get("/api/scope/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 0}
