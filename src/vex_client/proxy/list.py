@@ -73,7 +73,7 @@ class ProxyList(ListView, can_focus=True):
 
 class ProxyListItem(ListItem):
     """
-    Proxy list item with a status_dot.
+    Proxy list item with a status_dot and buttons.
     """
 
     def __init__(self, instance: ProxyInstance, **kwargs) -> None:

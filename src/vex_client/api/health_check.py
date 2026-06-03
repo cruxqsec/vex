@@ -34,6 +34,12 @@ async def check_health_pid(host: str, port: int) -> int:
             if response.status_code == 200:
                 json_response = response.json()
                 return json_response["pid"]
+            else:
+                logger.warning(
+                    "GET /health returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.debug("Health check PID request timed out")
     except httpx.RequestError:

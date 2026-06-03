@@ -17,6 +17,7 @@ from vex_cli.models.pydantic import (
     ResponseSummary,
     FlowSummary,
     Project,
+    Scope
 )
 from vex_client.cli_controller import VexController
 from vex_client.history.screen import VexHTTPHistoryScreen
@@ -108,6 +109,7 @@ class VexApp(App[str]):
     }
 
     is_project_active: reactive[bool] = reactive(False, init=False, always_update=True)
+    active_scope: reactive[Scope | None] = reactive(None, init=False, always_update=False)
     server_online: reactive[bool] = reactive(False, init=False, always_update=False)
 
     async def on_mount(self) -> None:

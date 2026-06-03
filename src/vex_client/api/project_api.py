@@ -16,6 +16,12 @@ async def get_all_projects(host: str, port: int) -> list[Project]:
                     Project.model_validate(project) for project in response.json()
                 ]
                 return result
+            else:
+                logger.warning(
+                    "GET /api/projects/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -31,6 +37,13 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
             response = await client.get(f"http://{host}:{port}/api/projects/{id}")
             if response.status_code == 200:
                 return Project.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/projects/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -51,6 +64,12 @@ async def create_project(
             )
             if response.status_code == 201:
                 return Project.model_validate(response.json())
+            else:
+                logger.warning(
+                    "POST /api/projects/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -69,6 +88,12 @@ async def update_project(updated_project: Project, host: str, port: int) -> bool
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "PUT /api/projects/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -84,6 +109,13 @@ async def delete_project(id: str, host: str, port: int) -> bool:
             response = await client.delete(f"http://{host}:{port}/api/projects/{id}")
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "DELETE /api/projects/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -101,6 +133,13 @@ async def select_project(id: str, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "POST /api/projects/select/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -116,7 +155,12 @@ async def get_active_project(host: str, port: int) -> Project | None:
             response = await client.get(f"http://{host}:{port}/api/projects/active/")
             if response.status_code == 200 and response.json() is not None:
                 return Project.model_validate(response.json())
-
+            elif response.status_code != 204:
+                logger.warning(
+                    "GET /api/projects/active/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise

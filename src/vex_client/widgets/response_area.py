@@ -14,6 +14,6 @@ class ResponseAreaContainer(EmptyMessageWidget):
         self.text_area.cursor_blink = False
         super().__init__(
             widget=VexTextAreaWidget(self.text_area),
-            empty_message="No response to display.",
+            empty_message="[↵ in table] Select a response to display.",
             **kwargs,
         )

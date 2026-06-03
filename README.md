@@ -16,13 +16,16 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 
 - [x] Implement custom footer
 - [x] VexTextArea vim like status bar
-- [ ] Add help screens
+- [x] VexTextArea vim normal/visual mode (read only first)
+- [ ] VexTextArea vim insert/normal/visual modes
+- [ ] Add help screens (per screen and per widget)
+- [ ] Muted buttons for functionality that can't be used at the moment
 
 ### History screen
 
 - [x] Add a search bar
-- [ ] Add copy helper
-- [ ] Sorting for History table
+- [ ] Add copy helper (command palette like)
+- [ ] Sorting for all columns of History table
 - [x] Syntax highlighting for History table
 - [x] Implement some sort of caching
 - [ ] Improve responsivness
@@ -31,7 +34,9 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 ### Projects screen
 
 - [x] Improve layout (add buttons, search bar)
-- [ ] Sorting for Projects table
+- [ ] Sorting for all columns of Projects table
+- [ ] Update project time when selected
+- [ ] Delete all projects
 - [ ] Importing/backuping projects
 
 ### Intercept screen
@@ -48,9 +53,14 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 
 ### Scope screen
 
-- [ ] Improve layout
-- [ ] Add the ability to add/remove/update scopes
+- [x] Redesign layout
+- [ ] Add the ability to add/save(update)/duplicate/delete scopes
 - [ ] Wire with global scope dropdown menu
+
+
+### Proxy screen
+
+- [ ] Implement a continual check if instance is available
 
 ## vex-cli (server)
 

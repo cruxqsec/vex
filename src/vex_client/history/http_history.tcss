@@ -89,6 +89,7 @@ VexHTTPHistoryScreen {
 #request-area {
     width: 1fr;
     height: 1fr;
+    background: $panel;
     border: none !important;
     padding-left: 1 !important;
     margin: 0 !important;

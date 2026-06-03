@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from vex_cli.dependencies import get_summaries_db, get_flow_scope
 from vex_cli.database.summaries_db import SummariesDatabase
-from vex_cli.models.pydantic import CountResponse, Scope, ResponseStatus
+from vex_cli.models.pydantic import CountResponse, Scope, ScopeCreate, ResponseStatus
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.orm import ScopeORM
 
@@ -47,7 +47,7 @@ async def get_scope(
 
 @scope_router.post("/scope/", response_model=Scope, status_code=201)
 async def create_scope(
-    scope: Scope,
+    scope: ScopeCreate,
     scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
     created = await scope_db.create(scope.to_orm())
@@ -58,8 +58,11 @@ async def create_scope(
 async def update_scope(
     scope: Scope,
     scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+    flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
 ):
     await scope_db.update(ScopeORM, scope.to_orm())
+    if flow_scope._active_scope and  flow_scope._active_scope.id == scope.id:
+        flow_scope.set_active_scope(scope)
     return ResponseStatus(status="Success", msg="Object updated")
 
 
@@ -67,8 +70,10 @@ async def update_scope(
 async def delete_scope(
     id: int,
     scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+    flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
 ):
     await scope_db.delete(ScopeORM, id)
+    flow_scope.set_active_scope(None)
     return ResponseStatus(status="Success", msg="Object deleted")
 
 

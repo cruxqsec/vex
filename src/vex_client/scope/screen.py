@@ -1,64 +1,42 @@
+import httpx
+from pydantic import ValidationError 
 from typing import TYPE_CHECKING, cast
+
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
+from textual import on
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
     Button,
     Input,
-    ListItem,
-    ListView,
     Static,
-    TextArea,
+    ListView
 )
 
+from vex_cli.models.pydantic import Scope, ScopeCreate, endpoint_adapter
+
+from vex_client.api.scope_api import create_scope, delete_scope, update_scope
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.button import VexButton
 from vex_client.widgets.logs_panel import VexLogsPanel
-
-
-class ScopeInput(Input, can_focus=True):
-    """
-    Input for the scope name
-    """
-
-    BORDER_TITLE = "Name"
-
-
-class InScopeArea(TextArea, can_focus=True):
-    """
-    TextArea for the user to input in scope domains, ips, etc.
-    """
-
-    BORDER_TITLE = "In Scope"
-
-
-class OutOfScopeArea(TextArea, can_focus=True):
-    """
-    TextArea for the user to input in out of scope domains, ips, etc.
-    """
-
-    BORDER_TITLE = "Out of Scope"
-
-
-class ScopeButton(Button, can_focus=False):
-    """
-    Buttons for saving, deleting and duplicating scopes
-    """
-
-
-class ScopeList(ListView, can_focus=True):
-    """
-    ListView for displaying the scopes
-    """
-
-    BORDER_TITLE = "Scopes"
+from vex_client.widgets.text_area import VexTextArea, VexTextAreaWidget
+from vex_client.scope.list import ScopeList, ScopeListItem, ScopeListWidget
 
 
 class VexScopeScreen(Screen):
-    CSS_PATH = "css/scope.tcss"
+    CSS_PATH = "scope.tcss"
+
+    BINDINGS = [
+        Binding("c", "create_scope", "Create scope", priority=True),
+        Binding("s", "save_scope", "Save scope", priority=True),
+        Binding("y", "duplicate_scope", "Duplicate scope", priority=True),
+        Binding("d", "delete_scope", "Delete scope", priority=True),
+    ]
 
     def __init__(self, **kwargs):
         self.is_first_mount = True
@@ -78,37 +56,220 @@ class VexScopeScreen(Screen):
         return self.query_one("#name-input", Input)
 
     @property
-    def in_scope_area(self) -> InScopeArea:
-        return self.query_one("#in-scope-area", InScopeArea)
+    def in_scope_area(self) -> VexTextArea:
+        return self.query_one("#in-scope-area", VexTextArea)
 
     @property
-    def out_of_scope_area(self) -> OutOfScopeArea:
-        return self.query_one("#out-of-scope-area", OutOfScopeArea)
+    def out_of_scope_area(self) -> VexTextArea:
+        return self.query_one("#out-of-scope-area", VexTextArea)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
         with Horizontal(id="main-container"):
-            yield ScopeList(ListItem(Static("Test preset")), id="scope-list")
+            yield ScopeListWidget(id="scope-list-widget")
             with Vertical(id="in-out-container"):
-                yield ScopeInput(placeholder="Scope name...", id="name-input")
-                with Horizontal():
-                    yield InScopeArea(
-                        placeholder="Add a domain, IP, one per line...",
-                        id="in-scope-area",
-                    )
-                    yield OutOfScopeArea(
-                        placeholder="Add a domain, IP, one per line...",
-                        id="out-of-scope-area",
-                    )
-                with Horizontal(id="btn-area"):
-                    yield ScopeButton("Save", classes="func-btn")
-                    yield ScopeButton("Duplicate", classes="func-btn")
-                    yield ScopeButton("Delete", classes="func-btn")
+                yield Static("+ Add a new scope", id="in-out-header")
+                with Horizontal(id="name-input-container"):
+                    yield Static("Name*", id="name-label")
+                    yield Input(placeholder="Enter scope name", id="name-input")
+                with Horizontal(id="text-areas-container"):
+                    with Vertical():
+                        yield Static("● In scope", id="in-scope-label")
+                        yield VexTextAreaWidget(
+                            VexTextArea(
+                                placeholder="Add a domain, IP, one per line...",
+                                id="in-scope-area",
+                            ),
+                            id="in-scope-widget"
+                        )
+                    with Vertical():
+                        yield Static("● Out of scope", id="out-of-scope-label")
+                        yield VexTextAreaWidget(
+                            VexTextArea(
+                                placeholder="Add a domain, IP, one per line...",
+                                id="out-of-scope-area",
+                            ),
+                            id="out-of-scope-widget"
+                        )
+                with Horizontal(id="btn-area-container"):
+                    yield VexButton("\[s] Save", id="btn-save", classes="btn")
+                    yield VexButton("\[y] Duplicate",id="btn-duplicate", classes="btn")
+                    yield VexButton("\[d] Delete",id="btn-delete", classes="btn")
         yield VexLogsPanel()
         yield VexFooter()
 
-    def on_mount(self):
+    async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
+        self.selected_scope_item: ScopeListItem | None = None
 
-        #app: VexApp = cast("VexApp", self.app)
-        #app.populate_log_panel(self)
+    def on_screen_resume(self) -> None:
+        self.scope_list.focus()
+
+        if len(self.scope_list) == 0:
+            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+
+    @on(ListView.Selected)
+    async def select_scope(self, event: ListView.Selected) -> None:
+        selected_item: ScopeListItem = cast(ScopeListItem, event.item)
+
+        # we deselect the previous
+        self.scope_list.deselect_selected()
+
+        # and select the next one
+        selected_item.toggle_selected_on()
+
+        self.selected_scope_item = selected_item
+        await self.fill_scope_data(selected_item)
+
+    async def fill_scope_data(self, list_item: ScopeListItem) -> None:
+        self.query_one("#in-out-header", Static).update("Edit scope")
+        self.name_input.value = list_item.scope.name
+        self.in_scope_area.text = "\n".join(list_item.scope.allow_endpoints)
+        self.out_of_scope_area.text = "\n".join(list_item.scope.deny_endpoints)
+
+    async def unfill_scope_data(self) -> None:
+        if len(self.scope_list) == 0:
+            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+
+        self.name_input.value = ""
+        self.in_scope_area.text = ""
+        self.out_of_scope_area.text = ""
+
+    # ------------------- Action logic ------------------------
+
+    async def create_duplicate_scope(self, scope: Scope | None = None) -> None:
+        scope_to_create = None
+        if scope is None:
+            # create new
+            scope_to_create = ScopeCreate(name="New scope", allow_endpoints=[], deny_endpoints=[])
+        else:
+            # duplicate
+            scope_to_create = ScopeCreate(
+                name=scope.name+" (Copy)",
+                allow_endpoints=scope.allow_endpoints,
+                deny_endpoints=scope.deny_endpoints
+            )
+
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+
+        if host is None or port is None:
+            return
+
+        try:
+            created_scope = await create_scope(scope_to_create, host, port)
+        except httpx.HTTPError:
+            self.notify(
+                "Network error creating scope. Check logs.", severity="error"
+            )
+            return
+
+        if created_scope:
+            created_scope_item = ScopeListItem(created_scope)
+            self.scope_list.append_scope(created_scope_item)
+            # we select it immediately after creation/duplication
+            self.selected_scope_item = created_scope_item
+        else:
+            app.log_vex("Couldn't create scope! Check logs.", severity="error")
+    
+    async def action_create_scope(self) -> None:
+        # Create, pass no new scope
+        await self.create_duplicate_scope(None)
+        
+    async def action_duplicate_scope(self) -> None:
+        if self.selected_scope_item is None:
+            self.notify("No scope selected!")
+            return
+
+        # pass the scope to duplicate
+        await self.create_duplicate_scope(self.selected_scope_item.scope)
+
+    async def action_delete_scope(self) -> None:
+        # we are deleting the selected item
+        if self.selected_scope_item is None:
+            self.notify("No scope selected!")
+            return
+
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+
+        if host is None or port is None:
+            return
+
+        try:
+            successfully_deleted = await delete_scope(self.selected_scope_item.scope.id, host, port)
+        except httpx.HTTPError:
+            app.log_vex("Network error creating scope. Check logs.", severity="error")
+            return
+        
+        if not successfully_deleted:
+            app.log_vex("Error deleting. Check logs.", severity="error")
+
+        self.scope_list.pop_scope(self.selected_scope_item)
+        # TODO unset it globally if it's the active scope being used
+
+        await self.unfill_scope_data()
+        self.selected_scope_item = None
+
+
+    async def action_save_scope(self) -> None:
+        if self.selected_scope_item is None:
+            self.notify("No scope selected!")
+            return
+        
+        allow_raw = [line.strip() for line in self.in_scope_area.text.split("\n") if line.strip()]
+        deny_raw = [line.strip() for line in self.out_of_scope_area.text.split("\n") if line.strip()]
+        try:
+            endpoint_adapter.validate_python(allow_raw)
+        except ValidationError:
+            self.notify("Invalid data in 'In scope' field.", severity="error")
+            return
+        try:
+            endpoint_adapter.validate_python(deny_raw)
+        except ValidationError:
+            self.notify("Invalid data in 'Out of scope' field.", severity="error")
+            return
+
+        updated_scope = Scope(
+            id=self.selected_scope_item.scope.id,
+            name=self.name_input.value,
+            allow_endpoints=allow_raw,
+            deny_endpoints=deny_raw,
+        )
+
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+
+        if host is None or port is None:
+            return
+
+        try:
+            successfully_updated = await update_scope(updated_scope, host, port)
+        except httpx.HTTPError:
+            app.log_vex("Network error creating scope. Check logs.", severity="error")
+            return
+
+        if successfully_updated:
+            self.notify("Scope updated!")
+            self.selected_scope_item.scope = updated_scope
+            self.selected_scope_item.query_one("#scope-name", Static).update(updated_scope.name)
+        else:
+            app.log_vex("Error saving scope. Check logs.", severity="error")
+
+    # ------------------- Button logic ------------------------
+
+    @on(Button.Pressed, "#btn-create")
+    async def on_create(self, event: Button.Pressed) -> None:
+        await self.action_create_scope()
+
+    @on(Button.Pressed, "#btn-save")
+    async def on_save(self, event: Button.Pressed) -> None:
+        await self.action_save_scope()
+
+    @on(Button.Pressed, "#btn-duplicate")
+    async def on_duplicate(self, event: Button.Pressed) -> None:
+        await self.action_duplicate_scope()
+
+    @on(Button.Pressed, "#btn-delete")
+    async def on_delete(self, event: Button.Pressed) -> None:
+        await self.action_delete_scope()
