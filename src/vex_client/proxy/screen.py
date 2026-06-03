@@ -233,7 +233,7 @@ class VexProxyScreen(Screen):
 
             if successful_stop:
                 selected_instance.set_running(False)
-                app.set_active_project(None)
+                app.active_project = None
                 self.status_card.set_active(None)
                 app.log_vex(message="Server stopped.")
             else:

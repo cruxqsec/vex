@@ -17,7 +17,7 @@ from vex_cli.models.pydantic import (
     ResponseSummary,
     FlowSummary,
     Project,
-    Scope
+    Scope,
 )
 from vex_client.cli_controller import VexController
 from vex_client.history.screen import VexHTTPHistoryScreen
@@ -108,8 +108,12 @@ class VexApp(App[str]):
         "projects-screen": VexProjectsScreen,
     }
 
-    is_project_active: reactive[bool] = reactive(False, init=False, always_update=True)
-    active_scope: reactive[Scope | None] = reactive(None, init=False, always_update=False)
+    active_project: reactive[Project | None] = reactive(
+        None, init=False, always_update=True
+    )
+    active_scope: reactive[Scope | None] = reactive(
+        None, init=False, always_update=False
+    )
     server_online: reactive[bool] = reactive(False, init=False, always_update=False)
 
     async def on_mount(self) -> None:
@@ -117,7 +121,6 @@ class VexApp(App[str]):
         self.settings: Settings = Settings()
 
         self._log_history: list[LogMessage] = []
-        self.active_project: Project | None = None
         self.history_summary_cache: dict[UUID, FlowSummary] = {}
 
         # reference to the history screen so we don't have to query it each time
@@ -146,22 +149,13 @@ class VexApp(App[str]):
         if online:
             self._history_websocket_manager()
 
-    def watch_is_project_active(self, active: bool) -> None:
-        if active:
+    def watch_active_project(self, old: Project | None, new: Project | None) -> None:
+        if new is not None:
             self._fetch_all_summaries()
         else:
             self.history_summary_cache.clear()
 
     # ------------ Project related -------------
-
-    def set_active_project(self, active_project: Project | None) -> None:
-        """Sets the project object and toggles reactive"""
-
-        self.active_project = active_project
-        if self.active_project is None:
-            self.is_project_active = False
-        else:
-            self.is_project_active = True
 
     # ------------ Server monitor worker -------------
 
@@ -226,7 +220,7 @@ class VexApp(App[str]):
 
     def _handle_message(self, raw_message: websockets.Data) -> None:
         # skips processing but keeps loop/connection alive
-        if not self.is_project_active:
+        if self.active_project is None:
             return
         try:
             message = self.parse_summary_message(str(raw_message))
@@ -344,7 +338,7 @@ class VexApp(App[str]):
             action == "switch"
             and len(parameters) == 1
             and parameters[0] not in {"proxy-screen", "projects-screen"}
-            and not self.is_project_active
+            and self.active_project is None
         ):
             return False
         return True
