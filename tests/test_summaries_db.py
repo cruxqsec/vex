@@ -227,3 +227,68 @@ async def test_scope_orm_default_roundtrip_via_from_orm(db):
     assert scope.id == scope_orm.id
     assert scope.allow_endpoints == []
     assert scope.deny_endpoints == []
+
+
+# --- delete_by_flow_id tests ---
+
+
+@pytest.mark.asyncio
+async def test_delete_by_flow_id_removes_request_summary(db):
+    flow_id = uuid4()
+    req = make_request_summary(flow_id=flow_id)
+    await db.create(req)
+
+    await db.delete_by_flow_id(RequestSummaryORM, flow_id)
+
+    with pytest.raises(NotFoundError):
+        await db.get_by_flow_id(RequestSummaryORM, flow_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_by_flow_id_removes_response_summary(db):
+    flow_id = uuid4()
+    res = make_response_summary(flow_id=flow_id)
+    await db.create(res)
+
+    await db.delete_by_flow_id(ResponseSummaryORM, flow_id)
+
+    with pytest.raises(NotFoundError):
+        await db.get_by_flow_id(ResponseSummaryORM, flow_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_by_flow_id_does_not_affect_other_flows(db):
+    flow_id1, flow_id2 = uuid4(), uuid4()
+    await db.create(make_request_summary(flow_id=flow_id1))
+    await db.create(make_request_summary(flow_id=flow_id2))
+
+    await db.delete_by_flow_id(RequestSummaryORM, flow_id1)
+
+    result = await db.get_by_flow_id(RequestSummaryORM, flow_id2)
+    assert result.flow_id == flow_id2
+
+
+@pytest.mark.asyncio
+async def test_delete_by_flow_id_not_found_raises(db):
+    flow_id = uuid4()
+    await db.create(make_request_summary(flow_id=flow_id))
+
+    with pytest.raises(NotFoundError):
+        await db.delete_by_flow_id(RequestSummaryORM, uuid4())
+
+
+@pytest.mark.asyncio
+async def test_delete_by_flow_id_removes_only_target_model(db):
+    flow_id = uuid4()
+    req = make_request_summary(flow_id=flow_id)
+    res = make_response_summary(flow_id=flow_id)
+    await db.create(req)
+    await db.create(res)
+
+    await db.delete_by_flow_id(RequestSummaryORM, flow_id)
+
+    with pytest.raises(NotFoundError):
+        await db.get_by_flow_id(RequestSummaryORM, flow_id)
+
+    result = await db.get_by_flow_id(ResponseSummaryORM, flow_id)
+    assert result.flow_id == flow_id

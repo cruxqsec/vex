@@ -6,10 +6,15 @@ from uuid import uuid4
 from datetime import datetime
 
 from vex_cli.app import create_app
-from vex_cli.dependencies import get_summaries_db
-from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
+from vex_cli.dependencies import get_raw_db, get_summaries_db
+from vex_cli.errors import DatabaseError, NotFoundError
+from vex_cli.models.orm import (
+    RawRequestORM,
+    RawResponseORM,
+    RequestSummaryORM,
+    ResponseSummaryORM,
+)
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary
-from vex_cli.errors import NotFoundError
 
 
 def make_request_summary(
@@ -100,7 +105,9 @@ async def test_get_all_request_summaries_with_pagination(client, mock_summaries_
 
 
 @pytest.mark.asyncio
-async def test_get_all_request_summaries_rejects_invalid_size(client, mock_summaries_db):
+async def test_get_all_request_summaries_rejects_invalid_size(
+    client, mock_summaries_db
+):
     response = await client.get("/api/summary/request/?size=999")
 
     assert response.status_code == 422
@@ -424,3 +431,164 @@ async def test_get_full_summary_by_id_not_found(client, mock_summaries_db):
     response = await client.get(f"/api/summary/{flow_id}")
 
     assert response.status_code == 404
+
+
+# --- DELETE /api/summary/{flow_id} ---
+
+
+@pytest_asyncio.fixture
+async def mock_raw_db():
+    return AsyncMock()
+
+
+@pytest_asyncio.fixture
+async def delete_client(mock_summaries_db, mock_raw_db):
+    app = create_app()
+    app.dependency_overrides[get_summaries_db] = lambda: mock_summaries_db
+    app.dependency_overrides[get_raw_db] = lambda: mock_raw_db
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://localhost"
+    ) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_deletes_all_records(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    flow_id = uuid4()
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+    mock_summaries_db.delete_by_flow_id.assert_any_call(RequestSummaryORM, flow_id)
+    mock_summaries_db.delete_by_flow_id.assert_any_call(ResponseSummaryORM, flow_id)
+    mock_raw_db.delete.assert_any_call(RawRequestORM, flow_id)
+    mock_raw_db.delete.assert_any_call(RawResponseORM, flow_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_request_summary_not_found(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    flow_id = uuid4()
+    mock_summaries_db.delete_by_flow_id.side_effect = NotFoundError("Not found")
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_raw_request_not_found(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    flow_id = uuid4()
+    mock_summaries_db.delete_by_flow_id.return_value = None
+    mock_raw_db.delete.side_effect = NotFoundError("Not found")
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_skips_missing_response_summary(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    flow_id = uuid4()
+
+    def delete_by_flow_id_side_effect(model, fid):
+        if model is ResponseSummaryORM:
+            raise NotFoundError("Not found")
+        return None
+
+    mock_summaries_db.delete_by_flow_id.side_effect = delete_by_flow_id_side_effect
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_skips_missing_raw_response(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    flow_id = uuid4()
+
+    def raw_delete_side_effect(model, fid):
+        if model is RawResponseORM:
+            raise NotFoundError("Not found")
+        return None
+
+    mock_raw_db.delete.side_effect = raw_delete_side_effect
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+
+
+# --- DELETE /api/summary/ (delete all flows) ---
+
+
+@pytest.mark.asyncio
+async def test_delete_all_flows_deletes_all_tables(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    response = await delete_client.delete("/api/summary/")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+    mock_summaries_db.delete_all.assert_any_call(RequestSummaryORM)
+    mock_summaries_db.delete_all.assert_any_call(ResponseSummaryORM)
+    mock_raw_db.delete_all.assert_any_call(RawRequestORM)
+    mock_raw_db.delete_all.assert_any_call(RawResponseORM)
+
+
+@pytest.mark.asyncio
+async def test_delete_all_flows_empty_is_ok(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    response = await delete_client.delete("/api/summary/")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+
+
+@pytest.mark.asyncio
+async def test_delete_all_flows_partial_error_returns_500(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    mock_summaries_db.delete_all.side_effect = DatabaseError("boom")
+
+    response = await delete_client.delete("/api/summary/")
+
+    assert response.status_code == 500
+
+
+# --- GET /api/summary/count ---
+
+
+@pytest.mark.asyncio
+async def test_count_flows_returns_count(client, mock_summaries_db):
+    mock_summaries_db.count.return_value = 5
+
+    response = await client.get("/api/summary/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 5}
+    mock_summaries_db.count.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_count_flows_empty_returns_zero(client, mock_summaries_db):
+    mock_summaries_db.count.return_value = 0
+
+    response = await client.get("/api/summary/count")
+
+    assert response.status_code == 200
+    assert response.json() == {"count": 0}

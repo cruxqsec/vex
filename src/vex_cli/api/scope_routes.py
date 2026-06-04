@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from vex_cli.dependencies import get_summaries_db, get_flow_scope
 from vex_cli.database.summaries_db import SummariesDatabase
-from vex_cli.models.pydantic import Scope, ResponseStatus
+from vex_cli.models.pydantic import CountResponse, Scope, ResponseStatus
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.orm import ScopeORM
 
@@ -26,6 +26,14 @@ async def get_all_scopes(
 ):
     scopes = await scope_db.get_all(ScopeORM, skip, size)
     return [Scope.from_orm(s) for s in scopes]
+
+
+@scope_router.get("/scope/count", response_model=CountResponse, status_code=200)
+async def count_scopes(
+    scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
+):
+    count = await scope_db.count(ScopeORM)
+    return CountResponse(count=count)
 
 
 @scope_router.get("/scope/{id}", response_model=Scope, status_code=200)

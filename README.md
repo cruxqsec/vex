@@ -75,7 +75,7 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 
 ### improve API
 - [x] improve naming API scheme
-- [ ] add functionality (delete all,...)
+- [x] add functionality (delete all, count for statistic...)
 
 
 # Complex problems

@@ -98,7 +98,6 @@ def test_response_summary(mock_flow: http.HTTPFlow):
 
 
 def test_req_summary_serialize(mock_flow: http.HTTPFlow):
-    """Problematic test because of the problems of SQLModel"""
     summary = RequestSummary.from_flow(mock_flow)
     json_str = summary.model_dump_json()
 
@@ -109,7 +108,6 @@ def test_req_summary_serialize(mock_flow: http.HTTPFlow):
 
 
 def test_res_summary_serialize(mock_flow: http.HTTPFlow):
-    """Problematic test because of the problems of SQLModel"""
     summary = ResponseSummary.from_flow(mock_flow)
     json_str = summary.model_dump_json()
 

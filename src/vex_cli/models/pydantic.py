@@ -43,10 +43,13 @@ from vex_cli.models.orm import (
 # For Pydantic->ORM conversion
 _orm_config = ConfigDict(from_attributes=True)
 
+_ip_adapter = TypeAdapter(IPvAnyAddress)
+_url_adapter = TypeAdapter(AnyUrl)
+
 
 # validator
 def check_ip(v: str) -> str:
-    TypeAdapter(IPvAnyAddress).validate_python(v)
+    _ip_adapter.validate_python(v)
     return v
 
 
@@ -54,7 +57,7 @@ def check_domain(v: str) -> str:
     if "://" in v:
         raise ValueError(f"URLs with schemes are not allowed, got: {v!r}")
 
-    url = TypeAdapter(AnyUrl).validate_python(f"https://{v}")
+    url = _url_adapter.validate_python(f"https://{v}")
 
     if not url.host:
         raise ValueError(f"Invalid domain: no host found in '{v}'")
@@ -101,6 +104,10 @@ class ResponseStatus(BaseModel):
 
     status: Literal["Success", "Failure"]
     msg: str
+
+
+class CountResponse(BaseModel):
+    count: int
 
 
 class Project(BaseModel):
