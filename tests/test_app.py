@@ -115,24 +115,24 @@ def test_catch_all_handler_returns_500(client):
 
 
 @pytest.mark.asyncio
-async def test_start_fastapi_shuts_down_on_cancel(mock_app_state, mocker):
+async def test_start_fastapi_stores_server_on_cancel(mock_app_state, mocker):
     mock_server = MagicMock()
     mock_server.serve = AsyncMock(side_effect=asyncio.CancelledError)
-    mock_server.shutdown = AsyncMock()
     mocker.patch("vex_cli.app.uvicorn.Server", return_value=mock_server)
     mocker.patch("vex_cli.app.uvicorn.Config", return_value=MagicMock())
 
     await start_fastapi(mock_app_state)
 
-    mock_server.shutdown.assert_called_once()
+    assert mock_app_state.uvicorn_server is mock_server
 
 
 @pytest.mark.asyncio
-async def test_start_fastapi_shuts_down_even_if_cleanup_fails(mock_app_state, mocker):
+async def test_start_fastapi_stores_server_on_success(mock_app_state, mocker):
     mock_server = MagicMock()
-    mock_server.serve = AsyncMock(side_effect=asyncio.CancelledError)
-    mock_server.shutdown = AsyncMock(side_effect=Exception("cleanup failed"))
+    mock_server.serve = AsyncMock()
     mocker.patch("vex_cli.app.uvicorn.Server", return_value=mock_server)
     mocker.patch("vex_cli.app.uvicorn.Config", return_value=MagicMock())
 
     await start_fastapi(mock_app_state)
+
+    assert mock_app_state.uvicorn_server is mock_server

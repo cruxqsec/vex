@@ -1,5 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import uvicorn
+    from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.flow_history import FlowHistory
@@ -24,6 +31,10 @@ class VexState:
 
         self._flow_history: FlowHistory = FlowHistory()
         self._flow_scope: FlowScope = FlowScope()
+
+        # Server references for coordinated shutdown
+        self.uvicorn_server: uvicorn.Server | None = None
+        self.mitmproxy_master: DumpMaster | None = None
 
         self._configure_logging()
 

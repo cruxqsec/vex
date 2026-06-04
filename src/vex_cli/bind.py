@@ -13,6 +13,7 @@ def try_bind_ports(server_info: VexServerInfo) -> tuple[bool, int]:
     for address, port in to_check:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind((address, port))
         except OSError:
             return False, port

@@ -38,7 +38,9 @@ class VexCapture:
             if not self.app_state.is_project_active:
                 return
 
-            flow.metadata["in_scope"] = self.flow_scope.apply_scope(flow.request.pretty_host)
+            flow.metadata["in_scope"] = self.flow_scope.apply_scope(
+                flow.request.pretty_host
+            )
             if not flow.metadata["in_scope"]:
                 return
 
@@ -99,6 +101,7 @@ async def start_proxy(app_state: VexState):
     )
 
     master = DumpMaster(opts, with_termlog=False, with_dumper=False)
+    app_state.mitmproxy_master = master
 
     addon = VexCapture(app_state)
     master.addons.add(addon)
@@ -107,8 +110,3 @@ async def start_proxy(app_state: VexState):
         await master.run()
     except asyncio.CancelledError:
         logger.info("Proxy server shutdown requested.")
-    finally:
-        try:
-            master.shutdown()
-        except Exception:
-            logger.exception("Error during proxy cleanup")
