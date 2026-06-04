@@ -53,8 +53,14 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
     shutdown_event = asyncio.Event()
 
     loop = asyncio.get_running_loop()
+
+    def handle_signal():
+        if shutdown_event.is_set():
+            sys.exit(1)
+        shutdown_event.set()
+
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, shutdown_event.set)
+        loop.add_signal_handler(sig, handle_signal)
 
     app_state = VexState(server_info)
 
@@ -88,12 +94,28 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
     except asyncio.CancelledError:
         pass
     finally:
+        # Set force_exit and signal shutdown BEFORE cancelling tasks.
+        # task.cancel() only schedules CancelledError for the next await,
+        # so setting these flags first ensures servers read them during cleanup.
+        if app_state.uvicorn_server is not None:
+            app_state.uvicorn_server.force_exit = True
+
+        if app_state.mitmproxy_master is not None:
+            app_state.mitmproxy_master.shutdown()
+
         for task in tasks:
             if task and not task.done():
                 task.cancel()
 
         if tasks:
-            await asyncio.gather(*[t for t in tasks if t], return_exceptions=True)
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*[t for t in tasks if t], return_exceptions=True),
+                    timeout=5.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("Tasks didn't shutdown within 5s, forcing exit")
+                sys.exit(1)
 
         await app_state.shutdown()
 

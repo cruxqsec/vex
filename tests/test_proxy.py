@@ -8,27 +8,27 @@ from vex_cli.models.pydantic import (
     RawResponse,
     RequestSummary,
     ResponseSummary,
-    VexServerInfo
+    VexServerInfo,
 )
 from vex_cli.proxy import VexCapture, start_proxy
 from vex_cli.flow_scope import FlowScope
 
+
 @pytest.fixture
 def mock_app_state():
     server_info = VexServerInfo(
-        server_address="127.0.0.1",
-        proxy_port=8080,
-        api_port=8081
+        server_address="127.0.0.1", proxy_port=8080, api_port=8081
     )
     state = MagicMock()
     state.is_project_active = True
-    state.get_server_info.return_value = server_info  
+    state.get_server_info.return_value = server_info
     state.get_flow_history.return_value = AsyncMock()
     state.get_flow_scope.return_value = MagicMock(spec=FlowScope)
     state.get_db_manager.return_value = MagicMock()
     state.get_db_manager().summaries_db.create = AsyncMock()
     state.get_db_manager().raw_db.create = AsyncMock()
     return state
+
 
 @pytest.fixture
 def capture(mock_app_state):
@@ -229,6 +229,7 @@ async def test_save_and_broadcast_saves_concurrently(capture, mocker):
 
     gather_spy.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_capture_error_method_passes(capture, mock_flow):
     # Just ensures it doesn't raise
@@ -247,24 +248,28 @@ async def test_start_proxy_adds_addon(mock_app_state, mocker):
     added = mock_master.addons.add.call_args[0][0]
     assert isinstance(added, VexCapture)
 
+
 @pytest.mark.asyncio
-async def test_start_proxy_calls_shutdown_on_cancel(mock_app_state, mocker):
+async def test_start_proxy_stores_master_on_cancel(mock_app_state, mocker):
     mock_master = MagicMock()
     mock_master.run = AsyncMock(side_effect=asyncio.CancelledError)
     mocker.patch("vex_cli.proxy.DumpMaster", return_value=mock_master)
 
-    await start_proxy(mock_app_state)  
+    await start_proxy(mock_app_state)
 
-    mock_master.shutdown.assert_called_once()
+    assert mock_app_state.mitmproxy_master is mock_master
+
 
 @pytest.mark.asyncio
-async def test_start_proxy_calls_shutdown_even_on_error(mock_app_state, mocker):
+async def test_start_proxy_stores_master_on_success(mock_app_state, mocker):
     mock_master = MagicMock()
-    mock_master.run = AsyncMock(side_effect=asyncio.CancelledError)
-    mock_master.shutdown.side_effect = Exception("cleanup failed")
+    mock_master.run = AsyncMock()
     mocker.patch("vex_cli.proxy.DumpMaster", return_value=mock_master)
 
-    await start_proxy(mock_app_state) 
+    await start_proxy(mock_app_state)
+
+    assert mock_app_state.mitmproxy_master is mock_master
+
 
 @pytest.mark.asyncio
 async def test_start_proxy_uses_correct_options(mock_app_state, mocker):

@@ -42,30 +42,22 @@ async def start_fastapi(app_state: VexState):
         # log_config=None
     )
     server = uvicorn.Server(config)
+    app_state.uvicorn_server = server
 
     try:
         logger.info(f"Starting FastAPI on {server_address}:{api_port}")
         await server.serve()
     except asyncio.CancelledError:
         logger.info("FastAPI server shutdown requested.")
-    finally:
-        try:
-            await server.shutdown()
-        except Exception as e:
-            logger.exception("Error during FastAPI cleanup")
 
 
+# we can't this error so when a user does CTRL+C there is no traceback thrown at him
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        # startup
         yield
     except asyncio.CancelledError:
         pass  # normal shutdown
-    finally:
-        # cleanup
-        pass
-
 
 def create_app() -> FastAPI:
     """Creates app object, registers exception handlers and adds all routes."""
