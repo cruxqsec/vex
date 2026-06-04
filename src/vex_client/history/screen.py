@@ -122,6 +122,11 @@ class VexHTTPHistoryScreen(Screen):
 
         self.http_table_empty.set_loading(False)
 
+    def reset(self) -> None:
+        self.http_table.clear_table()
+        self.request_area.clear()
+        self.response_area.clear()
+
     # ------------------ Selecting summaries ---------------
 
     @on(DataTable.RowSelected)

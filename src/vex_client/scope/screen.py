@@ -1,5 +1,5 @@
 import httpx
-from pydantic import ValidationError 
+from pydantic import ValidationError
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
@@ -10,12 +10,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import (
-    Button,
-    Input,
-    Static,
-    ListView
-)
+from textual.widgets import Button, Input, Static, ListView
 
 from vex_cli.models.pydantic import Scope, ScopeCreate, endpoint_adapter
 
@@ -37,11 +32,6 @@ class VexScopeScreen(Screen):
         Binding("y", "duplicate_scope", "Duplicate scope", priority=True),
         Binding("d", "delete_scope", "Delete scope", priority=True),
     ]
-
-    def __init__(self, **kwargs):
-        self.is_first_mount = True
-        # parent constructor
-        super().__init__(**kwargs)
 
     @property
     def navigation_bar(self) -> VexNavigationBar:
@@ -80,7 +70,7 @@ class VexScopeScreen(Screen):
                                 placeholder="Add a domain, IP, one per line...",
                                 id="in-scope-area",
                             ),
-                            id="in-scope-widget"
+                            id="in-scope-widget",
                         )
                     with Vertical():
                         yield Static("● Out of scope", id="out-of-scope-label")
@@ -89,18 +79,26 @@ class VexScopeScreen(Screen):
                                 placeholder="Add a domain, IP, one per line...",
                                 id="out-of-scope-area",
                             ),
-                            id="out-of-scope-widget"
+                            id="out-of-scope-widget",
                         )
                 with Horizontal(id="btn-area-container"):
                     yield VexButton("\[s] Save", id="btn-save", classes="btn")
-                    yield VexButton("\[y] Duplicate",id="btn-duplicate", classes="btn")
-                    yield VexButton("\[d] Delete",id="btn-delete", classes="btn")
+                    yield VexButton("\[y] Duplicate", id="btn-duplicate", classes="btn")
+                    yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
         yield VexLogsPanel()
         yield VexFooter()
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
         self.selected_scope_item: ScopeListItem | None = None
+
+    def reset(self) -> None:
+        self.scope_list.clear()
+        self.selected_scope_item = None
+        self.name_input.value = ""
+        self.in_scope_area.text = ""
+        self.out_of_scope_area.text = ""
+        self.query_one("#in-out-header", Static).update("+ Add a new scope")
 
     def on_screen_resume(self) -> None:
         self.scope_list.focus()
@@ -145,9 +143,9 @@ class VexScopeScreen(Screen):
         else:
             # duplicate
             scope_to_create = ScopeCreate(
-                name=scope.name+" (Copy)",
+                name=scope.name + " (Copy)",
                 allow_endpoints=scope.allow_endpoints,
-                deny_endpoints=scope.deny_endpoints
+                deny_endpoints=scope.deny_endpoints,
             )
 
         app = cast("VexApp", self.app)
@@ -159,9 +157,7 @@ class VexScopeScreen(Screen):
         try:
             created_scope = await create_scope(scope_to_create, host, port)
         except httpx.HTTPError:
-            self.notify(
-                "Network error creating scope. Check logs.", severity="error"
-            )
+            self.notify("Network error creating scope. Check logs.", severity="error")
             return
 
         if created_scope:
@@ -171,11 +167,11 @@ class VexScopeScreen(Screen):
             self.selected_scope_item = created_scope_item
         else:
             app.log_vex("Couldn't create scope! Check logs.", severity="error")
-    
+
     async def action_create_scope(self) -> None:
         # Create, pass no new scope
         await self.create_duplicate_scope(None)
-        
+
     async def action_duplicate_scope(self) -> None:
         if self.selected_scope_item is None:
             self.notify("No scope selected!")
@@ -201,7 +197,7 @@ class VexScopeScreen(Screen):
         except httpx.HTTPError:
             app.log_vex("Network error creating scope. Check logs.", severity="error")
             return
-        
+
         if not successfully_deleted:
             app.log_vex("Error deleting. Check logs.", severity="error")
 
@@ -211,14 +207,19 @@ class VexScopeScreen(Screen):
         await self.unfill_scope_data()
         self.selected_scope_item = None
 
-
     async def action_save_scope(self) -> None:
         if self.selected_scope_item is None:
             self.notify("No scope selected!")
             return
-        
-        allow_raw = [line.strip() for line in self.in_scope_area.text.split("\n") if line.strip()]
-        deny_raw = [line.strip() for line in self.out_of_scope_area.text.split("\n") if line.strip()]
+
+        allow_raw = [
+            line.strip() for line in self.in_scope_area.text.split("\n") if line.strip()
+        ]
+        deny_raw = [
+            line.strip()
+            for line in self.out_of_scope_area.text.split("\n")
+            if line.strip()
+        ]
         try:
             endpoint_adapter.validate_python(allow_raw)
         except ValidationError:

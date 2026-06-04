@@ -11,6 +11,7 @@ from textual.app import App
 from textual.binding import Binding
 from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
 from textual.reactive import reactive
+from textual.css.query import NoMatches
 
 from vex_cli.models.pydantic import (
     RequestSummary,
@@ -33,6 +34,7 @@ from vex_client.widgets.text_area import VexTextArea
 from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
 from vex_client.api.summaries_api import get_all_summaries
+from vex_client.process import INACTIVE_PROCESS
 
 logger = logging.getLogger(__name__)
 
@@ -145,19 +147,18 @@ class VexApp(App[str]):
     # ------------ Watcher methods -------------
 
     def watch_server_online(self, online: bool) -> None:
-        self.log(f"RAW: watch_server_online fired: {online}")
         if online:
             self._history_websocket_manager()
-
+        else:
+            self._cleanup()
+    
     def watch_active_project(self, old: Project | None, new: Project | None) -> None:
         if new is not None:
             self._fetch_all_summaries()
         else:
             self.history_summary_cache.clear()
 
-    # ------------ Project related -------------
-
-    # ------------ Server monitor worker -------------
+    # ------------ Server monitor and cleanup -------------
 
     @work(name="server_monitor", group="monitor", exclusive=True)
     async def _server_monitor(self):
@@ -183,6 +184,40 @@ class VexApp(App[str]):
             logger.exception("Server monitor error")
         finally:
             self.server_online = False
+            if self.vex_controller.is_cli_running:
+                self.vex_controller.cli_pid = INACTIVE_PROCESS
+                self.vex_controller.server_info = None
+
+    def _cleanup(self) -> None:
+        self.active_project = None
+        self.active_scope = None
+        self.history_summary_cache.clear()
+
+        proxy_screen: VexProxyScreen = self.get_screen("proxy-screen")  # type: ignore
+        try:
+            proxy_screen.reset()
+        except NoMatches:
+            pass
+
+        history_screen: VexHTTPHistoryScreen = self.get_screen("history-screen")  # type: ignore
+        try:
+            history_screen.reset()
+        except NoMatches:
+            pass
+
+        scope_screen: VexScopeScreen = self.get_screen("scope-screen")  # type: ignore
+        try:
+            scope_screen.reset()
+        except NoMatches:
+            pass
+
+        #TODO the same reset for replay screen
+        #TODO the same reset for intercept screen
+
+        #TODO reset scope select
+
+        self.switch_screen("proxy-screen")
+
 
     # ------------ History manager and summary cache -------------
 
