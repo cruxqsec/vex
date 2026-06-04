@@ -1,0 +1,259 @@
+$border-divider: $secondary-darken-3;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Screen
+═══════════════════════════════════════════════════════════════════ */
+
+#Screen {
+    background: $background;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main layout
+═══════════════════════════════════════════════════════════════════ */
+
+#main-container {
+    width: 1fr;
+    height: 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Left panel — Scope list widget
+═══════════════════════════════════════════════════════════════════ */
+
+#scope-list-widget {
+    width: 1fr;
+    height: 1fr;
+    background: $background;
+    
+    border-left: tall $border-divider;
+    border-right: tall $border-divider;
+    border-bottom: tall $border-divider;
+}
+
+/* Header row */
+#scope-list-header {
+    width: 1fr;
+    height: 3;
+    background: $panel;
+
+    text-style: bold;
+    align: left middle;
+
+    border-top: tall $border-divider;
+    border-bottom: tall $border-divider;
+}
+
+#scope-list-title {
+    width: 1fr;
+    height: 1;
+
+    color: $error;
+    text-style: b;
+    content-align: left middle;
+    margin: 0 1;
+}
+
+#empty-scope-list {
+    width: 1.1fr;
+    height: 1fr;
+    background: $background;
+    padding: 0;
+}
+
+/* ListView */
+#scope-list {
+    width: 1fr;
+    height: 1fr;
+    background: $background;
+    padding: 0;
+    scrollbar-size: 0 0;
+}
+
+#scope-list-helper {
+    width: 1fr;
+    height: auto;
+    border: round $secondary-muted;
+    display: block;
+
+    color: $text-muted;
+    padding: 0 1;
+    margin: 0 1;
+}
+
+#scope-list > ListItem {
+    height: 3;
+    padding: 1 0;
+
+    &.selected {
+        color: $accent;
+        background: $accent 20%;
+        border-left: wide $accent;
+    }
+}
+
+#scope-list > ListItem.-highlight {
+    background: $primary 20%;
+    border-left: wide $primary;
+}
+
+/* Row items */
+ScopeListItem {
+    width: 1fr;
+    border-left: wide $surface;
+}
+
+.row-inner {
+    width: 1fr;
+    height: 1fr;
+    align: left middle;
+}
+
+#scope-dot {
+    width: 2;
+    height: 1;
+    color: $text-muted;
+    content-align: left middle;
+}
+
+#scope-name {
+    width: 1fr;
+    height: 1;
+    color: $text;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Right panel — In/Out scope areas
+═══════════════════════════════════════════════════════════════════ */
+
+#in-out-container {
+    width: 3fr;
+    height: 1fr;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   In/Out container header
+═══════════════════════════════════════════════════════════════════ */
+
+
+#in-out-header {
+    width: 1fr;
+    height: 3;
+
+    background: $panel;
+    color: $error;
+    text-style: bold;
+    content-align: left middle;
+
+    padding-left: 1;
+    border: tall $border-divider;
+
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   In/Out input container 
+═══════════════════════════════════════════════════════════════════ */
+
+#name-input-container {
+    width: 1fr;
+    height: 3;
+    padding: 1 1;
+    border-right: tall $border-divider;
+    border-left: tall $border-divider;
+}
+
+#name-label {
+    width: auto;
+    height: 1;
+    color: $text-muted;
+    text-style: bold;
+    content-align: left middle;
+    margin: 0 1 0 0;
+}
+
+#name-input {
+    width: 1fr;
+    height: 1;
+    border: none;
+    margin: 0 0 1 0;
+    padding: 0 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   In/Out text areas container 
+═══════════════════════════════════════════════════════════════════ */
+
+#text-areas-container {
+    border-right: tall $border-divider;
+    border-left: tall $border-divider;
+    border-bottom: tall $border-divider;
+    border-top: tall $border-divider;
+
+    padding: 0 1;
+}
+
+#in-scope-label {
+    background: $panel;
+    color: $success;
+    text-style: bold;
+    margin-bottom: 1;
+    margin-right: 1;
+    padding: 0 1;
+}
+
+#out-of-scope-label {
+    background: $panel;
+    color: $error;
+    text-style: bold;
+    margin-bottom: 1;
+    padding: 0 1;
+}
+
+#in-scope-widget {
+    margin-right: 1;
+}
+
+#in-scope-area {
+    height: 1fr;
+    background: $panel;
+    padding-left: 1;
+    padding-top: 1;
+}
+
+#out-of-scope-widget {
+}
+
+#out-of-scope-area {
+    height: 1fr;
+    background: $panel;
+    padding-left: 1;
+    padding-top: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   In/Out Button area
+═══════════════════════════════════════════════════════════════════ */
+
+#btn-area-container {
+    height: auto;
+    margin: 1 0 0 0;
+    align: left middle;
+}
+
+#btn-save {
+    background: $accent-muted;
+    color: $accent;
+    margin: 0 1;
+}
+
+#btn-duplicate {
+    background: $primary-muted;
+    color: $primary;
+    margin: 0 1;
+}
+
+#btn-delete {
+    background: $error-muted;
+    color: $error;
+    margin: 0 1;
+}

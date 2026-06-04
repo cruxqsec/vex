@@ -1,6 +1,7 @@
 import pytest
 from uuid import UUID
 from datetime import datetime
+import json
 from mitmproxy import http
 from mitmproxy.test import tflow, tutils
 
@@ -10,6 +11,7 @@ from vex_cli.models.pydantic import (
     RawRequest,
     RawResponse,
     Scope,
+    ScopeCreate,
 )
 
 
@@ -170,26 +172,46 @@ def test_raw_res_serialize():
 def test_scope_to_orm_and_back_roundtrip():
     scope = Scope(
         id=42,
+        name="Production Scope",
         allow_endpoints=["192.168.1.1"],
         deny_endpoints=["10.0.0.1", "evil.com"],
     )
 
     orm = scope.to_orm()
     assert orm.id == 42
+    assert orm.name == "Production Scope"
 
     back = Scope.from_orm(orm)
     assert back.id == 42
+    assert back.name == "Production Scope"
     assert back.allow_endpoints == ["192.168.1.1"]
     assert back.deny_endpoints == ["10.0.0.1", "evil.com"]
 
 
 def test_scope_to_orm_and_back_roundtrip_empty():
-    scope = Scope(id=1, allow_endpoints=[], deny_endpoints=[])
+    scope = Scope(id=1, name="Empty Scope", allow_endpoints=[], deny_endpoints=[])
 
     orm = scope.to_orm()
     assert orm.id == 1
+    assert orm.name == "Empty Scope"
 
     back = Scope.from_orm(orm)
     assert back.id == 1
+    assert back.name == "Empty Scope"
     assert back.allow_endpoints == []
     assert back.deny_endpoints == []
+
+
+def test_scope_create_to_orm():
+    scope = ScopeCreate(
+        name="New Scope",
+        allow_endpoints=["192.168.1.1"],
+        deny_endpoints=["evil.com"],
+    )
+    orm = scope.to_orm()
+    assert orm.name == "New Scope"
+    assert orm.id is None
+    assert json.loads(orm.definitions) == {
+        "allow": ["192.168.1.1"],
+        "deny": ["evil.com"],
+    }

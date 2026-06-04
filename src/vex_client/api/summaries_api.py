@@ -3,7 +3,12 @@ import logging
 
 import httpx
 
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
+from vex_cli.models.pydantic import (
+    CountResponse,
+    FlowSummary,
+    RequestSummary,
+    ResponseSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,12 @@ async def get_all_request_summaries(
             )
             if response.status_code == 200:
                 return [RequestSummary.model_validate(r) for r in response.json()]
+            else:
+                logger.warning(
+                    "GET /api/summary/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -39,6 +50,13 @@ async def get_request_summary(id: UUID, host: str, port: int) -> RequestSummary 
             )
             if response.status_code == 200:
                 return RequestSummary.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/summary/request/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -59,6 +77,12 @@ async def create_request_summary(
             )
             if response.status_code == 201:
                 return RequestSummary.model_validate(response.json())
+            else:
+                logger.warning(
+                    "POST /api/summary/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -79,6 +103,12 @@ async def update_request_summary(
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "PUT /api/summary/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -96,6 +126,13 @@ async def delete_request_summary(id: UUID, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "DELETE /api/summary/request/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -119,6 +156,12 @@ async def get_all_response_summaries(
             )
             if response.status_code == 200:
                 return [ResponseSummary.model_validate(r) for r in response.json()]
+            else:
+                logger.warning(
+                    "GET /api/summary/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -138,6 +181,13 @@ async def get_response_summary(
             )
             if response.status_code == 200:
                 return ResponseSummary.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/summary/response/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -158,6 +208,12 @@ async def create_response_summary(
             )
             if response.status_code == 201:
                 return ResponseSummary.model_validate(response.json())
+            else:
+                logger.warning(
+                    "POST /api/summary/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -178,6 +234,12 @@ async def update_response_summary(
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "PUT /api/summary/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -195,6 +257,13 @@ async def delete_response_summary(id: UUID, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "DELETE /api/summary/response/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -204,7 +273,7 @@ async def delete_response_summary(id: UUID, host: str, port: int) -> bool:
     return False
 
 
-# ==================== ResponseSummary ====================
+# ==================== FlowSummary ====================
 
 
 async def get_all_summaries(
@@ -218,6 +287,12 @@ async def get_all_summaries(
             )
             if response.status_code == 200:
                 return [FlowSummary.model_validate(r) for r in response.json()]
+            else:
+                logger.warning(
+                    "GET /api/summary/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -233,6 +308,13 @@ async def get_summary(id: UUID, host: str, port: int) -> FlowSummary | None:
             response = await client.get(f"http://{host}:{port}/api/summary/{id}")
             if response.status_code == 200:
                 return FlowSummary.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/summary/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -240,3 +322,69 @@ async def get_summary(id: UUID, host: str, port: int) -> FlowSummary | None:
         logger.exception("Request failed")
         raise
     return None
+
+
+async def delete_flow(flow_id: UUID, host: str, port: int) -> bool:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"http://{host}:{port}/api/summary/{flow_id}"
+            )
+            if response.status_code == 202:
+                return True
+            else:
+                logger.warning(
+                    "DELETE /api/summary/%s returned %d: %s",
+                    flow_id,
+                    response.status_code,
+                    response.text,
+                )
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+        raise
+    except httpx.RequestError:
+        logger.exception("Request failed")
+        raise
+    return False
+
+
+async def delete_all_flows(host: str, port: int) -> bool:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(f"http://{host}:{port}/api/summary/")
+            if response.status_code == 202:
+                return True
+            else:
+                logger.warning(
+                    "DELETE /api/summary/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+        raise
+    except httpx.RequestError:
+        logger.exception("Request failed")
+        raise
+    return False
+
+
+async def count_flows(host: str, port: int) -> int:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"http://{host}:{port}/api/summary/count")
+            if response.status_code == 200:
+                return CountResponse.model_validate(response.json()).count
+            else:
+                logger.warning(
+                    "GET /api/summary/count returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
+    except httpx.TimeoutException:
+        logger.exception("Timeout occurred")
+        raise
+    except httpx.RequestError:
+        logger.exception("Request failed")
+        raise
+    return 0

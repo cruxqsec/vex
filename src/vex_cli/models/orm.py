@@ -95,4 +95,7 @@ class ScopeORM(Base):
     __tablename__ = "scopes"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    definitions: Mapped[str] = mapped_column(String, nullable=False, default="{}")
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    definitions: Mapped[str] = mapped_column(
+        String, nullable=False, default='{"allow":[],"deny":[]}'
+    )

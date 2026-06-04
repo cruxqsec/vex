@@ -11,16 +11,24 @@ from vex_cli.errors import NotFoundError
 
 
 def make_scope_orm(
-    id: int = 1, definitions: str = '{"allow": ["192.168.1.1"], "deny": ["10.0.0.1"]}'
+    id: int = 1,
+    name: str = "Test Scope",
+    definitions: str = '{"allow": ["192.168.1.1"], "deny": ["10.0.0.1"]}',
 ):
     scope = ScopeORM()
     scope.id = id
+    scope.name = name
     scope.definitions = definitions
     return scope
 
 
-def make_scope(id: int = 1, allow: list = ["192.168.1.1"], deny: list = ["10.0.0.1"]):
-    return Scope(id=id, allow_endpoints=allow, deny_endpoints=deny)
+def make_scope(
+    id: int = 1,
+    name: str = "Test Scope",
+    allow: list = ["192.168.1.1"],
+    deny: list = ["10.0.0.1"],
+):
+    return Scope(id=id, name=name, allow_endpoints=allow, deny_endpoints=deny)
 
 
 @pytest_asyncio.fixture
@@ -110,7 +118,7 @@ async def test_get_scope_not_found(client, mock_scope_db):
 async def test_create_scope_returns_201(client, mock_scope_db):
     mock_scope_db.create.return_value = make_scope_orm(id=1)
     payload = {
-        "id": 1,
+        "name": "Test Scope",
         "allow_endpoints": ["192.168.1.1"],
         "deny_endpoints": ["10.0.0.1"],
     }
@@ -119,6 +127,7 @@ async def test_create_scope_returns_201(client, mock_scope_db):
 
     assert response.status_code == 201
     assert response.json()["id"] == 1
+    assert response.json()["name"] == "Test Scope"
     assert response.json()["allow_endpoints"] == ["192.168.1.1"]
     assert response.json()["deny_endpoints"] == ["10.0.0.1"]
     mock_scope_db.create.assert_called_once()
@@ -137,7 +146,12 @@ async def test_create_scope_invalid_payload(client, mock_scope_db):
 @pytest.mark.asyncio
 async def test_update_scope_returns_202(client, mock_scope_db):
     mock_scope_db.update.return_value = None
-    payload = {"id": 1, "allow_endpoints": ["192.168.1.1"], "deny_endpoints": []}
+    payload = {
+        "id": 1,
+        "name": "Updated Scope",
+        "allow_endpoints": ["192.168.1.1"],
+        "deny_endpoints": [],
+    }
 
     response = await client.put("/api/scope/", json=payload)
 
@@ -149,7 +163,12 @@ async def test_update_scope_returns_202(client, mock_scope_db):
 async def test_update_scope_not_found(client, mock_scope_db):
     mock_scope_db.update.side_effect = NotFoundError("Not found")
 
-    payload = {"id": 99, "allow_endpoints": [], "deny_endpoints": []}
+    payload = {
+        "id": 99,
+        "name": "Not Found",
+        "allow_endpoints": [],
+        "deny_endpoints": [],
+    }
     response = await client.put("/api/scope/", json=payload)
 
     assert response.status_code == 404
@@ -218,7 +237,7 @@ async def test_unset_scope_returns_202(client, mock_flow_scope):
 @pytest.mark.asyncio
 async def test_get_active_scope_returns_200(client, mock_flow_scope):
     mock_flow_scope.get_active_scope.return_value = Scope(
-        id=1, allow_endpoints=["192.168.1.1"], deny_endpoints=[]
+        id=1, name="Active Scope", allow_endpoints=["192.168.1.1"], deny_endpoints=[]
     )
 
     response = await client.get("/api/scope/active/")

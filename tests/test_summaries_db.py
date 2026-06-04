@@ -188,43 +188,52 @@ async def test_get_full_summary_by_id_not_found(db):
 
 @pytest.mark.asyncio
 async def test_scope_orm_default_definitions(db):
-    scope = await db.create(ScopeORM())
+    scope = await db.create(ScopeORM(name="Default Scope"))
     assert scope.id is not None
-    assert scope.definitions == "{}"
+    assert scope.name == "Default Scope"
+    assert scope.definitions == '{"allow":[],"deny":[]}'
 
     result = await db.get(ScopeORM, scope.id)
-    assert result.definitions == "{}"
+    assert result.name == "Default Scope"
+    assert result.definitions == '{"allow":[],"deny":[]}'
 
 
 @pytest.mark.asyncio
 async def test_scope_orm_custom_definitions(db):
     scope = await db.create(
-        ScopeORM(definitions='{"allow": ["example.com"], "deny": []}')
+        ScopeORM(name="My Scope", definitions='{"allow": ["example.com"], "deny": []}')
     )
+    assert scope.name == "My Scope"
     assert scope.definitions == '{"allow": ["example.com"], "deny": []}'
 
     result = await db.get(ScopeORM, scope.id)
+    assert result.name == "My Scope"
     assert result.definitions == '{"allow": ["example.com"], "deny": []}'
 
 
 @pytest.mark.asyncio
 async def test_scope_orm_roundtrip_via_from_orm(db):
     scope_orm = await db.create(
-        ScopeORM(definitions='{"allow": ["10.0.0.1"], "deny": ["evil.com"]}')
+        ScopeORM(
+            name="Prod Scope",
+            definitions='{"allow": ["10.0.0.1"], "deny": ["evil.com"]}',
+        )
     )
     scope = Scope.from_orm(scope_orm)
 
     assert scope.id == scope_orm.id
+    assert scope.name == "Prod Scope"
     assert scope.allow_endpoints == ["10.0.0.1"]
     assert scope.deny_endpoints == ["evil.com"]
 
 
 @pytest.mark.asyncio
 async def test_scope_orm_default_roundtrip_via_from_orm(db):
-    scope_orm = await db.create(ScopeORM())
+    scope_orm = await db.create(ScopeORM(name="Empty Scope"))
     scope = Scope.from_orm(scope_orm)
 
     assert scope.id == scope_orm.id
+    assert scope.name == "Empty Scope"
     assert scope.allow_endpoints == []
     assert scope.deny_endpoints == []
 

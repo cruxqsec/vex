@@ -22,6 +22,12 @@ async def get_all_raw_requests(
             )
             if response.status_code == 200:
                 return [RawRequest.model_validate(r) for r in response.json()]
+            else:
+                logger.warning(
+                    "GET /api/raw/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -37,6 +43,13 @@ async def get_raw_request(id: UUID, host: str, port: int) -> RawRequest | None:
             response = await client.get(f"http://{host}:{port}/api/raw/request/{id}")
             if response.status_code == 200:
                 return RawRequest.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/raw/request/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -57,6 +70,12 @@ async def create_raw_request(
             )
             if response.status_code == 201:
                 return RawRequest.model_validate(response.json())
+            else:
+                logger.warning(
+                    "POST /api/raw/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -75,6 +94,12 @@ async def update_raw_request(raw_req: RawRequest, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "PUT /api/raw/request/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -90,6 +115,13 @@ async def delete_raw_request(id: UUID, host: str, port: int) -> bool:
             response = await client.delete(f"http://{host}:{port}/api/raw/request/{id}")
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "DELETE /api/raw/request/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -113,6 +145,12 @@ async def get_all_raw_responses(
             )
             if response.status_code == 200:
                 return [RawResponse.model_validate(r) for r in response.json()]
+            else:
+                logger.warning(
+                    "GET /api/raw/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -128,6 +166,13 @@ async def get_raw_response(id: UUID, host: str, port: int) -> RawResponse | None
             response = await client.get(f"http://{host}:{port}/api/raw/response/{id}")
             if response.status_code == 200:
                 return RawResponse.model_validate(response.json())
+            else:
+                logger.warning(
+                    "GET /api/raw/response/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -148,6 +193,12 @@ async def create_raw_response(
             )
             if response.status_code == 201:
                 return RawResponse.model_validate(response.json())
+            else:
+                logger.warning(
+                    "POST /api/raw/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -166,6 +217,12 @@ async def update_raw_response(raw_res: RawResponse, host: str, port: int) -> boo
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "PUT /api/raw/response/ returned %d: %s",
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise
@@ -183,6 +240,13 @@ async def delete_raw_response(id: UUID, host: str, port: int) -> bool:
             )
             if response.status_code == 202:
                 return True
+            else:
+                logger.warning(
+                    "DELETE /api/raw/response/%s returned %d: %s",
+                    id,
+                    response.status_code,
+                    response.text,
+                )
     except httpx.TimeoutException:
         logger.exception("Timeout occurred")
         raise

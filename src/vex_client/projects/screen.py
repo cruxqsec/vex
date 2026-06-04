@@ -84,7 +84,7 @@ class VexProjectsScreen(Screen):
     async def select_project(self, event: DataTable.RowSelected) -> None:
         """
         Select a project and set it as active by calling vex-cli API.
-        If successful the is_project_active reactive in VexApp is set to True
+        If successful the active_project reactive in VexApp is set
         and the rest of the interface becomes active
         """
         app = cast("VexApp", self.app)
@@ -110,7 +110,7 @@ class VexProjectsScreen(Screen):
 
         if successfully_selected and project is not None:
             self.active_project_card.set_project(project.name, "0", "0", "0")
-            app.set_active_project(project)
+            app.active_project = project
         else:
             self.active_project_card.set_empty()
             self.notify("Project couldn't be selected", severity="error")
@@ -175,7 +175,7 @@ class VexProjectsScreen(Screen):
             return
 
         self.active_project_card.set_project(fetched_active_project.name, "0", "0", "0")
-        app.set_active_project(fetched_active_project)
+        app.active_project = fetched_active_project
 
     # ------------- BINDING ACTIONS -----------------
 
@@ -281,7 +281,7 @@ class VexProjectsScreen(Screen):
                 return
             if active_project and str(active_project.id) == project_id:
                 self.active_project_card.set_empty()
-                app.set_active_project(None)
+                app.active_project = None
 
         app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
 

@@ -7,6 +7,8 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Button, Select
 
+from vex_cli.models.pydantic import Project
+
 
 class NavigationButton(Button, can_focus=False):
     """
@@ -103,11 +105,11 @@ class VexNavigationBar(Widget):
         self.set_navigation_btn_color()
 
         # all buttons except the project one are disabled until a project is picked
-        self.watch(app, "is_project_active", self.on_project_active)
-        self.buttons_disabled(not app.is_project_active)
+        self.watch(app, "active_project", self.on_project_active)
+        self.buttons_disabled(app.active_project is None)
 
-    def on_project_active(self, active: bool) -> None:
-        self.buttons_disabled(not active)
+    def on_project_active(self, project: Project | None) -> None:
+        self.buttons_disabled(project is None)
 
     def buttons_disabled(self, enabled: bool) -> None:
         for button in self.query(Button):

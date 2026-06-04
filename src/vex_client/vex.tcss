@@ -367,6 +367,7 @@ EmptyMessageWidget {
     &.empty {
         & VexTextArea { layer: below; }
         & VexDataTable { layer: below; }
+        & ScopeList { layer: below; }
 
         & #empty-message {
             color: $text-muted;

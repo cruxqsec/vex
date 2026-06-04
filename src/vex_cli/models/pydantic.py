@@ -52,8 +52,8 @@ def check_ip(v: str) -> str:
     _ip_adapter.validate_python(v)
     return v
 
-
 def check_domain(v: str) -> str:
+    # TODO improve function
     if "://" in v:
         raise ValueError(f"URLs with schemes are not allowed, got: {v!r}")
 
@@ -70,11 +70,9 @@ def check_domain(v: str) -> str:
 
     return v
 
-
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
 DomainStr = Annotated[str, BeforeValidator(check_domain)]
-
 
 class VexServerInfo(BaseModel):
     """
@@ -256,8 +254,8 @@ class RawResponse(BaseModel):
         return RawResponseORM(**self.model_dump())
 
 
-ScopeEndpoint = Union[IPStr, DomainStr]
-
+ScopeEndpoint = Union[Literal[""],IPStr, DomainStr]
+endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
 class Scope(BaseModel):
     """
@@ -266,14 +264,16 @@ class Scope(BaseModel):
     """
 
     id: int
+    name: str
     allow_endpoints: list[ScopeEndpoint]
     deny_endpoints: list[ScopeEndpoint]
 
     def to_orm(self) -> ScopeORM:
         return ScopeORM(
             id=self.id,
+            name=self.name,
             definitions=json.dumps(
-                {"allow": list(self.allow_endpoints), "deny": list(self.deny_endpoints)}
+                {"allow": self.allow_endpoints, "deny": self.deny_endpoints}
             ),
         )
 
@@ -282,6 +282,23 @@ class Scope(BaseModel):
         raw = json.loads(orm.definitions) if orm.definitions else {}
         return cls(
             id=orm.id,
+            name=orm.name,
             allow_endpoints=raw.get("allow", []),
             deny_endpoints=raw.get("deny", []),
+        )
+
+
+class ScopeCreate(BaseModel):
+    """Used when creating a scope — id is DB-generated."""
+
+    name: str
+    allow_endpoints: list[ScopeEndpoint]
+    deny_endpoints: list[ScopeEndpoint]
+
+    def to_orm(self) -> ScopeORM:
+        return ScopeORM(
+            name=self.name,
+            definitions=json.dumps(
+                {"allow": self.allow_endpoints, "deny": self.deny_endpoints}
+            ),
         )
