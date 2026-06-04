@@ -122,7 +122,7 @@ def test_raw_request(mock_flow: http.HTTPFlow):
     raw_result = (
         b"GET /path/to/content.php?query=test&query2=test2 HTTP/1.1\r\n"
         b"header: qvalue\r\n"
-        b"content-length: 7\r\n\r\n"
+        b"content-length: 0\r\n\r\n"
     )
 
     assert type(raw_req.id) is UUID

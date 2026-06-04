@@ -224,7 +224,7 @@ def test_flow_to_raw_req(mock_flow: http.HTTPFlow):
     result = (
         b"GET /path/to/content.php?query=test&query2=test2 HTTP/1.1\r\n"
         b"header: qvalue\r\n"
-        b"content-length: 7\r\n\r\n"
+        b"content-length: 0\r\n\r\n"
     )
 
     assert flow_to_raw_request(mock_flow) == result
@@ -309,3 +309,59 @@ def test_extract_http_title_binary_response(mock_binary_flow: http.HTTPFlow):
 def test_response_total_size_binary_body(mock_binary_flow: http.HTTPFlow):
     size = response_total_size(mock_binary_flow)
     assert size > 0
+
+
+def test_flow_to_raw_response_strips_content_encoding():
+    """Verify Content-Encoding and Transfer-Encoding are stripped from response."""
+    html = b"<html><body>test</body></html>"
+    resp_headers = [
+        (b"Content-Type", b"text/html"),
+    ]
+    req = tutils.treq(host="example.com")
+    resp = tutils.tresp(status_code=200, headers=resp_headers, content=html)
+    flow = tflow.tflow(req=req, resp=resp)
+
+    # Simulate the "lie" - headers claim encoding but body is already decoded
+    flow.response.headers["Content-Encoding"] = "gzip"
+    flow.response.headers["Transfer-Encoding"] = "chunked"
+    flow.response.headers["Content-Length"] = "999"
+
+    raw = flow_to_raw_response(flow)
+
+    assert raw is not None
+    assert b"Content-Encoding" not in raw
+    assert b"Transfer-Encoding" not in raw
+    assert b"Content-Length: 30\r\n" in raw  # actual body length
+    assert html in raw
+
+
+def test_flow_to_raw_response_binary_with_non_ascii_headers():
+    """Verify latin-1 encoding handles non-ASCII header values correctly."""
+    png_bytes = b"\x89PNG\r\n\x1a\n"
+    resp_headers = [
+        (b"Content-Type", b"image/png"),
+        (b"X-Custom", b"caf\xc3\xa9"),  # UTF-8 for "café" - tests latin-1 encoding
+    ]
+    req = tutils.treq(host="cdn.example.com")
+    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
+    flow = tflow.tflow(req=req, resp=resp)
+
+    raw = flow_to_raw_response(flow)
+
+    assert raw is not None
+    # mitmproxy decodes UTF-8 bytes to "café" string (U+00E9), we encode to latin-1 (0xE9)
+    assert b"X-Custom: caf\xe9\r\n" in raw
+    assert png_bytes in raw
+
+
+def test_extract_http_title_binary_response_safe():
+    """Verify binary responses don't crash title extraction with latin-1."""
+    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+    resp_headers = [(b"Content-Type", b"image/png")]
+    req = tutils.treq(host="cdn.example.com")
+    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
+    flow = tflow.tflow(req=req, resp=resp)
+
+    title = extract_http_title(flow)
+
+    assert title is None  # no <title> in PNG binary

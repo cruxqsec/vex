@@ -22,3 +22,4 @@ pyrightconfig.json
 .github/instructions/snyk_rules.instructions.md
 
 src/vex_client/test/
+INTERNAL-NOTES.md
