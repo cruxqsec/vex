@@ -123,6 +123,12 @@ class VexProxyScreen(Screen):
         hours, _ = divmod(mins, 60)
         return f"{hours} hours ago"
 
+    def reset(self) -> None:
+        for child in self.proxy_list.children:
+            if isinstance(child, ProxyListItem) and child.instance.running:
+                child.set_running(False)
+        self.status_card.set_active(None)
+
     # ------------ Startup logic -----------------
 
     async def check_for_running_instance(self):
@@ -232,9 +238,6 @@ class VexProxyScreen(Screen):
             successful_stop = app.vex_controller.stop_vex_cli()
 
             if successful_stop:
-                selected_instance.set_running(False)
-                app.active_project = None
-                self.status_card.set_active(None)
                 app.log_vex(message="Server stopped.")
             else:
                 app.log_vex(

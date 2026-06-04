@@ -111,6 +111,11 @@ class VexNavigationBar(Widget):
     def on_project_active(self, project: Project | None) -> None:
         self.buttons_disabled(project is None)
 
+    def reset_scope_select(self) -> None:
+        scope_select = self.query_one(ScopeSelect)
+        scope_select.set_options([("No scope", 0)])
+        scope_select.value = 0
+
     def buttons_disabled(self, enabled: bool) -> None:
         for button in self.query(Button):
             # all except the Project button
