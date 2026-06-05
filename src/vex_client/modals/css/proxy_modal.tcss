@@ -39,7 +39,7 @@ CreateUpdateProxyScreen {
         margin-left: 1;
     }
 
-    #name-input {
+    #proxy-modal-name-input {
         width: 2fr;
         height: 1;
         border: none;

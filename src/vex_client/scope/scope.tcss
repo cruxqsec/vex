@@ -12,7 +12,7 @@ $border-divider: $secondary-darken-3;
    Main layout
 ═══════════════════════════════════════════════════════════════════ */
 
-#main-container {
+#scope-main-container {
     width: 1fr;
     height: 1fr;
     margin-bottom: 1;
@@ -163,7 +163,7 @@ ScopeListItem {
     border-left: tall $border-divider;
 }
 
-#name-label {
+#scope-name-label {
     width: auto;
     height: 1;
     color: $text-muted;
@@ -172,7 +172,7 @@ ScopeListItem {
     margin: 0 1 0 0;
 }
 
-#name-input {
+#scope-name-input {
     width: 1fr;
     height: 1;
     border: none;

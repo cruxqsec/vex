@@ -130,7 +130,7 @@ class VexApp(App[str]):
         # reference to the history screen so we don't have to query it each time
         self.history_screen: VexHTTPHistoryScreen | None = None
 
-        # worker references for lifecycle management
+        # worker references easier management
         self.server_monitor_worker: Worker | None = None
         self.history_manager_worker: Worker | None = None
 

@@ -43,7 +43,7 @@ class VexScopeScreen(Screen):
 
     @property
     def name_input(self) -> Input:
-        return self.query_one("#name-input", Input)
+        return self.query_one("#scope-name-input", Input)
 
     @property
     def in_scope_area(self) -> VexTextArea:
@@ -55,13 +55,13 @@ class VexScopeScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        with Horizontal(id="main-container"):
+        with Horizontal(id="scope-main-container"):
             yield ScopeListWidget(id="scope-list-widget")
             with Vertical(id="in-out-container"):
                 yield Static("+ Add a new scope", id="in-out-header")
                 with Horizontal(id="name-input-container"):
-                    yield Static("Name*", id="name-label")
-                    yield Input(placeholder="Enter scope name", id="name-input")
+                    yield Static("Name*", id="scope-name-label")
+                    yield Input(placeholder="Enter scope name", id="scope-name-input")
                 with Horizontal(id="text-areas-container"):
                     with Vertical():
                         yield Static("● In scope", id="in-scope-label")
@@ -139,7 +139,9 @@ class VexScopeScreen(Screen):
         scope_to_create = None
         if scope is None:
             # create new
-            scope_to_create = ScopeCreate(name="New scope", allow_endpoints=[], deny_endpoints=[])
+            scope_to_create = ScopeCreate(
+                name="New scope", allow_endpoints=[], deny_endpoints=[]
+            )
         else:
             # duplicate
             scope_to_create = ScopeCreate(
@@ -193,7 +195,9 @@ class VexScopeScreen(Screen):
             return
 
         try:
-            successfully_deleted = await delete_scope(self.selected_scope_item.scope.id, host, port)
+            successfully_deleted = await delete_scope(
+                self.selected_scope_item.scope.id, host, port
+            )
         except httpx.HTTPError:
             app.log_vex("Network error creating scope. Check logs.", severity="error")
             return
@@ -253,7 +257,9 @@ class VexScopeScreen(Screen):
         if successfully_updated:
             self.notify("Scope updated!")
             self.selected_scope_item.scope = updated_scope
-            self.selected_scope_item.query_one("#scope-name", Static).update(updated_scope.name)
+            self.selected_scope_item.query_one("#scope-name", Static).update(
+                updated_scope.name
+            )
         else:
             app.log_vex("Error saving scope. Check logs.", severity="error")
 

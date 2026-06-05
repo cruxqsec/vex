@@ -1,8 +1,8 @@
 $border-divider: $secondary-darken-3;
 
-#main-container {
-    margin: 0;
-    padding: 0;
+#projects-main-container {
+    margin-bottom: 1;
+    margin-left: 1;
 }
 
 #project-table-container {

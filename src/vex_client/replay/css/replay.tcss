@@ -2,7 +2,7 @@ Screen {
     background: $background;
 }
 
-#main-container {
+#replay-main-container {
     margin: 1 2;
 }
 
@@ -25,30 +25,30 @@ Screen {
     border: none;
 }
 
-#request-area {
+#replay-request-area {
     width: 1fr;
     border: round $accent 40%;
     margin: 0 1 0 0;
 }
 
-#request-area:hover {
+#replay-request-area:hover {
     border: round $accent 80%;
 }
 
-#request-area.inner-focused {
+#replay-request-area.inner-focused {
     border: round $accent 100%;
 }
 
-#response-area {
+#replay-response-area {
     width: 1fr;
     border: round $accent 40%;
     margin: 0 0 0 1;
 }
 
-#response-area:hover {
+#replay-response-area:hover {
     border: round $accent 80%;
 }
 
-#response-area.inner-focused {
+#replay-response-area.inner-focused {
     border: round $accent 100%;
 }

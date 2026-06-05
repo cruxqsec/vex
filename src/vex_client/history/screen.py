@@ -62,11 +62,11 @@ class VexHTTPHistoryScreen(Screen):
 
     @property
     def request_area(self) -> VexTextArea:
-        return self.query_one("#request-area", VexTextArea)
+        return self.query_one("#history-request-area", VexTextArea)
 
     @property
     def response_area(self) -> VexTextArea:
-        return self.query_one("#response-area", VexTextArea)
+        return self.query_one("#history-response-area", VexTextArea)
 
     def __init__(self, **kwargs) -> None:
         self._req_res_hidden = False

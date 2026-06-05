@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, cast
+
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
@@ -36,7 +37,7 @@ class VexInterceptScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        # with Vertical(id="main-container"):
+        # with Vertical(id="intercept-main-container"):
         # yield VexHTTPInterceptTable(id="intercept-table")
         yield VexLogsPanel()
         yield VexFooter()
@@ -44,5 +45,5 @@ class VexInterceptScreen(Screen):
     def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
 
-        #app: VexApp = cast("VexApp", self.app)
-        #app.populate_log_panel(self)
+        # app: VexApp = cast("VexApp", self.app)
+        # app.populate_log_panel(self)

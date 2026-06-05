@@ -76,7 +76,7 @@ VexHTTPHistoryScreen {
 
 }
 
-#request-area {
+#history-request-area {
     width: 1fr;
     height: 1fr;
     background: $panel;
@@ -89,7 +89,7 @@ VexHTTPHistoryScreen {
     }
 }
 
-#response-area {
+#history-response-area {
     width: 1fr;
     height: 1fr;
     background: $panel;
