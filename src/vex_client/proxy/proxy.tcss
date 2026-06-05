@@ -34,7 +34,7 @@ $border-divider: $secondary-darken-3;
 #proxy-main {
     width: 1fr;
     height: 1fr;
-    margin: 1 1 0 1;
+    margin: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

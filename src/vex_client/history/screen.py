@@ -46,13 +46,6 @@ class VexHTTPHistoryScreen(Screen):
             show=True,
             priority=True,
         ),
-        Binding(
-            "ctrl+b",
-            "test",
-            "test",
-            show=True,
-            priority=True,
-        ),
     ]
 
     @property
@@ -186,6 +179,3 @@ class VexHTTPHistoryScreen(Screen):
         self.query_one("#text-areas", Horizontal).set_class(
             self._http_table_hidden, "table-hidden"
         )
-
-    def action_test(self) -> None:
-        self.log(self.query_one(VexHTTPTableContainer).styles)

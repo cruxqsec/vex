@@ -15,6 +15,7 @@ $border-divider: $secondary-darken-3;
 #main-container {
     width: 1fr;
     height: 1fr;
+    margin-bottom: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
