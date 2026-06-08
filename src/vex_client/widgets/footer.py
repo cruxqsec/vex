@@ -81,7 +81,7 @@ class VexFooter(Widget):
             yield LogsKey()
         with Horizontal(id="right-side"):
             yield VexCmdKey("f1", "Help")
-            yield VexCmdKey("f2", "Settings")
+            yield VexCmdKey("Ctrl+C", "Proxy screen", id="exit-cmd-key")
             yield Seperator()
             yield VersionKey()
 

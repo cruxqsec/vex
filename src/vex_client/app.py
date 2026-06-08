@@ -10,6 +10,7 @@ from textual import work
 from textual.worker import Worker
 from textual.app import App
 from textual.binding import Binding
+from textual.widgets import Select
 from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
 from textual.reactive import reactive
 from textual.css.query import NoMatches
@@ -35,6 +36,7 @@ from vex_client.widgets.text_area import VexTextArea
 from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
 from vex_client.api.summaries_api import get_all_summaries
+from vex_client.api.scope_api import get_all_scopes
 from vex_client.process import INACTIVE_PROCESS
 from vex_cli.pid_func import is_process_running
 
@@ -88,18 +90,23 @@ class VexApp(App[str]):
             "Toggle logs menu",
             priority=True,
         ),
-        Binding("ctrl+c", "switch('proxy-screen')", "Quit"),
         Binding(
-            "ctrl+n",
-            "check_workers()",
-            "Test",
-            priority=True,
+            "ctrl+c",
+            "switch('proxy-screen')",
+            "Quit",
+            priority=True
         ),
         Binding(
-            "ctrl+b",
-            "check_screens()",
-            "Test",
-            priority=True,
+            "ctrl+s",
+            "select_scope()",
+            "Select scope",
+            priority=True
+        ),
+        Binding(
+            "ctrl+g",
+            "test()",
+            "test",
+            priority=True
         ),
     ]
 
@@ -112,12 +119,8 @@ class VexApp(App[str]):
         "projects-screen": VexProjectsScreen,
     }
 
-    active_project: reactive[Project | None] = reactive(
-        None, init=False, always_update=True
-    )
-    active_scope: reactive[Scope | None] = reactive(
-        None, init=False, always_update=False
-    )
+    active_project: reactive[Project | None] = reactive(None, init=False, always_update=True)
+    active_scope: reactive[Scope | None] = reactive(None, init=False, always_update=False)
     server_online: reactive[bool] = reactive(False, init=False, always_update=False)
 
     async def on_mount(self) -> None:
@@ -126,6 +129,7 @@ class VexApp(App[str]):
 
         self._log_history: list[LogMessage] = []
         self.history_summary_cache: dict[UUID, FlowSummary] = {}
+        self.scope_cache: dict[int, Scope] = {}
 
         # reference to the history screen so we don't have to query it each time
         self.history_screen: VexHTTPHistoryScreen | None = None
@@ -150,6 +154,15 @@ class VexApp(App[str]):
 
         return server_info.server_address, server_info.api_port
 
+    def get_screen_name(self) -> str:
+        """Get screen name for the screen we use to install it and is defined in the SCREENS."""
+        current_screen = self.app.screen
+
+        for name, screen in self.app.SCREENS.items():
+            if isinstance(current_screen, screen):  # type: ignore
+                return name
+        return ""
+
     # ------------ Watcher methods -------------
 
     def watch_server_online(self, online: bool) -> None:
@@ -161,8 +174,11 @@ class VexApp(App[str]):
     def watch_active_project(self, old: Project | None, new: Project | None) -> None:
         if new is not None:
             self._fetch_all_summaries()
+            self._fetch_scopes()
         else:
+            # TODO proper cleanup
             self.history_summary_cache.clear()
+            self.scope_cache.clear()
 
     # ------------ Server monitor and cleanup -------------
 
@@ -230,8 +246,6 @@ class VexApp(App[str]):
 
         # TODO the same reset for replay screen
         # TODO the same reset for intercept screen
-
-        # TODO stop all workers (history manager, etc)
 
         # TODO reset scope select
 
@@ -355,31 +369,54 @@ class VexApp(App[str]):
         if self.history_screen is not None:
             await self.history_screen.populate_table()
 
-    # ------------ Screen related -------------
+    # ------------ Scope worker -------------
 
-    def get_screen_name(self) -> str:
-        """Get screen name for the screen we use to install it and is defined in the SCREENS."""
-        current_screen = self.app.screen
+    @work(name="fetch_scopes", group="fetch_scopes", exclusive=True)
+    async def _fetch_scopes(self):
+        host, port = self.get_api_info()
+        if host is None or port is None:
+            return
 
-        for name, screen in self.app.SCREENS.items():
-            if isinstance(current_screen, screen):  # type: ignore
-                return name
-        return ""
+        try:
+            all_scopes: list[Scope] = []
+            skip = 0
+            while True:
+                batch = await get_all_scopes(host, port, skip=skip, size=50)
+                if not batch:
+                    break
+                all_scopes += batch
+                if len(batch) < 50:
+                    break
+                skip += 50
+        except httpx.HTTPError:
+            return
+
+        for scope in all_scopes:
+            if scope.id not in self.scope_cache:
+                self.scope_cache[scope.id] = scope
+
+        try:
+            scope_screen: VexScopeScreen = self.get_screen("scope-screen")  # type: ignore
+            if scope_screen.is_mounted:
+                scope_screen.add_new_scopes_to_list()
+        except NoMatches:
+            pass
 
     # ------------ Actions related -------------
 
     def action_switch(self, screen_name: str) -> None:
         self.switch_screen(screen_name)
 
+    def action_test(self) -> None:
+        self.notify(str(self.scope_cache))
+
+    def action_select_scope(self) -> None:
+        scope_select = self.screen.query_one_optional("#scope-select", Select)
+        if scope_select:
+            scope_select.action_show_overlay()
+
     def action_toggle_logs(self) -> None:
         self.toggle_logs()
-
-    def action_check_workers(self) -> None:
-        self.log_vex(f"{self.app.workers._workers}")
-
-    def action_check_screens(self) -> None:
-        self.log_vex(f"{self.app.screen_stack}")
-        self.log_vex(f"installed: {self.app._installed_screens}")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         """Check if we can switch screen."""

@@ -65,7 +65,14 @@ class VexNavigationBar(Widget):
         return self.query_one("#project-nav-btn", NavigationButton)
 
     def compose(self) -> ComposeResult:
-        yield ScopeSelect(options=[("No scope", 0)], value=0)
+        yield ScopeSelect(
+            options=[],
+            prompt="Select scope",
+            value=Select.NULL,
+            type_to_search=True,
+            allow_blank=True,
+            id="scope-select"
+        )
         yield NavigationButton(
             "  History",
             compact=True,

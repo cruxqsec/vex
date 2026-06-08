@@ -56,6 +56,11 @@ class ScopeList(ListView, can_focus=True):
 
     def on_mount(self) -> None:
         self.post_message(EmptyStateChanged(is_empty=self._is_empty()))
+
+    def add_scopes(self, scopes: list[Scope]) -> None:
+        for scope in scopes:
+            self.append(ScopeListItem(scope))
+        self.post_message(EmptyStateChanged(is_empty=self._is_empty()))
     
     def append_scope(self, scope_item: ScopeListItem) -> None:
         self.append(scope_item)

@@ -341,13 +341,15 @@ OnlineKey {
 VexLogsPanel {
     dock: bottom;
     display: none;
-    height: 20;
-
-    background: $panel;
-
+    height: 10;
     border-top: tab $secondary;
-    border-title-align: left;
-    margin-bottom: 5;
+
+    & #log-output {
+        background: $panel;
+        margin-bottom: 1;
+        scrollbar-size-vertical: 0;
+        scrollbar-gutter: auto;
+    }
 
     &.visible {
         display: block;
