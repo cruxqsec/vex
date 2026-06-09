@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-from textual import on
+from textual import on, work
 from textual.binding import Binding
 from textual.app import ComposeResult
 from textual.containers import Horizontal
@@ -90,7 +90,7 @@ class VexHTTPHistoryScreen(Screen):
         app: VexApp = cast("VexApp", self.app)
 
         app.history_screen = self
-        await self.populate_table()
+        self.populate_table()
 
     def on_unmount(self) -> None:
         cast("VexApp", self.app).history_screen = None
@@ -98,6 +98,7 @@ class VexHTTPHistoryScreen(Screen):
     async def on_screen_resume(self) -> None:
         self.set_focus(self.http_table)
 
+    @work(name="populate_history", exclusive=True, group="populate_history")
     async def populate_table(self) -> None:
         self.http_table_empty.set_loading(True)
 
