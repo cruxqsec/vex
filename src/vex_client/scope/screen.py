@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
-from textual import on, work
+from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -18,7 +18,6 @@ from vex_client.api.scope_api import (
     create_scope,
     delete_scope,
     update_scope,
-    get_all_scopes,
 )
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.footer import VexFooter
@@ -29,7 +28,6 @@ from vex_client.scope.list import (
     ScopeList,
     ScopeListItem,
     ScopeListWidget,
-    ScopeListEmpty,
 )
 
 
@@ -231,7 +229,9 @@ class VexScopeScreen(Screen):
         self.query_one("#in-out-header", Static).update("+ Add a new scope")
         app.scope_cache.pop(self.selected_scope_item.scope.id, None)
         self.scope_list.pop_scope(self.selected_scope_item)
-        # TODO unset it globally if it's the active scope being used
+
+        if app.active_scope and self.selected_scope_item.id == app.active_scope.id:
+            app.active_scope = None
 
         await self.unfill_scope_data()
         self.selected_scope_item = None
@@ -286,6 +286,8 @@ class VexScopeScreen(Screen):
             self.selected_scope_item.query_one("#scope-name", Static).update(
                 updated_scope.name
             )
+            if app.active_scope and app.active_scope.id == updated_scope.id:
+                app.active_scope = updated_scope
         else:
             app.log_vex("Error saving scope. Check logs.", severity="error")
 

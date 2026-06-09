@@ -179,7 +179,10 @@ async def get_active_scope(host: str, port: int) -> Scope | None:
         async with httpx.AsyncClient() as client:
             response = await client.get(f"http://{host}:{port}/api/scope/active/")
             if response.status_code == 200:
-                return Scope.model_validate(response.json())
+                data = response.json()
+                if data is None:
+                    return None
+                return Scope.model_validate(data)
             else:
                 logger.warning(
                     "GET /api/scope/active/ returned %d: %s",

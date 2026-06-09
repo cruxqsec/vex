@@ -35,8 +35,9 @@ from vex_client.themes.models import VexTheme
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
+from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.api.summaries_api import get_all_summaries
-from vex_client.api.scope_api import get_all_scopes
+from vex_client.api.scope_api import get_all_scopes, get_active_scope
 from vex_client.process import INACTIVE_PROCESS
 from vex_cli.pid_func import is_process_running
 
@@ -90,24 +91,9 @@ class VexApp(App[str]):
             "Toggle logs menu",
             priority=True,
         ),
-        Binding(
-            "ctrl+c",
-            "switch('proxy-screen')",
-            "Quit",
-            priority=True
-        ),
-        Binding(
-            "ctrl+s",
-            "select_scope()",
-            "Select scope",
-            priority=True
-        ),
-        Binding(
-            "ctrl+g",
-            "test()",
-            "test",
-            priority=True
-        ),
+        Binding("ctrl+c", "switch('proxy-screen')", "Quit", priority=True),
+        Binding("ctrl+s", "select_scope()", "Select scope", priority=True),
+        Binding("ctrl+g", "test()", "test", priority=True),
     ]
 
     SCREENS = {
@@ -119,8 +105,12 @@ class VexApp(App[str]):
         "projects-screen": VexProjectsScreen,
     }
 
-    active_project: reactive[Project | None] = reactive(None, init=False, always_update=True)
-    active_scope: reactive[Scope | None] = reactive(None, init=False, always_update=False)
+    active_project: reactive[Project | None] = reactive(
+        None, init=False, always_update=True
+    )
+    active_scope: reactive[Scope | None] = reactive(
+        None, init=False, always_update=False
+    )
     server_online: reactive[bool] = reactive(False, init=False, always_update=False)
 
     async def on_mount(self) -> None:
@@ -175,6 +165,7 @@ class VexApp(App[str]):
         if new is not None:
             self._fetch_all_summaries()
             self._fetch_scopes()
+            self._fetch_active_scope()
         else:
             # TODO proper cleanup
             self.history_summary_cache.clear()
@@ -371,6 +362,13 @@ class VexApp(App[str]):
 
     # ------------ Scope worker -------------
 
+    def _update_all_scope_selects(self) -> None:
+        for screen_name in self.SCREENS:
+            screen = self.get_screen(screen_name)
+            nav_bar = screen.query_one_optional(VexNavigationBar)
+            if nav_bar:
+                nav_bar.update_scope_select()
+
     @work(name="fetch_scopes", group="fetch_scopes", exclusive=True)
     async def _fetch_scopes(self):
         host, port = self.get_api_info()
@@ -395,12 +393,25 @@ class VexApp(App[str]):
             if scope.id not in self.scope_cache:
                 self.scope_cache[scope.id] = scope
 
+        self._update_all_scope_selects()
+
         try:
             scope_screen: VexScopeScreen = self.get_screen("scope-screen")  # type: ignore
             if scope_screen.is_mounted:
                 scope_screen.add_new_scopes_to_list()
         except NoMatches:
             pass
+
+    @work(name="fetch_active_scope", group="fetch_active_scope", exclusive=True)
+    async def _fetch_active_scope(self):
+        host, port = self.get_api_info()
+        if host is None or port is None:
+            return
+        try:
+            active = await get_active_scope(host, port)
+        except httpx.HTTPError:
+            return
+        self.active_scope = active
 
     # ------------ Actions related -------------
 
@@ -409,6 +420,7 @@ class VexApp(App[str]):
 
     def action_test(self) -> None:
         self.notify(str(self.scope_cache))
+        self.notify(str(self.active_scope))
 
     def action_select_scope(self) -> None:
         scope_select = self.screen.query_one_optional("#scope-select", Select)
