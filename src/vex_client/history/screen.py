@@ -26,6 +26,7 @@ from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.api.raw_api import get_raw_request, get_raw_response
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.table import VexDataTable
 
 
 class VexHTTPHistoryScreen(Screen):
@@ -96,25 +97,39 @@ class VexHTTPHistoryScreen(Screen):
         cast("VexApp", self.app).history_screen = None
 
     async def on_screen_resume(self) -> None:
-        self.set_focus(self.http_table)
+        self.http_table.focus()
+
+    @on(VexDataTable.SortChanged)
+    def _on_sort_changed(self, event: VexDataTable.SortChanged) -> None:
+        event.stop()
+        self._populate_from_sort()
+
+    @work(name="populate_history", exclusive=True, group="populate_history")
+    async def _populate_from_sort(self) -> None:
+        self.populate_table()
 
     @work(name="populate_history", exclusive=True, group="populate_history")
     async def populate_table(self) -> None:
         self.http_table_empty.set_loading(True)
-
         self.http_table.clear_table()
         self.request_area.clear()
         self.response_area.clear()
 
-        summaries = list(cast("VexApp", self.app).history_summary_cache.values())
+        summaries = self.http_table.sorted_summaries(
+            list(cast("VexApp", self.app).history_summary_cache.values())
+        )
 
-        self.http_table.begin_bulk_insert()
-        for summary in summaries:
-            self.http_table.insert_full_summary(summary)
-            await asyncio.sleep(0)
-        self.http_table.end_bulk_insert()
-
-        self.http_table_empty.set_loading(False)
+        BATCH_SIZE = 200
+        try:
+            self.http_table.begin_bulk_insert()
+            for i in range(0, len(summaries), BATCH_SIZE):
+                with self.app.batch_update():
+                    for summary in summaries[i : i + BATCH_SIZE]:
+                        self.http_table.insert_full_summary(summary)
+                await asyncio.sleep(0)
+        finally:
+            self.http_table.end_bulk_insert()
+            self.http_table_empty.set_loading(False)
 
     def reset(self) -> None:
         self.http_table.clear_table()
@@ -171,12 +186,11 @@ class VexHTTPHistoryScreen(Screen):
         self.query_one("#text-areas", Horizontal).set_class(
             self._req_res_hidden, "hidden"
         )
+        self.http_table.focus()
 
     def action_hide_show_http_table(self) -> None:
         self._http_table_hidden = not self._http_table_hidden
         self.query_one("#http-table-container", VexHTTPTableContainer).set_class(
             self._http_table_hidden, "hidden"
         )
-        self.query_one("#text-areas", Horizontal).set_class(
-            self._http_table_hidden, "table-hidden"
-        )
+        self.request_area.focus()
