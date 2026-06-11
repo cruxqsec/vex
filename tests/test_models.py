@@ -1,5 +1,5 @@
 import pytest
-from uuid import UUID
+from uuid import UUID, uuid4
 from datetime import datetime
 import json
 from mitmproxy import http
@@ -162,11 +162,42 @@ def test_raw_response(mock_flow: http.HTTPFlow):
 
 
 def test_raw_req_serialize():
-    pass
+    raw = RawRequest(
+        id=uuid4(),
+        data=b"POST /upload HTTP/1.1\r\nHost: example.com\r\n\r\n\x89PNG\r\n\x1a\n",
+    )
+    json_bytes = raw.model_dump_json()
+    parsed = RawRequest.model_validate_json(json_bytes)
+    assert parsed.id == raw.id
 
 
 def test_raw_res_serialize():
-    pass
+    raw = RawResponse(
+        id=uuid4(),
+        data=b"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\r\n\x89PNG\r\n\x1a\n",
+    )
+    json_bytes = raw.model_dump_json()
+    parsed = RawResponse.model_validate_json(json_bytes)
+    assert parsed.id == raw.id
+
+
+def test_raw_res_serialize_none():
+    raw = RawResponse(id=uuid4(), data=None)
+    json_bytes = raw.model_dump_json()
+    parsed = RawResponse.model_validate_json(json_bytes)
+    assert parsed.data is None
+
+
+def test_raw_response_to_orm_preserves_bytes():
+    raw = RawResponse(id=uuid4(), data=b"\x89PNG\r\n\x1a\n")
+    orm = raw.to_orm()
+    assert orm.data == b"\x89PNG\r\n\x1a\n"
+
+
+def test_raw_request_to_orm_preserves_bytes():
+    raw = RawRequest(id=uuid4(), data=b"\xff\xfe\x00\x01")
+    orm = raw.to_orm()
+    assert orm.data == b"\xff\xfe\x00\x01"
 
 
 def test_scope_to_orm_and_back_roundtrip():
