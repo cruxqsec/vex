@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, cast
+from uuid import UUID
 import httpx
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ class VexProjectsScreen(Screen):
         return self.query_one("#active-project-card", ActiveProjectCard)
 
     def __init__(self, **kwargs):
+        self._projects_cache: dict[UUID, Project] = {}
         # parent constructor
         super().__init__(**kwargs)
 
@@ -118,8 +120,8 @@ class VexProjectsScreen(Screen):
     @work(name="fetch_projects", group="fetch_projects", exclusive=True)
     async def _fetch_all_projects(self):
         """
-        Worker function that fetches available projects through vex-cli API
-        and adds them to the table.
+        Worker function that fetches available projects through vex-cli API,
+        updates the cache, and populates the table.
         """
         app = cast("VexApp", self.app)
         host, port = app.get_api_info()
@@ -128,19 +130,23 @@ class VexProjectsScreen(Screen):
             return
 
         try:
-            projects = await get_all_projects(host, port)
+            skip = 0
+            while True:
+                batch = await get_all_projects(host, port, skip=skip, size=50)
+                if not batch:
+                    break
+                for project in batch:
+                    if project.id not in self._projects_cache:
+                        self._projects_cache[project.id] = project
+                if len(batch) < 50:
+                    break
+                skip += 50
         except httpx.HTTPError:
             app.log_vex("Failed to load projects. Check logs.", "error")
             self.projects_table.set_loading(False)
             return
 
-        for project in projects:
-            if self.projects_table.row_exists(str(project.id)):
-                continue
-
-            self.projects_table.insert(project)
-
-        self.projects_table.set_loading(False)
+        self.populate_table()
 
     @work(name="check_active_project", group="check_active_projects", exclusive=True)
     async def _check_active_project(self):
@@ -177,6 +183,27 @@ class VexProjectsScreen(Screen):
         self.active_project_card.set_project(fetched_active_project.name, "0", "0", "0")
         app.active_project = fetched_active_project
 
+    @work(name="populate_projects", exclusive=True, group="populate_projects")
+    async def populate_table(self) -> None:
+        self.projects_table.set_loading(True)
+        self.projects_table.clear_table()
+
+        projects = self.projects_table.sorted_projects(
+            list(self._projects_cache.values())
+        )
+
+        self.projects_table.begin_bulk_insert()
+        for project in projects:
+            self.projects_table.insert(project)
+        self.projects_table.end_bulk_insert()
+
+        self.projects_table.set_loading(False)
+
+    @on(VexDataTable.SortChanged)
+    def _on_sort_changed(self, event: VexDataTable.SortChanged) -> None:
+        event.stop()
+        self.populate_table()
+
     # ------------- BINDING ACTIONS -----------------
 
     def action_create_project(self):
@@ -198,7 +225,8 @@ class VexProjectsScreen(Screen):
                 return
 
             if created_project:
-                self.projects_table.insert(created_project)
+                self._projects_cache[created_project.id] = created_project
+                self.populate_table()
             else:
                 self.notify("Error creating project.", severity="error")
 
@@ -240,7 +268,8 @@ class VexProjectsScreen(Screen):
                 return
 
             if successfully_updated:
-                self.projects_table.update_project_row(project)
+                self._projects_cache[project.id] = project
+                self.populate_table()
             else:
                 self.notify("Error updating project.", severity="error")
 
@@ -274,8 +303,9 @@ class VexProjectsScreen(Screen):
             active_project = app.active_project
 
             if is_deleted:
-                self.projects_table.remove_row(project_id)
-                self.projects_table.post_message(VexDataTable.RowRemoved())
+                project_uuid = UUID(project_id)
+                self._projects_cache.pop(project_uuid, None)
+                self.populate_table()
             else:
                 self.notify("Project couldn't be deleted", severity="error")
                 return

@@ -12,7 +12,8 @@ from textual.binding import Binding
 from textual.app import ComposeResult
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Input
+from textual.widget import Widget
 
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.history.table import (
@@ -37,21 +38,32 @@ class VexHTTPHistoryScreen(Screen):
             "ctrl+x",
             "hide_show_req_res_areas",
             "Hide/show request and response area",
-            show=True,
             priority=True,
         ),
         Binding(
             "ctrl+z",
             "hide_show_http_table",
             "Hide/show HTTP table",
-            show=True,
             priority=True,
         ),
+        Binding(
+            "/",
+            "focus_search",
+            "Focus the search bar",
+            priority=True,
+        ),
+        Binding("ctrl+b", "test", "test search bar", priority=True,),
+        Binding("tab", "focus_next_skip_search", "Focus Next", show=False),
+        Binding("shift+tab", "focus_previous_skip_search", "Focus Previous", show=False),
     ]
 
     @property
     def navigation_bar(self) -> VexNavigationBar:
         return self.query_one("#navigation-bar", VexNavigationBar)
+
+    @property
+    def search_bar(self) -> Input:
+        return self.query_one("#http-search-bar", Input)
 
     @property
     def http_table(self) -> VexHTTPTable:
@@ -194,3 +206,44 @@ class VexHTTPHistoryScreen(Screen):
             self._http_table_hidden, "hidden"
         )
         self.request_area.focus()
+
+    def action_focus_search(self) -> None:
+        self.search_bar.focus()
+
+    def action_test(self):
+        focused = self.screen.focused
+        if focused is None:
+            self.notify("No focused widget")
+            return
+        info = f"id={focused.id!r} type={type(focused).__name__}"
+        for a in focused.ancestors_with_self:
+            classes = [c for c in ("hidden", "empty") if a.has_class(c)]
+            if classes:
+                info += f"\n  ↖ {type(a).__name__} classes={classes}"
+        self.notify(info, timeout=10)
+
+    def action_focus_next_skip_search(self) -> None:
+        max_attempts = len(self.screen.focus_chain)
+        for _ in range(max_attempts):
+            next_widget = self.screen.focus_next()
+            if next_widget is None:
+                return
+            if not self._should_skip_focus(next_widget):
+                return
+    def action_focus_previous_skip_search(self) -> None:
+        max_attempts = len(self.screen.focus_chain)
+        for _ in range(max_attempts):
+            prev_widget = self.screen.focus_previous()
+            if prev_widget is None:
+                return
+            if not self._should_skip_focus(prev_widget):
+                return
+
+    def _should_skip_focus(self, widget: Widget) -> bool:
+        if widget.id == "http-search-bar":
+            return True
+        for ancestor in widget.ancestors_with_self:
+            if ancestor.has_class("hidden") or ancestor.has_class("empty"):
+                return True
+        return False
+    

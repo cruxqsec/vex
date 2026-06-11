@@ -227,10 +227,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         # Format: HH:MM:SS Day/Month
         return Text(dt_object.strftime("%H:%M:%S %d/%m"), style="italic")
 
-    def clear_table(self) -> None:
-        self.clear(columns=False)
-        self.post_message(VexDataTable.RowRemoved())
-
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
             self.add_row(

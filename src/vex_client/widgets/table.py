@@ -80,6 +80,18 @@ class VexDataTable(DataTable, can_focus=True):
         Binding("ctrl+f", "page_down", "Page down", show=False),
         Binding("g", "scroll_top", "Top", show=False),
         Binding("G", "scroll_bottom", "Bottom", show=False),
+        Binding("1", "sort_column(0)", show=False),
+        Binding("2", "sort_column(1)", show=False),
+        Binding("3", "sort_column(2)", show=False),
+        Binding("4", "sort_column(3)", show=False),
+        Binding("5", "sort_column(4)", show=False),
+        Binding("6", "sort_column(5)", show=False),
+        Binding("7", "sort_column(6)", show=False),
+        Binding("8", "sort_column(7)", show=False),
+        Binding("9", "sort_column(8)", show=False),
+        Binding("0", "sort_column(9)", show=False),
+        Binding("-", "sort_column(10)", show=False),
+        Binding("=", "sort_column(11)", show=False),
     ]
 
     def __init__(
@@ -130,6 +142,10 @@ class VexDataTable(DataTable, can_focus=True):
         self._bulk_mode = False
         self.post_message(EmptyStateChanged(is_empty=self.row_count == 0))
 
+    def clear_table(self) -> None:
+        self.clear(columns=False)
+        self.post_message(VexDataTable.RowRemoved())
+
     def on_resize(self, event: events.Resize) -> None:
         """Resize while keeping the percentage ratios."""
 
@@ -169,7 +185,17 @@ class VexDataTable(DataTable, can_focus=True):
         col_str = event.column_key.value
         if col_str is None:
             return
+        self._toggle_sort(col_str)
 
+    def action_sort_column(self, col_index: int) -> None:
+        if col_index >= len(self.ordered_columns):
+            return
+        col_key = self.ordered_columns[col_index].key.value
+        if col_key is None:
+            return
+        self._toggle_sort(col_key)
+
+    def _toggle_sort(self, col_str: str) -> None:
         new_direction = self._sort_direction.cycle(col_str == self._sort_column_key)
 
         if self._sort_column_key:
