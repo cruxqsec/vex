@@ -53,6 +53,7 @@ VexHTTPHistoryScreen {
     display: block;
     &.hidden { display: none; }
     background: $background;
+    border-top: wide $border-divider;
 }
 
 #request-area-container {

@@ -90,7 +90,7 @@ ActiveProjectWidget {
 
 #ap-section-title {
     height: 3;
-    border: tall $border-divider;
+    border: tall $surface;
     padding: 0 1;
     margin: 0 1;
 
@@ -123,9 +123,9 @@ ActiveProjectCard {
     background: $success 10%;
     padding: 1;
     margin: 0 1;
-    border-left: tall $border-divider;
-    border-right: tall $border-divider;
-    border-bottom: tall $border-divider;
+    border-left: tall $surface;
+    border-right: tall $surface;
+    border-bottom: tall $surface;
 
     &.not-active {
         background: $error 10%;

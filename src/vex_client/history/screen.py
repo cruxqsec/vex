@@ -25,6 +25,8 @@ from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.api.raw_api import get_raw_request, get_raw_response
+from vex_client.api.summaries_api import delete_flow, delete_all_flows
+from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 from vex_client.widgets.table import VexDataTable
@@ -52,9 +54,12 @@ class VexHTTPHistoryScreen(Screen):
             "Focus the search bar",
             priority=True,
         ),
-        Binding("ctrl+b", "test", "test search bar", priority=True,),
         Binding("tab", "focus_next_skip_search", "Focus Next", show=False),
-        Binding("shift+tab", "focus_previous_skip_search", "Focus Previous", show=False),
+        Binding(
+            "shift+tab", "focus_previous_skip_search", "Focus Previous", show=False
+        ),
+        Binding("d", "delete_selected_entry", "Delete selected entry", priority=True),
+        Binding("ctrl+d", "delete_all_entries", "Delete all entries", priority=True),
     ]
 
     @property
@@ -81,12 +86,6 @@ class VexHTTPHistoryScreen(Screen):
     def response_area(self) -> VexTextArea:
         return self.query_one("#history-response-area", VexTextArea)
 
-    def __init__(self, **kwargs) -> None:
-        self._req_res_hidden = False
-        self._http_table_hidden = False
-        # parent constructor
-        super().__init__(**kwargs)
-
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
         yield VexHTTPTableContainer(id="http-table-container")
@@ -100,8 +99,12 @@ class VexHTTPHistoryScreen(Screen):
         self.navigation_bar.set_navigation_btn_color()
         self.http_table.set_columns(self.size)
 
-        app: VexApp = cast("VexApp", self.app)
+        # for hiding table/areas
+        self._req_res_hidden: bool = False
+        self._http_table_hidden: bool = False
+        self._selected_summary_uuid: UUID | None = None
 
+        app: VexApp = cast("VexApp", self.app)
         app.history_screen = self
         self.populate_table()
 
@@ -147,6 +150,7 @@ class VexHTTPHistoryScreen(Screen):
         self.http_table.clear_table()
         self.request_area.clear()
         self.response_area.clear()
+        self._selected_summary_uuid = None
 
     # ------------------ Selecting summaries ---------------
 
@@ -156,12 +160,18 @@ class VexHTTPHistoryScreen(Screen):
         Select a summary and fetch the corresponding raw request/response.
         Then display them in the text areas.
         """
-        app = cast("VexApp", self.app)
-        summary_id = cast(UUID, event.row_key.value)
+        summary_id = UUID(event.row_key.value)
 
         if summary_id is None:
             return
 
+        self._selected_summary_uuid = summary_id
+        self.fetch_raw_summaries(summary_id)
+
+        
+    @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
+    async def fetch_raw_summaries(self, summary_id: UUID) -> None:
+        app = cast("VexApp", self.app)
         host, port = app.get_api_info()
 
         if host is None or port is None:
@@ -183,12 +193,14 @@ class VexHTTPHistoryScreen(Screen):
             self.request_area.text = raw_request.data.decode("latin-1")
         else:
             app.log_vex("Couldn't fetch request data!", severity="error")
+            return
 
         if raw_response:
             self.response_area.text = (
                 raw_response.data.decode("latin-1") if raw_response.data else ""
             )
         else:
+            self.response_area.clear()
             app.log_vex("Couldn't fetch response data!", severity="error")
 
     # -------------- ACTIONS -----------------------
@@ -210,17 +222,68 @@ class VexHTTPHistoryScreen(Screen):
     def action_focus_search(self) -> None:
         self.search_bar.focus()
 
-    def action_test(self):
-        focused = self.screen.focused
-        if focused is None:
-            self.notify("No focused widget")
+    # ----------------- Delete logic ------------------------
+
+    def action_delete_selected_entry(self) -> None:
+        row_key_str = self.http_table.get_highlighted_row_key()
+        if row_key_str is None:
+            self.notify("No entry selected", severity="warning")
             return
-        info = f"id={focused.id!r} type={type(focused).__name__}"
-        for a in focused.ancestors_with_self:
-            classes = [c for c in ("hidden", "empty") if a.has_class(c)]
-            if classes:
-                info += f"\n  ↖ {type(a).__name__} classes={classes}"
-        self.notify(info, timeout=10)
+
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        flow_id = UUID(row_key_str)
+
+        async def do_delete(confirmed: bool) -> None:
+            if not confirmed:
+                return
+            try:
+                success = await delete_flow(flow_id, host, port)
+            except httpx.HTTPError:
+                self.notify(
+                    "Network error deleting entry. Check logs.", severity="error"
+                )
+                return
+            if success:
+                app.history_summary_cache.pop(flow_id, None)
+                self.http_table.remove_row(row_key_str)
+                if flow_id == self._selected_summary_uuid:
+                    self.request_area.clear()
+                    self.response_area.clear()
+                    self._selected_summary_uuid = None
+            else:
+                self.notify("Entry couldn't be deleted", severity="error")
+
+        app.push_screen(ConfirmModal("Delete selected entry?"), do_delete)  # type: ignore
+
+    def action_delete_all_entries(self) -> None:
+        app = cast("VexApp", self.app)
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            return
+
+        async def do_delete_all(confirmed: bool) -> None:
+            if not confirmed:
+                return
+            try:
+                success = await delete_all_flows(host, port)
+            except httpx.HTTPError:
+                self.notify(
+                    "Network error deleting entries. Check logs.", severity="error"
+                )
+                return
+            if success:
+                app.history_summary_cache.clear()
+                self.reset()
+            else:
+                self.notify("Entries couldn't be deleted", severity="error")
+
+        app.push_screen(ConfirmModal("Delete ALL entries?"), do_delete_all)  # type: ignore
+
+    # ----------------- Focus logic ------------------------
 
     def action_focus_next_skip_search(self) -> None:
         max_attempts = len(self.screen.focus_chain)
@@ -230,6 +293,7 @@ class VexHTTPHistoryScreen(Screen):
                 return
             if not self._should_skip_focus(next_widget):
                 return
+
     def action_focus_previous_skip_search(self) -> None:
         max_attempts = len(self.screen.focus_chain)
         for _ in range(max_attempts):
@@ -246,4 +310,3 @@ class VexHTTPHistoryScreen(Screen):
             if ancestor.has_class("hidden") or ancestor.has_class("empty"):
                 return True
         return False
-    
