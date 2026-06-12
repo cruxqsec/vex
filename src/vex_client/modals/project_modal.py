@@ -22,18 +22,18 @@ class CreateUpdateProjectScreen(ModalScreen[str]):
 
     @property
     def name_input(self) -> Input:
-        return self.query_one("#name-input", Input)
+        return self.query_one("#project-modal-name-input", Input)
 
     def compose(self) -> ComposeResult:
         with Container(id="modal-window"):
             yield Label("[b]Create a project[/b]", id="title")
             with Horizontal():
-                yield Label("Name: ", id="name-label")
+                yield Label("Name: ", id="project-modal-name-label")
                 yield Input(
                     placeholder="My project name",
                     type="text",
                     max_length=20,
-                    id="name-input",
+                    id="project-modal-name-input",
                 )
             yield Label("", id="error-label")
             with Horizontal():

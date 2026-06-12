@@ -6,7 +6,7 @@ VexHTTPHistoryScreen {
 
 #http-table-container {
     width: 1.01fr;
-    height: 1fr;
+    height: 0.8fr;
 
     margin: 0 !important;
     padding: 0 !important;
@@ -16,33 +16,20 @@ VexHTTPHistoryScreen {
     &.hidden { display: none; }
 }
 
-#http-table-empty {
-    width: 1fr;
-    height: 1fr;
-    background: $panel;
-    border-bottom: tall $border-divider !important;
-}
-
-#http-table {
-    width: 1fr;
-    height: 1fr;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
 #http-table-header {
     width: 1fr;
-    height: 3;
-    background: $surface;
-    border-top: tall $border-divider !important;
-    border-bottom: tall $border-divider !important;
+    height: 1;
+    margin-bottom: 1;
 }
 
 #http-search-title {
     width: auto;
     height: 1;
-    text-style: b;
     margin-left: 1;
+    background: $panel;
+
+    color: $error;
+    text-style: b;
 }
 
 #http-search-bar {
@@ -54,58 +41,60 @@ VexHTTPHistoryScreen {
     margin-right: 3;
 }
 
+#http-table-empty {
+    width: 1fr;
+    height: 1fr;
+    background: $background;
+}
+
+#http-table {
+    width: 1fr;
+    height: 1fr;
+}
+
 #text-areas {
     display: block;
     &.hidden { display: none; }
-    background: $panel;
-    padding: 0;
-    margin: 0;
-
-    &.table-hidden { border-top: wide $border-divider !important; }
+    background: $background;
 }
 
 #request-area-container {
     height: 1fr;
     width: 1fr;
-    border: none !important;
-    padding-top: 1;
-    margin: 0;
-
-    border-right: tall $border-divider !important;
-    border-bottom: tall $border-divider;
+    margin-top: 1;
+    margin-bottom: 1;
+    background: $background;
 }
 
 #response-area-container {
     height: 1fr;
     width: 1fr;
     border: none;
-    padding-top: 1;
-    margin: 0;
+    margin-top: 1;
+    margin-left: 1;
+    background: $background;
 
-    border-left: tall $border-divider !important;
-    border-bottom: tall $border-divider;
 }
 
-#request-area {
+#history-request-area {
     width: 1fr;
     height: 1fr;
     background: $panel;
     border: none !important;
     padding-left: 1 !important;
     margin: 0 !important;
-    border-bottom: tall $border-divider !important;
+
+    &:focus {
+        background-tint: $foreground 5%;
+    }
 }
 
-#response-area {
+#history-response-area {
     width: 1fr;
     height: 1fr;
     background: $panel;
     border: none !important;
     padding-left: 1 !important;
     margin: 0 !important;
-    border-bottom: tall $border-divider !important;
-}
-
-#vim-status-bar {
 }
 

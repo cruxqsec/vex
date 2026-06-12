@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from textual import work
+from textual.worker import Worker
 from textual.app import App
 from textual.binding import Binding
 from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
@@ -35,6 +36,7 @@ from vex_client.themes.models import MethodStyles, FileStyle
 from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
 from vex_client.api.summaries_api import get_all_summaries
 from vex_client.process import INACTIVE_PROCESS
+from vex_cli.pid_func import is_process_running
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +130,10 @@ class VexApp(App[str]):
         # reference to the history screen so we don't have to query it each time
         self.history_screen: VexHTTPHistoryScreen | None = None
 
+        # worker references easier management
+        self.server_monitor_worker: Worker | None = None
+        self.history_manager_worker: Worker | None = None
+
         self._register_themes()
         self.watch(self.app, "theme", self.on_theme_change, init=False)
         self.theme = self.settings.theme
@@ -148,10 +154,10 @@ class VexApp(App[str]):
 
     def watch_server_online(self, online: bool) -> None:
         if online:
-            self._history_websocket_manager()
+            self.history_manager_worker = self._history_websocket_manager()
         else:
             self._cleanup()
-    
+
     def watch_active_project(self, old: Project | None, new: Project | None) -> None:
         if new is not None:
             self._fetch_all_summaries()
@@ -165,33 +171,44 @@ class VexApp(App[str]):
         host, port = self.get_api_info()
         if host is None or port is None:
             return
-        try:
-            async with websockets.connect(
-                f"ws://{host}:{port}/ws/ping",
-                ping_interval=20,
-                ping_timeout=10,
-            ) as ws:
-                self.server_online = True
-                self.log_vex("Server connected")
-                await ws.wait_closed()
-                self.log_vex("Server shutdown")
-        except websockets.ConnectionClosed:
-            self.log_vex("Server closed connection unexpectedly", "warning")
-        except OSError:
-            self.log_vex("Could not reach server, is it running?", "error")
-        except Exception:
-            self.log_vex("Server monitor error. Check logs.", "error")
-            logger.exception("Server monitor error")
-        finally:
-            self.server_online = False
-            if self.vex_controller.is_cli_running:
-                self.vex_controller.cli_pid = INACTIVE_PROCESS
-                self.vex_controller.server_info = None
+
+        while True:
+            try:
+                async with websockets.connect(
+                    f"ws://{host}:{port}/ws/ping",
+                    ping_interval=20,
+                    ping_timeout=10,
+                ) as ws:
+                    self.server_online = True
+                    self.log_vex("Server connected")
+                    await ws.wait_closed()
+                    self.log_vex("Server disconnect detected")
+            except websockets.ConnectionClosed:
+                self.log_vex("Server closed connection unexpectedly", "warning")
+            except OSError:
+                self.log_vex("Could not reach server", "error")
+            except Exception:
+                self.log_vex("Server monitor error. Check logs.", "error")
+                logger.exception("Server monitor error")
+
+            if not is_process_running(self.vex_controller.cli_pid):
+                break
+
+            await asyncio.sleep(3)
+
+        self.server_online = False
+        self.vex_controller.cli_pid = INACTIVE_PROCESS
+        self.vex_controller.server_info = None
 
     def _cleanup(self) -> None:
         self.active_project = None
         self.active_scope = None
         self.history_summary_cache.clear()
+
+        if self.history_manager_worker is not None:
+            self.history_manager_worker.cancel()
+            self.history_manager_worker = None
+        self._server_monitor_worker = None
 
         proxy_screen: VexProxyScreen = self.get_screen("proxy-screen")  # type: ignore
         try:
@@ -211,13 +228,14 @@ class VexApp(App[str]):
         except NoMatches:
             pass
 
-        #TODO the same reset for replay screen
-        #TODO the same reset for intercept screen
+        # TODO the same reset for replay screen
+        # TODO the same reset for intercept screen
 
-        #TODO reset scope select
+        # TODO stop all workers (history manager, etc)
+
+        # TODO reset scope select
 
         self.switch_screen("proxy-screen")
-
 
     # ------------ History manager and summary cache -------------
 

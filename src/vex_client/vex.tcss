@@ -119,7 +119,8 @@ VexDataTable {
     }
     & > .datatable--header {
         background: $secondary-darken-2 30%;
-
+    }
+    & > .datatable--odd-row {
     }
 
     & .vex-datatable--method-get    { color: $method-get; }
@@ -164,11 +165,6 @@ VexTextArea {
     padding: 0;
     border: none;
 
-    border-subtitle-color: $foreground;
-    border-subtitle-background: $background;
-    border-subtitle-style: bold;
-    border-subtitle-align: left;
-
     &.visual-mode {
         border-subtitle-background: $accent;
         border-subtitle-style: bold;
@@ -187,7 +183,7 @@ VexTextArea {
 VexTextAreaWidget {
     & #vim-status-bar {
         height: 1;
-        background: $surface;
+        background: $surface-lighten-1;
     }
 
     & #vim-mode {
@@ -258,12 +254,13 @@ CommandPalette {
    Footer and the footer elements
 ═══════════════════════════════════════════════════════════════════ */
 
+$footer-background: $surface
+
 VexFooter {
     dock: bottom;
     height: 1;
-    background: $panel;
+    background: $footer-background;
     layout: horizontal;
-    border-top: wide $border-divider;
     box-sizing: content-box;
 }
 
@@ -283,11 +280,12 @@ VexFooter {
 
 VexCmdKey {
     background: $panel;
+    background: $footer-background;
     layout: horizontal;
     width: auto;
 
     & .key {
-        background: $panel;
+        background: $footer-background;
         color: $accent;
     }
 
@@ -298,13 +296,13 @@ VexCmdKey {
 }
 
 Seperator {
-    background: $panel;
+    background: $footer-background;
     color: $accent;
     width: auto;
 }
 
 VersionKey {
-    background: $panel;
+    background: $footer-background;
     color: $text-muted;
     width: auto;
     padding: 0 1;
@@ -312,7 +310,7 @@ VersionKey {
 }
 
 LogsKey {
-    background: $panel;
+    background: $footer-background;
     color: $text-muted;
     width: auto;
     padding: 0 1;
@@ -320,7 +318,7 @@ LogsKey {
 }
 
 CommandPaletteKey {
-    background: $panel;
+    background: $footer-background;
     color: $text-muted;
     width: auto;
     padding: 0 1;

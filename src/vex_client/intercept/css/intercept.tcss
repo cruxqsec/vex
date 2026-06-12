@@ -2,7 +2,7 @@
     background: $background;
 }
 
-#main-container {
+#intercept-main-container {
     margin: 1 4;
 }
 

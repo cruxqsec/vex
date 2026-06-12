@@ -43,15 +43,15 @@ class VexReplayScreen(Screen):
 
     @property
     def request_area(self) -> VexTextArea:
-        return self.query_one("#request-area", VexTextArea)
+        return self.query_one("#replay-request-area", VexTextArea)
 
     @property
     def response_area(self) -> VexTextArea:
-        return self.query_one("#response-area", VexTextArea)
+        return self.query_one("#replay-response-area", VexTextArea)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        with Container(id="main-container"):
+        with Container(id="replay-main-container"):
             with Horizontal(id="send-request-bar"):
                 pass
                 # yield MethodSelect(value="GET", id="method-select")

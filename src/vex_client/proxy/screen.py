@@ -222,7 +222,8 @@ class VexProxyScreen(Screen):
 
     async def _enter_vex(self):
         app = cast("VexApp", self.app)
-        app._server_monitor()
+        if not app.server_online:
+            app.server_monitor_worker = app._server_monitor()
         app.switch_screen("projects-screen")
 
     async def _stop_vex(self, selected_instance: ProxyListItem):

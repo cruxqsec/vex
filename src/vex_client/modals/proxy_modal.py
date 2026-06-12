@@ -1,4 +1,3 @@
-
 from textual import on
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
@@ -8,14 +7,15 @@ from textual.containers import Container, Horizontal
 from vex_client.modals.inputs import AddressInput, PortInput
 from vex_client.proxy.list import ProxyInstance
 
+
 class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
     """Screen with a dialog to create a new project."""
 
     CSS_PATH = "css/proxy_modal.tcss"
     BINDINGS = [
         ("escape", "cancel", "Close"),
-        ("ctrl+c", "create", "Create proxy instance"), # TODO: disable if update
-        ("ctrl+u", "update", "Update proxy instance"), # TODO: disable if create
+        ("ctrl+c", "create", "Create proxy instance"),  # TODO: disable if update
+        ("ctrl+u", "update", "Update proxy instance"),  # TODO: disable if create
     ]
 
     def __init__(self, instance: ProxyInstance | None, **kwargs):
@@ -24,7 +24,7 @@ class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
 
     @property
     def name_input(self) -> Input:
-        return self.query_one("#name-input", Input)
+        return self.query_one("#proxy-modal-name-input", Input)
 
     @property
     def address_input(self) -> AddressInput:
@@ -42,12 +42,12 @@ class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
         with Container(id="create-modal"):
             yield Label("", id="title")
             with Horizontal():
-                yield Label("Instance name: ", id="name-label")
+                yield Label("Instance name: ", id="proxy-modal-name-label")
                 yield Input(
                     placeholder="Instance name",
                     max_length=20,
                     type="text",
-                    id="name-input",
+                    id="proxy-modal-name-input",
                 )
             with Horizontal():
                 yield Label("Listening address: ", id="address-label")
@@ -115,7 +115,7 @@ class CreateUpdateProxyScreen(ModalScreen[ProxyInstance]):
                 self.address_input.value,
                 int(self.proxy_port_input.value),
                 int(self.api_port_input.value),
-                self.instance.running if self.instance is not None else False
+                self.instance.running if self.instance is not None else False,
             )
             self.dismiss(instance_data)
 

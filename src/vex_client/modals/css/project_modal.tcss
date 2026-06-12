@@ -23,12 +23,12 @@ CreateUpdateProjectScreen {
         padding-left: 1;
     }
 
-    #name-label {
+    #project-modal-name-label {
         width: auto;
         height: 0.15fr;
     }
 
-    #name-input {
+    #project-modal-name-input {
         width: 1fr;
         height: 1;
         border: none;

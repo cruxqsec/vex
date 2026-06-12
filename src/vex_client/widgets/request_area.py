@@ -9,7 +9,7 @@ class RequestAreaContainer(EmptyMessageWidget):
 
     def __init__(self, **kwargs):
         self.text_area = VexTextArea(
-            read_only=True, tab_behavior="focus", id="request-area"
+            read_only=True, tab_behavior="focus", id="history-request-area"
         )
         self.text_area.cursor_blink = False
         super().__init__(

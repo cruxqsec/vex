@@ -46,13 +46,6 @@ class VexHTTPHistoryScreen(Screen):
             show=True,
             priority=True,
         ),
-        Binding(
-            "ctrl+b",
-            "test",
-            "test",
-            show=True,
-            priority=True,
-        ),
     ]
 
     @property
@@ -69,11 +62,11 @@ class VexHTTPHistoryScreen(Screen):
 
     @property
     def request_area(self) -> VexTextArea:
-        return self.query_one("#request-area", VexTextArea)
+        return self.query_one("#history-request-area", VexTextArea)
 
     @property
     def response_area(self) -> VexTextArea:
-        return self.query_one("#response-area", VexTextArea)
+        return self.query_one("#history-response-area", VexTextArea)
 
     def __init__(self, **kwargs) -> None:
         self._req_res_hidden = False
@@ -186,6 +179,3 @@ class VexHTTPHistoryScreen(Screen):
         self.query_one("#text-areas", Horizontal).set_class(
             self._http_table_hidden, "table-hidden"
         )
-
-    def action_test(self) -> None:
-        self.log(self.query_one(VexHTTPTableContainer).styles)

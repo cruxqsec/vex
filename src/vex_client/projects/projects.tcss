@@ -1,8 +1,8 @@
 $border-divider: $secondary-darken-3;
 
-#main-container {
-    margin: 0;
-    padding: 0;
+#projects-main-container {
+    margin-bottom: 1;
+    margin-left: 1;
 }
 
 #project-table-container {
@@ -86,27 +86,31 @@ $border-divider: $secondary-darken-3;
 ActiveProjectWidget {
     width: 1fr;
     height: auto;
-    background: $panel;
-    border: tall $border-divider;
-    padding: 0 1;
 }
 
 #ap-section-title {
-    height: 1;
+    height: 3;
+    border: tall $border-divider;
+    padding: 0 1;
+    margin: 0 1;
+
     color: $error;
-    text-style: b;
+    background: $panel;
+    text-style: bold;
 }
 
 #btn-export {
+    margin-right: 1;
+
     background: $success-muted;
     color: $success;
-    margin-right: 1;
 }
 
 #btn-copy-path {
+    margin: 0 1;
+
     background: $primary-muted;
     color: $primary;
-    margin: 0 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -117,16 +121,18 @@ ActiveProjectCard {
     width: 1fr;
     height: auto;
     background: $success 10%;
-    border: wide $success-muted;
-    padding-top: 1;
+    padding: 1;
+    margin: 0 1;
+    border-left: tall $border-divider;
+    border-right: tall $border-divider;
+    border-bottom: tall $border-divider;
 
     &.not-active {
         background: $error 10%;
-        border: wide $error-muted;
-        padding: 1;
+        height: auto;
 
         & #ap-name {
-            margin-bottom: 0;
+            margin-top: 1;
             color: $error;
         }
 

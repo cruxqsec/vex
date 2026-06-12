@@ -43,7 +43,7 @@ class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
             yield Static("\[/] Search", id="http-search-title")
-            yield Input(id="http-search-bar")
+            yield Input(placeholder="Enter a query...", id="http-search-bar")
         yield VexHTTPTableEmpty(id="http-table-empty")
 
 

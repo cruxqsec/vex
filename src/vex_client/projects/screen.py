@@ -62,7 +62,7 @@ class VexProjectsScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        with Horizontal(id="main-container"):
+        with Horizontal(id="projects-main-container"):
             yield VexProjectTableContainer(id="project-table-container")
             yield ActiveProjectWidget(id="active-project-container")
         yield VexLogsPanel()
@@ -74,7 +74,7 @@ class VexProjectsScreen(Screen):
         self.active_project_card.set_empty()
 
     async def on_screen_resume(self):
-        #self.projects_table.set_loading(True)
+        # self.projects_table.set_loading(True)
         self._fetch_all_projects()
         self._check_active_project()
 
