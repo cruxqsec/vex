@@ -38,6 +38,23 @@ class VexHTTPInterceptTable(VexDataTable, can_focus=True):
         )
 
         # parent constructor
-        super().__init__(
-            percent_columns=intercept_columns, **kwargs
-        )
+        super().__init__(percent_columns=intercept_columns, **kwargs)
+
+    def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
+        try:
+            row_data = self.get_row(row_key)
+        except Exception:
+            return None
+        col_map = {
+            "#": 0,
+            "Host": 1,
+            "Method": 2,
+            "Path": 3,
+            "Query": 4,
+            "Extension": 5,
+        }
+        idx = col_map.get(column_key)
+        if idx is not None and idx < len(row_data):
+            val = row_data[idx]
+            return str(val) if val is not None else None
+        return None

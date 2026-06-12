@@ -24,7 +24,9 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 ### History screen
 
 - [x] Add a search bar
-- [ ] Add copy helper (command palette like)
+- [x] Add copy helper (command palette like)
+- [ ] Search bar with basic query capabilities + custom filed queries
+- [ ] When scope set we apply scope rules
 - [x] Sorting for all columns of History table
 - [x] Syntax highlighting for History table
 - [x] Implement some sort of caching

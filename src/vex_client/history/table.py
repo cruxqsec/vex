@@ -219,8 +219,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def render_cookie(self, has_cookie: bool) -> Text:
         if has_cookie:
-            return Text("", style=self._style_for("cookie-yes"), justify="right")
-        return Text("󰅙", style=self._style_for("cookie-no"), justify="right")
+            return Text("󰸞", style=self._style_for("cookie-yes"), justify="right")
+        return Text("", style=self._style_for("cookie-no"), justify="right")
 
     def time_display(self, timestamp: float) -> Text:
         dt_object = datetime.fromtimestamp(timestamp)
@@ -298,3 +298,47 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         except ValueError:
             self.app.log_vex("Error inserting summary into table. Check logs.", "error")  # type: ignore
             logger.exception("Error inserting full summary into table")
+
+    def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
+        from uuid import UUID
+
+        app = cast("VexApp", self.app)
+        try:
+            flow_id = UUID(row_key)
+        except ValueError:
+            return None
+        if flow_id not in app.history_summary_cache:
+            return None
+        flow = app.history_summary_cache[flow_id]
+
+        match column_key:
+            case "#":
+                return str(flow.id)
+            case "Host":
+                return flow.host
+            case "Method":
+                return flow.method
+            case "Path":
+                return flow.path
+            case "Query":
+                return flow.query
+            case "Status":
+                return str(flow.status_code) if flow.status_code is not None else None
+            case "Size":
+                return (
+                    str(flow.response_size) if flow.response_size is not None else None
+                )
+            case "Title":
+                return flow.http_title
+            case "Time(ms)":
+                return str(flow.duration_ms) if flow.duration_ms is not None else None
+            case "Sent at":
+                if flow.timestamp:
+                    dt = datetime.fromtimestamp(flow.timestamp)
+                    return dt.strftime("%H:%M:%S %d/%m")
+                return None
+            case "Cookie":
+                return flow.cookie
+            case "Extension":
+                return flow.file_extension
+        return None

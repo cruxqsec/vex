@@ -146,3 +146,20 @@ class VexProjectTable(VexDataTable, can_focus=True):
         except CellDoesNotExist:
             self.notify("Error updating cells!", severity="error")
             return
+
+    def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
+        try:
+            row_data = self.get_row(row_key)
+        except RowDoesNotExist:
+            return None
+        col_map = {
+            "Name": 0,
+            "Size": 1,
+            "Created at": 2,
+            "Updated at": 3,
+        }
+        idx = col_map.get(column_key)
+        if idx is not None and idx < len(row_data):
+            val = row_data[idx]
+            return str(val) if val is not None else None
+        return None

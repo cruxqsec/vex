@@ -1,0 +1,32 @@
+CopyPalette {
+    background: black 33%;
+    align: center middle;
+
+    & > Vertical {
+        margin-top: 2;
+        width: 65vw;
+        max-height: 45vh;
+    }
+
+    & #--input {
+        height: 3;
+        border: none;
+        border-left: wide $primary;
+    }
+
+    & #--input CommandInput {
+        height: 3;
+        border: none;
+        padding: 1 2;
+    }
+
+    & #--input SearchIcon {
+        display: none;
+    }
+
+    & CommandList {
+        border: none;
+        border-left: wide $primary;
+        padding-bottom: 1;
+    }
+}
