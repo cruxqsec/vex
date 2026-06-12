@@ -27,7 +27,6 @@ from vex_cli.flow_helper import (
     extract_cookies,
     flow_to_raw_request,
     flow_to_raw_response,
-    has_cookies,
     request_total_size,
     response_total_size,
     uses_tls,

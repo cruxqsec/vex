@@ -30,12 +30,12 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [x] Implement some sort of caching
 - [x] Improve responsivness
 - [x] Add resizable columns
-- [ ] Delete one and all summaries
+- [x] Delete one and all summaries
 
 ### Projects screen
 
 - [x] Improve layout (add buttons, search bar)
-- [ ] Sorting for all columns of Projects table
+- [x] Sorting for all columns of Projects table
 - [ ] Update project time when selected
 - [ ] Delete all projects
 - [ ] Importing/backuping projects
