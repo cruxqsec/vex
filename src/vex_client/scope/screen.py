@@ -14,13 +14,21 @@ from textual.widgets import Button, Input, Static, ListView
 
 from vex_cli.models.pydantic import Scope, ScopeCreate, endpoint_adapter
 
-from vex_client.api.scope_api import create_scope, delete_scope, update_scope
+from vex_client.api.scope_api import (
+    create_scope,
+    delete_scope,
+    update_scope,
+)
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.button import VexButton
 from vex_client.widgets.logs_panel import VexLogsPanel
 from vex_client.widgets.text_area import VexTextArea, VexTextAreaWidget
-from vex_client.scope.list import ScopeList, ScopeListItem, ScopeListWidget
+from vex_client.scope.list import (
+    ScopeList,
+    ScopeListItem,
+    ScopeListWidget,
+)
 
 
 class VexScopeScreen(Screen):
@@ -91,6 +99,22 @@ class VexScopeScreen(Screen):
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
         self.selected_scope_item: ScopeListItem | None = None
+        self.inserted_scopes_ids: set[int] = set()
+
+    def on_screen_resume(self) -> None:
+        app = cast("VexApp", self.app)
+        app._fetch_scopes()
+        self.scope_list.focus()
+
+        if len(self.scope_list) == 0:
+            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+
+    def add_new_scopes_to_list(self) -> None:
+        app = cast("VexApp", self.app)
+        for scope_id, scope in app.scope_cache.items():
+            if scope_id not in self.inserted_scopes_ids:
+                self.scope_list.append_scope(ScopeListItem(scope))
+                self.inserted_scopes_ids.add(scope_id)
 
     def reset(self) -> None:
         self.scope_list.clear()
@@ -100,11 +124,7 @@ class VexScopeScreen(Screen):
         self.out_of_scope_area.text = ""
         self.query_one("#in-out-header", Static).update("+ Add a new scope")
 
-    def on_screen_resume(self) -> None:
-        self.scope_list.focus()
-
-        if len(self.scope_list) == 0:
-            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+    # ------------------- Action logic ------------------------
 
     @on(ListView.Selected)
     async def select_scope(self, event: ListView.Selected) -> None:
@@ -132,8 +152,6 @@ class VexScopeScreen(Screen):
         self.name_input.value = ""
         self.in_scope_area.text = ""
         self.out_of_scope_area.text = ""
-
-    # ------------------- Action logic ------------------------
 
     async def create_duplicate_scope(self, scope: Scope | None = None) -> None:
         scope_to_create = None
@@ -163,6 +181,8 @@ class VexScopeScreen(Screen):
             return
 
         if created_scope:
+            app.scope_cache[created_scope.id] = created_scope
+            self.inserted_scopes_ids.add(created_scope.id)
             created_scope_item = ScopeListItem(created_scope)
             self.scope_list.append_scope(created_scope_item)
             # we select it immediately after creation/duplication
@@ -204,9 +224,14 @@ class VexScopeScreen(Screen):
 
         if not successfully_deleted:
             app.log_vex("Error deleting. Check logs.", severity="error")
+            return
 
+        self.query_one("#in-out-header", Static).update("+ Add a new scope")
+        app.scope_cache.pop(self.selected_scope_item.scope.id, None)
         self.scope_list.pop_scope(self.selected_scope_item)
-        # TODO unset it globally if it's the active scope being used
+
+        if app.active_scope and self.selected_scope_item.id == app.active_scope.id:
+            app.active_scope = None
 
         await self.unfill_scope_data()
         self.selected_scope_item = None
@@ -256,10 +281,13 @@ class VexScopeScreen(Screen):
 
         if successfully_updated:
             self.notify("Scope updated!")
+            app.scope_cache[updated_scope.id] = updated_scope
             self.selected_scope_item.scope = updated_scope
             self.selected_scope_item.query_one("#scope-name", Static).update(
                 updated_scope.name
             )
+            if app.active_scope and app.active_scope.id == updated_scope.id:
+                app.active_scope = updated_scope
         else:
             app.log_vex("Error saving scope. Check logs.", severity="error")
 

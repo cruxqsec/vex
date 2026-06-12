@@ -13,7 +13,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import ListView, Static, Button
+from textual.widgets import ListView, Static, Button, Label
 from textual.containers import Container, Horizontal, Vertical
 
 from vex_cli.bind import try_bind_ports
@@ -94,6 +94,7 @@ class VexProxyScreen(Screen):
         yield VexFooter()
 
     async def on_mount(self):
+        self.footer.query_one("#exit-cmd-key").query_one(".description", Label).update("Exit the app")
         await self.check_for_running_instance()
 
     def on_screen_resume(self) -> None:
