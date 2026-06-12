@@ -174,3 +174,34 @@ async def test_get_raw_response_by_id_not_found(client, mock_raw_db):
     response = await client.get(f"/api/raw/response/{flow_id}")
 
     assert response.status_code == 404
+
+
+# --- Binary data serialization (non-UTF-8 bytes) ---
+
+
+@pytest.mark.asyncio
+async def test_get_raw_request_with_binary_data_returns_200(client, mock_raw_db):
+    flow_id = uuid4()
+    mock_raw_db.get.return_value = RawRequestORM(
+        id=flow_id,
+        data=b"POST /upload HTTP/1.1\r\nHost: example.com\r\n\r\n\x89PNG\r\n\x1a\n",
+    )
+
+    response = await client.get(f"/api/raw/request/{flow_id}")
+
+    assert response.status_code == 200
+    assert response.json()["data"] is not None
+
+
+@pytest.mark.asyncio
+async def test_get_raw_response_with_binary_data_returns_200(client, mock_raw_db):
+    flow_id = uuid4()
+    mock_raw_db.get.return_value = RawResponseORM(
+        id=flow_id,
+        data=b"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n\r\n\x89PNG\r\n\x1a\n",
+    )
+
+    response = await client.get(f"/api/raw/response/{flow_id}")
+
+    assert response.status_code == 200
+    assert response.json()["data"] is not None

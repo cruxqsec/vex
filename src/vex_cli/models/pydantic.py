@@ -14,6 +14,7 @@ from pydantic import (
     IPvAnyAddress,
     AnyUrl,
     TypeAdapter,
+    field_serializer,
 )
 
 from vex_cli.flow_helper import (
@@ -26,7 +27,6 @@ from vex_cli.flow_helper import (
     extract_cookies,
     flow_to_raw_request,
     flow_to_raw_response,
-    has_cookies,
     request_total_size,
     response_total_size,
     uses_tls,
@@ -52,6 +52,7 @@ def check_ip(v: str) -> str:
     _ip_adapter.validate_python(v)
     return v
 
+
 def check_domain(v: str) -> str:
     # TODO improve function
     if "://" in v:
@@ -70,9 +71,12 @@ def check_domain(v: str) -> str:
 
     return v
 
+
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
 DomainStr = Annotated[str, BeforeValidator(check_domain)]
+ScopeEndpoint = Union[Literal[""], IPStr, DomainStr]
+endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
 class VexServerInfo(BaseModel):
     """
@@ -224,8 +228,15 @@ class RawRequest(BaseModel):
 
     model_config = _orm_config
 
-    id: UUID  # flow_id
+    id: UUID
     data: bytes
+
+    @field_serializer("data", when_used="json")
+    @classmethod
+    def _serialize_data(cls, v: bytes | None) -> str | None:
+        if v is None:
+            return None
+        return v.decode("latin-1")
 
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow) -> RawRequest:
@@ -240,22 +251,25 @@ class RawResponse(BaseModel):
 
     model_config = _orm_config
 
-    id: UUID  # flow_id
+    id: UUID
     data: bytes | None
+
+    @field_serializer("data", when_used="json")
+    @classmethod
+    def _serialize_data(cls, v: bytes | None) -> str | None:
+        if v is None:
+            return None
+        return v.decode("latin-1")
 
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow) -> RawResponse:
         return cls(
             id=UUID(flow.id),
-            data=flow_to_raw_response(flow),  # type: ignore — caller ensures response exists
+            data=flow_to_raw_response(flow),
         )
 
     def to_orm(self) -> RawResponseORM:
         return RawResponseORM(**self.model_dump())
-
-
-ScopeEndpoint = Union[Literal[""],IPStr, DomainStr]
-endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
 class Scope(BaseModel):
     """
