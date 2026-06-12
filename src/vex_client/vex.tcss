@@ -120,6 +120,11 @@ VexDataTable {
     & > .datatable--header {
         background: $secondary-darken-2 30%;
     }
+
+    & > .datatable--header-hover {
+        background: $secondary-darken-2 30%;
+    }
+
     & > .datatable--odd-row {
     }
 
@@ -148,6 +153,13 @@ VexDataTable {
 
     & .vex-datatable--cookie-yes { color: $success; }
     & .vex-datatable--cookie-no  { color: $error; }
+
+    & .vex-datatable--sort-asc  { 
+        color: $success; 
+    }
+    & .vex-datatable--sort-desc { 
+        color: $error; 
+    }
 
 }
 

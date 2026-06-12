@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any, Callable
 
 from textual import on
 from textual.app import ComposeResult
@@ -10,8 +11,11 @@ from textual.widgets import Static
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.pydantic import Project
 from vex_client.get_size import get_directory_size, human_readable
-from vex_client.widgets.table import VexDataTable
-from vex_client.widgets.empty_message_widget import EmptyMessageWidget, EmptyStateChanged
+from vex_client.widgets.table import VexDataTable, SortDirection
+from vex_client.widgets.empty_message_widget import (
+    EmptyMessageWidget,
+    EmptyStateChanged,
+)
 from vex_client.widgets.button import VexButton
 
 
@@ -30,7 +34,10 @@ class VexProjectTableContainer(Vertical):
 
     @on(EmptyStateChanged)
     def empty_state_changed(self, event: EmptyStateChanged):
-        self.query_one("#project-table-helper", Static).set_class(event.is_empty, "empty")
+        self.query_one("#project-table-helper", Static).set_class(
+            event.is_empty, "empty"
+        )
+
 
 class VexProjectTableEmpty(EmptyMessageWidget):
     """Container that holds VexProjectTable and an empty message"""
@@ -61,6 +68,24 @@ class VexProjectTable(VexDataTable, can_focus=True):
         )
         # parent constructor
         super().__init__(percent_columns=projects_columns, **kwargs)
+
+    SORT_KEYS: dict[str, Callable[[Project], Any]] = {
+        "Name": lambda p: p.name.lower(),
+        "Created at": lambda p: p.created_at,
+        "Updated at": lambda p: p.updated_at,
+    }
+
+    def sorted_projects(self, projects: list[Project]) -> list[Project]:
+        if self._sort_column_key is None:
+            return projects
+        key_func = self.SORT_KEYS.get(self._sort_column_key)
+        if key_func is None:
+            return projects
+        return sorted(
+            projects,
+            key=key_func,
+            reverse=self._sort_direction == SortDirection.DESCENDING,
+        )
 
     def insert(self, project: Project):
         """Calculate the size of the project directory and insert the row into the table."""

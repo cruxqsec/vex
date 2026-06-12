@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 import logging
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, Any, Callable
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
@@ -19,7 +19,7 @@ from textual.widgets.data_table import CellDoesNotExist
 
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
-from vex_client.widgets.table import VexDataTable, IconColumnCell
+from vex_client.widgets.table import VexDataTable, IconColumnCell, SortDirection
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 
@@ -126,6 +126,33 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         # parent constructor
         super().__init__(percent_columns=columns, **kwargs)
 
+    SORT_KEYS: dict[str, Callable[[FlowSummary], Any]] = {
+        "#": lambda f: f.id,
+        "Host": lambda f: (f.host or "").lower(),
+        "Method": lambda f: f.method or "",
+        "Path": lambda f: (f.path or "").lower(),
+        "Query": lambda f: (f.query or "").lower(),
+        "Status": lambda f: f.status_code or -1,
+        "Size": lambda f: f.response_size or -1,
+        "Title": lambda f: (f.http_title or "").lower(),
+        "Time(ms)": lambda f: f.duration_ms or -1,
+        "Sent at": lambda f: f.timestamp or 0.0,
+        "Cookie": lambda f: bool(f.cookie),
+        "Extension": lambda f: (f.file_extension or "").lower(),
+    }
+
+    def sorted_summaries(self, summaries: list[FlowSummary]) -> list[FlowSummary]:
+        if self._sort_column_key is None:
+            return summaries
+        key_func = self.SORT_KEYS.get(self._sort_column_key)
+        if key_func is None:
+            return summaries
+        return sorted(
+            summaries,
+            key=key_func,
+            reverse=self._sort_direction == SortDirection.DESCENDING,
+        )
+
     def on_mount(self) -> None:
         self.watch(self.app, "theme", self._on_app_theme_changed)
 
@@ -199,10 +226,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         dt_object = datetime.fromtimestamp(timestamp)
         # Format: HH:MM:SS Day/Month
         return Text(dt_object.strftime("%H:%M:%S %d/%m"), style="italic")
-
-    def clear_table(self) -> None:
-        self.clear(columns=False)
-        self.post_message(VexDataTable.RowRemoved())
 
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:

@@ -8,9 +8,6 @@ VexHTTPHistoryScreen {
     width: 1.01fr;
     height: 0.8fr;
 
-    margin: 0 !important;
-    padding: 0 !important;
-
     background: $panel;
     display: block;
     &.hidden { display: none; }
@@ -56,13 +53,12 @@ VexHTTPHistoryScreen {
     display: block;
     &.hidden { display: none; }
     background: $background;
+    border-top: wide $border-divider;
 }
 
 #request-area-container {
     height: 1fr;
     width: 1fr;
-    margin-top: 1;
-    margin-bottom: 1;
     background: $background;
 }
 
@@ -70,7 +66,6 @@ VexHTTPHistoryScreen {
     height: 1fr;
     width: 1fr;
     border: none;
-    margin-top: 1;
     margin-left: 1;
     background: $background;
 

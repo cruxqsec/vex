@@ -25,11 +25,12 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 
 - [x] Add a search bar
 - [ ] Add copy helper (command palette like)
-- [ ] Sorting for all columns of History table
+- [x] Sorting for all columns of History table
 - [x] Syntax highlighting for History table
 - [x] Implement some sort of caching
-- [ ] Improve responsivness
+- [x] Improve responsivness
 - [x] Add resizable columns
+- [ ] Delete one and all summaries
 
 ### Projects screen
 
@@ -54,8 +55,8 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 ### Scope screen
 
 - [x] Redesign layout
-- [ ] Add the ability to add/save(update)/duplicate/delete scopes
-- [ ] Wire with global scope dropdown menu
+- [x] Add the ability to add/save(update)/duplicate/delete scopes
+- [x] Wire with global scope select menu
 
 
 ### Proxy screen

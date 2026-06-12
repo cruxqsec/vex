@@ -358,7 +358,7 @@ class VexApp(App[str]):
 
         # only populate table after full fetch is done
         if self.history_screen is not None:
-            await self.history_screen.populate_table()
+            self.history_screen.populate_table()
 
     # ------------ Scope worker -------------
 

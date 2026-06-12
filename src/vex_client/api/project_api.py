@@ -7,10 +7,15 @@ from vex_cli.models.pydantic import Project, ProjectCreate
 logger = logging.getLogger(__name__)
 
 
-async def get_all_projects(host: str, port: int) -> list[Project]:
+async def get_all_projects(
+    host: str, port: int, skip: int = 0, size: int = 50
+) -> list[Project]:
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://{host}:{port}/api/projects/")
+            response = await client.get(
+                f"http://{host}:{port}/api/projects/",
+                params={"skip": skip, "size": size},
+            )
             if response.status_code == 200:
                 result = [
                     Project.model_validate(project) for project in response.json()
