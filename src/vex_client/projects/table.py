@@ -24,7 +24,7 @@ class VexProjectTableContainer(Vertical):
         with Horizontal(id="project-table-header"):
             yield Static("── Projects ───", id="project-table-title")
             yield VexButton("\[c] Create", id="btn-create", classes="btn")
-            yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+            yield VexButton("\[i] Import", id="btn-import", classes="btn")
             yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
         yield VexProjectTableEmpty(id="project-table-empty")
         yield Static("↵ enter to select a project", id="project-table-helper")

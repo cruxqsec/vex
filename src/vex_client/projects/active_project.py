@@ -23,16 +23,12 @@ class ActiveProjectCard(Widget):
         with Horizontal(classes="ap-row"):
             yield Static("Replays", classes="ap-label")
             yield Static("", id="ap-replays", classes="ap-value")
-        with Horizontal(classes="ap-row"):
-            yield VexButton("\[e] Export", id="btn-export", classes="btn")
-            yield VexButton("\[p] Copy path", id="btn-copy-path", classes="btn")
+        with Horizontal(classes="button-row"):
+            yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+            yield VexButton("\[x] Export", id="btn-export", classes="btn")
 
-    def set_project(self, name: str, flows: str, scopes: str, replays: str) -> None:
+    def set_project_name(self, name: str) -> None:
         self.query_one("#ap-name", Static).update(f"● {name}")
-        self.query_one("#ap-flows", Static).update(flows)
-        self.query_one("#ap-scopes", Static).update(scopes)
-        self.query_one("#ap-replays", Static).update(replays)
-
         self.remove_class("not-active")
 
     def set_empty(self) -> None:

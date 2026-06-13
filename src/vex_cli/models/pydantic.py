@@ -107,10 +107,8 @@ class ResponseStatus(BaseModel):
     status: Literal["Success", "Failure"]
     msg: str
 
-
 class CountResponse(BaseModel):
     count: int
-
 
 class Project(BaseModel):
     """Vex project object."""

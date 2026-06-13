@@ -25,20 +25,6 @@ from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 logger = logging.getLogger(__name__)
 
-EXT_TO_ICON = {
-    ".js": "",
-    ".ts": "",
-    ".css": "",
-    ".html": "",
-    ".json": "",
-    ".php": "",
-    ".png": "󰸭",
-    ".jpg": "󰈥",
-    ".svg": "󰜡",
-    ".pdf": "󰈦",
-}
-
-
 class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
@@ -52,26 +38,24 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
 
     def __init__(self, **kwargs):
         # custom icons for columns
-        brown_style = Style(color=Color.from_rgb(139, 69, 19))
+        #brown_style = Style(color=Color.from_rgb(139, 69, 19))
+        brown_style = Style(color=Color.from_rgb(181,101,29))
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
-        )
-        self.file_extension_column = IconColumnCell(
-            Text("󰈔", style="bold white", justify="right"), "Extension"
         )
         history_columns = (
             ("#", 3),
             ("Host", 18),
             ("Method", 5),
             ("Path", 18),
-            ("Query", 15),
+            ("Query", 10),
             ("Status", 5),
-            ("Size", 4),
+            ("Size", 7),
             ("Title", 8),
             ("Time(ms)", 8),
-            ("Sent at", 10),
+            ("Sent at", 12),
             (self.has_cookie_column, 2),
-            (self.file_extension_column, 2),
+            ("Ext", 3),
         )
 
         self.table = VexHTTPTable(
@@ -171,9 +155,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             row: FlowSummary = app.history_summary_cache[flow_id]
 
             self.update_cell(str(flow_id), "Method", self.render_method(row.method))
-            self.update_cell(
-                str(flow_id), "Extension", self.render_extension(row.file_extension)
-            )
 
             if row.status_code:
                 self.update_cell(
@@ -193,8 +174,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def render_method(self, method: str) -> Text:
         component = f"method-{method.lower()}"
         if f"vex-datatable--{component}" not in self.COMPONENT_CLASSES:
-            return Text(method, justify="left")
-        return Text(method, style=self._style_for(component), justify="left")
+            return Text(method, justify="right")
+        return Text(method, style=self._style_for(component), justify="right")
 
     def render_status(self, status: int | None) -> Text:
         if status is None:
@@ -206,16 +187,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         else:
             component = "status-error"
         return Text(str(status), style=self._style_for(component), justify="right")
-
-    def render_extension(self, ext: str | None) -> Text:
-        if not ext:
-            return Text("󰡯", justify="right")
-        component = f"ext-{ext.lower().lstrip('.')}"
-        if ext in EXT_TO_ICON:
-            return Text(
-                EXT_TO_ICON[ext], style=self._style_for(component), justify="right"
-            )
-        return Text("󰡯", justify="right")
 
     def render_cookie(self, has_cookie: bool) -> Text:
         if has_cookie:
@@ -241,7 +212,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 None,
                 None,
                 None,  # ResponseSummmary field are empty
-                self.render_extension(request_summary.file_extension),
+                request_summary.file_extension,
                 key=str(request_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())
@@ -291,7 +262,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 full_summary.duration_ms,
                 self.time_display(full_summary.timestamp),
                 self.render_cookie(bool(full_summary.cookie)),
-                self.render_extension(full_summary.file_extension),
+                full_summary.file_extension,
                 key=str(full_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())

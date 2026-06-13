@@ -1,6 +1,7 @@
 $border-divider: $secondary-darken-3;
 
 #projects-main-container {
+    margin-top: 3;
     margin-bottom: 1;
     margin-left: 1;
 }
@@ -8,7 +9,7 @@ $border-divider: $secondary-darken-3;
 #project-table-container {
     background: transparent;
     width: 1.5fr;
-    height: 1fr;
+    height: 0.8fr;
     border-right: tall $border-divider;
     border-left: tall $border-divider;
     border-bottom: tall $border-divider;
@@ -85,12 +86,12 @@ $border-divider: $secondary-darken-3;
 
 ActiveProjectWidget {
     width: 1fr;
-    height: auto;
+    height: 1fr;
 }
 
 #ap-section-title {
     height: 3;
-    border: tall $surface;
+    border: tall $border-divider;
     padding: 0 1;
     margin: 0 1;
 
@@ -101,9 +102,14 @@ ActiveProjectWidget {
 
 #btn-export {
     margin-right: 1;
+    background: $accent-muted;
+    color: $accent;
+}
 
-    background: $success-muted;
-    color: $success;
+#btn-import {
+    margin-right: 1;
+    background: $warning-muted;
+    color: $warning;
 }
 
 #btn-copy-path {
@@ -123,9 +129,9 @@ ActiveProjectCard {
     background: $success 10%;
     padding: 1;
     margin: 0 1;
-    border-left: tall $surface;
-    border-right: tall $surface;
-    border-bottom: tall $surface;
+    border-left: tall $border-divider;
+    border-right: tall $border-divider;
+    border-bottom: tall $border-divider;
 
     &.not-active {
         background: $error 10%;
@@ -149,15 +155,22 @@ ActiveProjectCard {
 }
 
 #ap-rule {
-    color: $secondary;
+    color: $success-muted;
     margin: 0;
 }
 
 .ap-row {
     width: 1fr;
     height: 1;
-    margin-bottom: 1;
     align: left middle;
+
+}
+
+.button-row {
+    width: 1fr;
+    height: 1;
+    align: left middle;
+    margin-top: 1;
 
 }
 
@@ -173,7 +186,3 @@ ActiveProjectCard {
     text-align: right;
     height: 1;
 }
-
-.ap-green  { color: $success; }
-.ap-yellow { color: $warning; }
-.ap-blue   { color: $primary; }
