@@ -144,8 +144,7 @@ ActiveProjectCard {
 
         & #ap-rule { display: none;}
         & .ap-row { display: none;}
-        & #btn-export { display: none;}
-        & #btn-copy-path { display: none;}
+        & .button-row { display: none;}
     }
 }
 

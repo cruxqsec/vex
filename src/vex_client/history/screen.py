@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
+    from vex_cli.models.pydantic import FlowSummary, Scope
 
 from textual import on, work
 from textual.binding import Binding
@@ -106,10 +107,30 @@ class VexHTTPHistoryScreen(Screen):
 
         app: VexApp = cast("VexApp", self.app)
         app.history_screen = self
+        self.watch(app, "active_scope", self._on_scope_changed, init=False)
         self.populate_table()
 
     def on_unmount(self) -> None:
         cast("VexApp", self.app).history_screen = None
+
+    def _on_scope_changed(self, scope: "Scope | None") -> None:
+        self.populate_table()
+
+    def _filter_by_scope(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
+        app = cast("VexApp", self.app)
+        scope = app.active_scope
+        if scope is None:
+            return summaries
+        if not scope.allow_endpoints and not scope.deny_endpoints:
+            return summaries
+        filtered = []
+        for summary in summaries:
+            if summary.host in scope.deny_endpoints:
+                continue
+            if scope.allow_endpoints and summary.host not in scope.allow_endpoints:
+                continue
+            filtered.append(summary)
+        return filtered
 
     async def on_screen_resume(self) -> None:
         self.http_table.focus()
@@ -130,9 +151,10 @@ class VexHTTPHistoryScreen(Screen):
         self.request_area.clear()
         self.response_area.clear()
 
-        summaries = self.http_table.sorted_summaries(
+        summaries = self._filter_by_scope(
             list(cast("VexApp", self.app).history_summary_cache.values())
         )
+        summaries = self.http_table.sorted_summaries(summaries)
 
         BATCH_SIZE = 200
         try:
@@ -168,7 +190,6 @@ class VexHTTPHistoryScreen(Screen):
         self._selected_summary_uuid = summary_id
         self.fetch_raw_summaries(summary_id)
 
-        
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
     async def fetch_raw_summaries(self, summary_id: UUID) -> None:
         app = cast("VexApp", self.app)
