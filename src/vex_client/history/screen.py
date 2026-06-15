@@ -32,6 +32,18 @@ from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 from vex_client.widgets.table import VexDataTable
 
+_SEARCH_FIELD_MAP: dict[str, str] = {
+    "host": "host",
+    "method": "method",
+    "path": "path",
+    "query": "query",
+    "status": "status_code",
+    "mime": "mime",
+    "title": "http_title",
+    "ext": "file_extension",
+    "cookie": "cookie",
+}
+
 
 class VexHTTPHistoryScreen(Screen):
     CSS_PATH = "http_history.tcss"
@@ -116,6 +128,11 @@ class VexHTTPHistoryScreen(Screen):
     def _on_scope_changed(self, scope: "Scope | None") -> None:
         self.populate_table()
 
+    @on(Input.Submitted, "#http-search-bar")
+    def _on_search_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.populate_table()
+
     def _filter_by_scope(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
         app = cast("VexApp", self.app)
         scope = app.active_scope
@@ -130,6 +147,55 @@ class VexHTTPHistoryScreen(Screen):
             if scope.allow_endpoints and summary.host not in scope.allow_endpoints:
                 continue
             filtered.append(summary)
+        return filtered
+
+    def _parse_query(self, query: str) -> list[tuple[str | None, str]]:
+        terms: list[tuple[str | None, str]] = []
+        for token in query.split():
+            if ":" in token:
+                prefix, _, value = token.partition(":")
+                prefix_lower = prefix.lower()
+                if prefix_lower in _SEARCH_FIELD_MAP and value:
+                    terms.append((prefix_lower, value.lower()))
+            else:
+                terms.append((None, token.lower()))
+        return terms
+
+    def _filter_by_search(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
+        query = self.search_bar.value.strip()
+        if not query:
+            return summaries
+        terms = self._parse_query(query)
+        if not terms:
+            return summaries
+        filtered = []
+        for summary in summaries:
+            match = True
+            for field_prefix, value in terms:
+                if field_prefix is not None:
+                    field_name = _SEARCH_FIELD_MAP[field_prefix]
+                    field_value = getattr(summary, field_name, None)
+                    if field_value is None:
+                        match = False
+                        break
+                    if value not in str(field_value).lower():
+                        match = False
+                        break
+                else:
+                    found = False
+                    for field_name in _SEARCH_FIELD_MAP.values():
+                        field_value = getattr(summary, field_name, None)
+                        if (
+                            field_value is not None
+                            and value in str(field_value).lower()
+                        ):
+                            found = True
+                            break
+                    if not found:
+                        match = False
+                        break
+            if match:
+                filtered.append(summary)
         return filtered
 
     async def on_screen_resume(self) -> None:
@@ -154,6 +220,7 @@ class VexHTTPHistoryScreen(Screen):
         summaries = self._filter_by_scope(
             list(cast("VexApp", self.app).history_summary_cache.values())
         )
+        summaries = self._filter_by_search(summaries)
         summaries = self.http_table.sorted_summaries(summaries)
 
         BATCH_SIZE = 200
