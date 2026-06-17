@@ -16,6 +16,7 @@ from textual.widgets import Static, Input
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets.data_table import CellDoesNotExist
+from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
@@ -25,11 +26,60 @@ from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 logger = logging.getLogger(__name__)
 
+
+_SEARCH_PREFIXES = [
+    "host:",
+    "method:",
+    "path:",
+    "query:",
+    "status:",
+    "mime:",
+    "title:",
+    "ext:",
+    "cookie:",
+]
+
+
+class SearchFieldAutoComplete(AutoComplete):
+    def get_search_string(self, target_state: TargetState) -> str:
+        text_before_cursor = target_state.text[: target_state.cursor_position]
+        last_space = text_before_cursor.rfind(" ")
+        if last_space == -1:
+            return text_before_cursor
+        return text_before_cursor[last_space + 1 :]
+
+    def apply_completion(self, value: str, state: TargetState) -> None:
+        target = self.target
+        text = target.value
+        cursor_pos = state.cursor_position
+        text_before_cursor = text[:cursor_pos]
+        text_after_cursor = text[cursor_pos:]
+        last_space = text_before_cursor.rfind(" ")
+        if last_space == -1:
+            new_text = value + text_after_cursor
+            new_cursor = len(value)
+        else:
+            new_text = text_before_cursor[: last_space + 1] + value + text_after_cursor
+            new_cursor = last_space + 1 + len(value)
+        with self.prevent(Input.Changed):
+            target.value = new_text
+            target.cursor_position = new_cursor
+        new_target_state = self._get_target_state()
+        self._rebuild_options(
+            new_target_state, self.get_search_string(new_target_state)
+        )
+
+
 class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
             yield Static("\[/] Search", id="http-search-title")
-            yield Input(placeholder="Enter a query...", id="http-search-bar")
+            search_input = Input(placeholder="Enter a query... (host:example.com method:post status:200 string-to-match)", id="http-search-bar")
+            yield search_input
+        yield SearchFieldAutoComplete(
+            search_input,
+            candidates=[DropdownItem(main=prefix) for prefix in _SEARCH_PREFIXES],
+        )
         yield VexHTTPTableEmpty(id="http-table-empty")
 
 
@@ -38,8 +88,8 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
 
     def __init__(self, **kwargs):
         # custom icons for columns
-        #brown_style = Style(color=Color.from_rgb(139, 69, 19))
-        brown_style = Style(color=Color.from_rgb(181,101,29))
+        # brown_style = Style(color=Color.from_rgb(139, 69, 19))
+        brown_style = Style(color=Color.from_rgb(181, 101, 29))
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
         )

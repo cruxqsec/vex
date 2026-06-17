@@ -373,6 +373,11 @@ class VexHTTPHistoryScreen(Screen):
 
     # ----------------- Focus logic ------------------------
 
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action == "focus_search" and self.search_bar.has_focus:
+            return False
+        return True
+
     def action_focus_next_skip_search(self) -> None:
         max_attempts = len(self.screen.focus_chain)
         for _ in range(max_attempts):

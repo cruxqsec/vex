@@ -80,7 +80,7 @@ endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
 class VexServerInfo(BaseModel):
     """
-    Object with the server information of vex_cli.
+    Object with the vex-cli server information.
     """
 
     server_address: IPStr
@@ -271,8 +271,7 @@ class RawResponse(BaseModel):
 
 class Scope(BaseModel):
     """
-    Scope set on the proxy.
-    Composed of allow and deny endpoints.
+    Scope with allow and deny endpoints.
     """
 
     id: int

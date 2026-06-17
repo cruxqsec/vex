@@ -93,3 +93,26 @@ VexHTTPHistoryScreen {
     margin: 0 !important;
 }
 
+
+AutoComplete {
+    /* Customize the dropdown */
+    & AutoCompleteList {
+        max-height: 6;  /* The number of lines before scrollbars appear */
+        color: $text;  /* The color of the text */
+        background: $surface;  /* The background color of the dropdown */
+        border-left: wide $error-muted;  /* The color of the left border */
+    }
+
+    /* Customize the matching substring highlighting */
+    & .autocomplete--highlight-match {
+        color: $text-accent;
+        text-style: bold;
+    }
+
+    /* Customize the text the cursor is over */
+    & .option-list--option-highlighted {
+        color: $text-success;
+        background: $error 50%;  /* 50% opacity, blending into background */
+        text-style: italic;  
+    }
+}

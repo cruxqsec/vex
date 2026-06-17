@@ -19,8 +19,12 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [x] VexTextArea vim normal/visual mode (read only first)
 - [ ] VexTextArea vim insert mode
 - [ ] VexTextArea search mode
+- [ ] VexTextArea hex editor
+- [ ] VexTextArea pretty mode
+- [ ] VexTextArea optimization (disable sytnax highlighting for bodies)
 - [ ] Add help screens (per screen and per widget)
 - [ ] Muted buttons for functionality that can't be used at the moment
+- [ ] Browser support
 
 ### History screen
 
