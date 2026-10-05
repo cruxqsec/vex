@@ -1,30 +1,31 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Literal, Union
 import json
+import time
+from datetime import datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mitmproxy import http
 from pydantic import (
+    AnyUrl,
     BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
     IPvAnyAddress,
-    AnyUrl,
     TypeAdapter,
     field_serializer,
 )
 
 from vex_cli.flow_helper import (
     calculate_response_time_ms,
+    extract_cookies,
     extract_extension,
     extract_http_title,
     extract_mime,
     extract_query,
     extract_url_path,
-    extract_cookies,
     flow_to_raw_request,
     flow_to_raw_response,
     request_total_size,
@@ -32,11 +33,11 @@ from vex_cli.flow_helper import (
     uses_tls,
 )
 from vex_cli.models.orm import (
+    ProjectORM,
     RawRequestORM,
     RawResponseORM,
     RequestSummaryORM,
     ResponseSummaryORM,
-    ProjectORM,
     ScopeORM,
 )
 
@@ -75,8 +76,9 @@ def check_domain(v: str) -> str:
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
 DomainStr = Annotated[str, BeforeValidator(check_domain)]
-ScopeEndpoint = Union[Literal[""], IPStr, DomainStr]
+ScopeEndpoint = Literal[""] | IPStr | DomainStr
 endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
+
 
 class VexServerInfo(BaseModel):
     """
@@ -107,8 +109,10 @@ class ResponseStatus(BaseModel):
     status: Literal["Success", "Failure"]
     msg: str
 
+
 class CountResponse(BaseModel):
     count: int
+
 
 class Project(BaseModel):
     """Vex project object."""
@@ -128,6 +132,19 @@ class ProjectCreate(BaseModel):
     """Used when creating or updating a project — id and timestamps are DB-generated."""
 
     name: str
+
+
+CaptureErrorKind = Literal["parse", "database", "broadcast", "unknown"]
+
+
+class CaptureErrorEvent(BaseModel):
+    """Pushed over /ws/history when the capture path drops a flow."""
+
+    type: Literal["capture_error"] = "capture_error"
+    kind: CaptureErrorKind = "unknown"
+    message: str
+    host: str | None = None
+    timestamp: float = Field(default_factory=time.time)
 
 
 class RequestSummary(BaseModel):
@@ -194,6 +211,9 @@ class ResponseSummary(BaseModel):
 
     def to_orm(self) -> ResponseSummaryORM:
         return ResponseSummaryORM(**self.model_dump())
+
+
+FlowEvent = RequestSummary | ResponseSummary | CaptureErrorEvent
 
 
 # for querying the full summaries from db
@@ -269,6 +289,7 @@ class RawResponse(BaseModel):
     def to_orm(self) -> RawResponseORM:
         return RawResponseORM(**self.model_dump())
 
+
 class Scope(BaseModel):
     """
     Scope with allow and deny endpoints.
@@ -289,7 +310,7 @@ class Scope(BaseModel):
         )
 
     @classmethod
-    def from_orm(cls, orm: ScopeORM) -> "Scope":
+    def from_orm(cls, orm: ScopeORM) -> Scope:
         raw = json.loads(orm.definitions) if orm.definitions else {}
         return cls(
             id=orm.id,

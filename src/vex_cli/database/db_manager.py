@@ -69,23 +69,55 @@ class DatabaseManager:
                 await self._raw_db.close()
                 self._raw_db = None
 
-    async def switch_project_databases(self, new_db_path: Path):
-        """Switches and initializes another project database."""
-        await self.close_project_databases()
+    def active_databases(self) -> tuple[SummariesDatabase, RawDatabase] | None:
+        """Both project databases as one atomic snapshot, or None if no project is active."""
+        summaries, raw = self._summaries_db, self._raw_db
+        if summaries is None or raw is None:
+            return None
+        return summaries, raw
 
-        self._summaries_db = SummariesDatabase(new_db_path / "main.db")
-        self._raw_db = RawDatabase(new_db_path / "raw.db")
+    async def switch_project_databases(self, new_db_path: Path) -> None:
+        """Switches to another project's databases."""
+        async with self._lock:
+            new_summaries = SummariesDatabase(new_db_path / "main.db")
+            new_raw = RawDatabase(new_db_path / "raw.db")
+            try:
+                results = await asyncio.gather(
+                    new_summaries.initialize(),
+                    new_raw.initialize(),
+                    return_exceptions=True,
+                )
+                failures = [r for r in results if isinstance(r, BaseException)]
+                if failures:
+                    raise failures[0]
+            except Exception:
+                await asyncio.gather(
+                    new_summaries.close(), new_raw.close(), return_exceptions=True
+                )
+                raise
 
-        await asyncio.gather(self._summaries_db.initialize(), self._raw_db.initialize())
+            old_summaries, old_raw = self._summaries_db, self._raw_db
+            self._summaries_db = new_summaries
+            self._raw_db = new_raw
+
+            if old_summaries:
+                await old_summaries.close()
+            if old_raw:
+                await old_raw.close()
 
     async def close(self) -> None:
-        """Close all databases."""
-        tasks = []
-        for db in [self._projects_db, self._raw_db, self._summaries_db]:
-            if db:
-                tasks.append(db.close())
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        """Close all databases and reset project state."""
+        async with self._lock:
+            databases = [
+                db
+                for db in (self._projects_db, self._summaries_db, self._raw_db)
+                if db
+            ]
+            results = await asyncio.gather(
+                *(db.close() for db in databases), return_exceptions=True
+            )
+            self._summaries_db = None
+            self._raw_db = None
             for result in results:
                 if isinstance(result, Exception):
                     logger.error(f"Failed to close database: {result}")

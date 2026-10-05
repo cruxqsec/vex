@@ -260,12 +260,33 @@ async def test_select_project_returns_202(client, mock_state_obj, mocker):
     mock_state_obj.get_db_manager().projects_db.get = AsyncMock(return_value=project)
     mock_state_obj.get_db_manager().switch_project_databases = AsyncMock()
     mock_state_obj.set_active_project = AsyncMock()
+    mocker.patch("pathlib.Path.is_dir", return_value=True)
 
     response = await client.post(f"/api/projects/select/{project_id}")
 
     assert response.status_code == 202
     assert response.json()["status"] == "Success"
     mock_state_obj.set_active_project.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_select_project_missing_directory_returns_404(
+    client, mock_state_obj, mocker, tmp_path
+):
+    project_id = uuid4()
+    project = make_project_orm(project_id, name="Ghost Project")
+    mock_state_obj.get_db_manager().projects_db.get = AsyncMock(return_value=project)
+    mock_state_obj.get_db_manager().switch_project_databases = AsyncMock()
+    mock_state_obj.set_active_project = AsyncMock()
+    mocker.patch(
+        "vex_cli.api.projects_routes.vex_projects_directory", return_value=tmp_path
+    )
+
+    response = await client.post(f"/api/projects/select/{project_id}")
+
+    assert response.status_code == 404
+    mock_state_obj.get_db_manager().switch_project_databases.assert_not_called()
+    mock_state_obj.set_active_project.assert_not_called()
 
 
 @pytest.mark.asyncio

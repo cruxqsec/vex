@@ -75,21 +75,83 @@ async def test_initialize_creates_engine(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_catch_exception_create_tables(tmp_path):
-    database = _TestModelDB(db_path=tmp_path / "test.db")
-    assert database._engine is None
+async def test_failed_initialize_leaves_no_engine_and_retry_works(tmp_path, mocker):
+    """A failed initialize() must not leave an engine set, and a retry must
+    actually re-run table creation instead of returning early."""
+    real_create_all = Base.metadata.create_all
+    calls = 0
+
+    def flaky_create_all(sync_conn, tables=None):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SQLAlchemyError("table creation failed")
+        return real_create_all(sync_conn, tables=tables)
+
+    mocker.patch.object(Base.metadata, "create_all", side_effect=flaky_create_all)
+
+    db = _TestModelDB(db_path=tmp_path / "test.db")
 
     with pytest.raises(DatabaseError):
-        await database._create_tables()
+        await db.initialize()
+
+    assert db._engine is None
+    assert db._session_maker is None
+
+    await db.initialize()  # retry
+
+    assert db._engine is not None
+    item = await db.create(
+        _TestModelORM(
+            uuid=uuid4(), name="x", blob=b"b", date_time=datetime.now()
+        )
+    )
+    assert item.id is not None
+    await db.close()
 
 
 @pytest.mark.asyncio
-async def test_catch_exception_wal_mode(tmp_path):
-    database = _TestModelDB(db_path=tmp_path / "test.db")
-    assert database._engine is None
+async def test_failed_initialize_disposes_engine(tmp_path, mocker):
+    mock_dispose = mocker.patch.object(AsyncEngine, "dispose", new_callable=AsyncMock)
+    mocker.patch.object(
+        Base.metadata, "create_all", side_effect=SQLAlchemyError("boom")
+    )
+
+    db = _TestModelDB(db_path=tmp_path / "test.db")
 
     with pytest.raises(DatabaseError):
-        await database._enable_wal()
+        await db.initialize()
+
+    mock_dispose.assert_called_once()
+    assert db._engine is None
+
+
+@pytest.mark.asyncio
+async def test_failed_wal_leaves_no_engine_and_retry_works(tmp_path, mocker):
+    db = _TestModelDB(db_path=tmp_path / "test.db")
+    real_wal = db._enable_wal
+    calls = 0
+
+    async def flaky_wal(engine):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SQLAlchemyError("wal failed")
+        await real_wal(engine)
+
+    mocker.patch.object(db, "_enable_wal", side_effect=flaky_wal)
+
+    with pytest.raises(DatabaseError):
+        await db.initialize()
+
+    assert db._engine is None
+
+    await db.initialize()  # retry
+
+    async with db._engine.connect() as conn:
+        mode = (await conn.execute(text("PRAGMA journal_mode;"))).scalar()
+    await db.close()
+    assert mode == "wal"
 
 
 @pytest.mark.asyncio
@@ -343,6 +405,22 @@ async def test_session_raises_validation_error_on_duplicate(db, make_test_model)
 
     with pytest.raises(ValidationError, match="Record already exists"):
         await db.create(make_test_model(uuid=shared_uuid))
+
+
+@pytest.mark.asyncio
+async def test_get_all_pages_are_ordered_and_complete(db, make_test_model):
+    """Pagination must return every row exactly once, in ascending id order."""
+    for _ in range(5):
+        await db.create(make_test_model())
+
+    page1 = await db.get_all(_TestModelORM, skip=0, size=2)
+    page2 = await db.get_all(_TestModelORM, skip=2, size=2)
+    page3 = await db.get_all(_TestModelORM, skip=4, size=2)
+
+    ids = [item.id for item in page1 + page2 + page3]
+
+    assert ids == sorted(ids)
+    assert len(set(ids)) == 5
 
 
 @pytest.mark.asyncio

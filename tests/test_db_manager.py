@@ -1,8 +1,11 @@
+import asyncio
+
 import pytest
 from unittest.mock import AsyncMock
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.errors import DatabaseError
+from vex_cli.models.orm import RequestSummaryORM
 
 
 @pytest.fixture
@@ -126,12 +129,14 @@ async def test_switch_does_not_close_if_no_previous(manager, tmp_path):
 @pytest.mark.asyncio
 async def test_close_closes_all_databases(manager, tmp_path):
     await manager.switch_project_databases(tmp_path)
+    summaries = manager._summaries_db
+    raw = manager._raw_db
 
     await manager.close()
 
     manager._projects_db.close.assert_called_once()
-    manager._summaries_db.close.assert_called_once()
-    manager._raw_db.close.assert_called_once()
+    summaries.close.assert_called_once()
+    raw.close.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_close_without_project_databases(manager):
@@ -142,8 +147,124 @@ async def test_close_without_project_databases(manager):
 @pytest.mark.asyncio
 async def test_close_continues_if_one_db_fails(manager, tmp_path):
     await manager.switch_project_databases(tmp_path)
-    manager._summaries_db.close.side_effect = DatabaseError("failed")
+    summaries = manager._summaries_db
+    raw = manager._raw_db
+    summaries.close.side_effect = DatabaseError("failed")
 
     await manager.close()  # should not raise
 
-    manager._raw_db.close.assert_called_once()
+    raw.close.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_close_resets_project_database_state(manager, tmp_path):
+    await manager.switch_project_databases(tmp_path)
+
+    await manager.close()
+
+    assert manager._summaries_db is None
+    assert manager._raw_db is None
+    assert not manager.is_project_active
+
+
+# ==================== active_databases snapshot ====================
+
+
+@pytest.mark.asyncio
+async def test_active_databases_returns_none_before_switch(manager):
+    assert manager.active_databases() is None
+
+
+@pytest.mark.asyncio
+async def test_active_databases_returns_matching_pair(manager, tmp_path):
+    await manager.switch_project_databases(tmp_path)
+
+    snapshot = manager.active_databases()
+
+    assert snapshot == (manager._summaries_db, manager._raw_db)
+
+
+@pytest.mark.asyncio
+async def test_active_databases_returns_none_after_close(manager, tmp_path):
+    await manager.switch_project_databases(tmp_path)
+
+    await manager.close()
+
+    assert manager.active_databases() is None
+
+
+# ==================== switch failure / atomicity ====================
+
+
+@pytest.mark.asyncio
+async def test_switch_failure_keeps_previous_databases(manager, tmp_path, mocker):
+    await manager.switch_project_databases(tmp_path)
+    old_summaries = manager._summaries_db
+    old_raw = manager._raw_db
+
+    failing_db = AsyncMock()
+    failing_db.initialize.side_effect = DatabaseError("unable to open database file")
+    mocker.patch(
+        "vex_cli.database.db_manager.SummariesDatabase", return_value=failing_db
+    )
+
+    with pytest.raises(DatabaseError):
+        await manager.switch_project_databases(tmp_path / "missing")
+
+    assert manager._summaries_db is old_summaries
+    assert manager._raw_db is old_raw
+    assert manager.is_project_active
+    failing_db.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_switch_failure_keeps_old_project_usable(tmp_path):
+    manager = DatabaseManager()
+    good_project = tmp_path / "good"
+    good_project.mkdir()
+    await manager.switch_project_databases(good_project)
+
+    with pytest.raises(DatabaseError):
+        await manager.switch_project_databases(tmp_path / "missing-dir")
+
+    assert manager._summaries_db.db_path.parent == good_project
+    assert manager.is_project_active
+    assert await manager.summaries_db.count(RequestSummaryORM) == 0
+
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_switch_failure_closes_both_candidates(manager, tmp_path, mocker):
+    failing_db = AsyncMock()
+    failing_db.initialize.side_effect = DatabaseError("init failed")
+    mocker.patch(
+        "vex_cli.database.db_manager.SummariesDatabase", return_value=failing_db
+    )
+    raw_db = AsyncMock()
+    mocker.patch("vex_cli.database.db_manager.RawDatabase", return_value=raw_db)
+
+    with pytest.raises(DatabaseError):
+        await manager.switch_project_databases(tmp_path)
+
+    failing_db.close.assert_called_once()
+    raw_db.close.assert_called_once()
+    assert not manager.is_project_active
+
+
+@pytest.mark.asyncio
+async def test_concurrent_switches_keep_database_pair_consistent(tmp_path):
+    manager = DatabaseManager()
+    project_a = tmp_path / "a"
+    project_b = tmp_path / "b"
+    project_a.mkdir()
+    project_b.mkdir()
+
+    await asyncio.gather(
+        manager.switch_project_databases(project_a),
+        manager.switch_project_databases(project_b),
+    )
+
+    assert manager.is_project_active
+    assert manager._summaries_db.db_path.parent == manager._raw_db.db_path.parent
+
+    await manager.close()

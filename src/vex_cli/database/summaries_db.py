@@ -53,6 +53,7 @@ class SummariesDatabase(BaseDatabase):
                     ResponseSummaryORM,
                     RequestSummaryORM.flow_id == ResponseSummaryORM.flow_id,
                 )
+                .order_by(RequestSummaryORM.timestamp, RequestSummaryORM.id)
                 .offset(skip)
                 .limit(size)
             )

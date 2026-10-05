@@ -12,12 +12,12 @@ from vex_cli.api.raw_routes import (
     raw_request_router,
     raw_response_router,
 )
+from vex_cli.api.scope_routes import scope_router
 from vex_cli.api.summary_routes import (
     request_summary_router,
     response_summary_router,
     summary_router,
 )
-from vex_cli.api.scope_routes import scope_router
 from vex_cli.api.websockets import websocket_router
 from vex_cli.errors import AppException
 from vex_cli.state import VexState
@@ -51,7 +51,8 @@ async def start_fastapi(app_state: VexState):
         logger.info("FastAPI server shutdown requested.")
 
 
-# we can't this error so when a user does CTRL+C there is no traceback thrown at him
+# we don't use the context manager 
+# it's here just for when a user does CTRL+C so there is no traceback thrown at him
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:

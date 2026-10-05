@@ -1,11 +1,11 @@
+import asyncio
 import logging
-from asyncio import CancelledError
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from vex_cli.dependencies import get_flow_history
-from vex_cli.flow_history import FlowHistory
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary
+from vex_cli.flow_history import FlowEvent, FlowHistory
 
 logger = logging.getLogger(__name__)
 
@@ -19,34 +19,32 @@ async def ping(websocket: WebSocket):
         await websocket.receive()
     except WebSocketDisconnect:
         pass
-    except CancelledError:
+    except asyncio.CancelledError:
         pass
 
 
 @websocket_router.websocket("/history")
 async def history_websocket(
-    websocket: WebSocket, flow_history: FlowHistory = Depends(get_flow_history)
+    websocket: WebSocket,
+    flow_history: Annotated[FlowHistory, Depends(get_flow_history)],
 ):
     await websocket.accept()
 
-    client_queue = await flow_history.subscribe()
+    client_queue: asyncio.Queue[FlowEvent] = await flow_history.subscribe()
     try:
         while True:
-            summary: RequestSummary | ResponseSummary = await client_queue.get()
-            await websocket.send_text(summary.model_dump_json())
+            event: FlowEvent = await client_queue.get()
+            await websocket.send_text(event.model_dump_json())
     except WebSocketDisconnect:
         logger.info("Flow history client disconnected")
-    except CancelledError:
-        pass
-    except Exception:
-        logger.exception("Error in websocket")
+    except (RuntimeError, OSError):
+        logger.info("Flow history error raised in websocket")
     finally:
         await flow_history.unsubscribe(client_queue)
 
 
 @websocket_router.websocket("/intercept")
 async def intercept_websocket(
-    websocket: WebSocket, flow_history: FlowHistory = Depends(get_flow_history)
+    websocket: WebSocket,
 ):
     await websocket.accept()
-    pass

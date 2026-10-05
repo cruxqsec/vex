@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 
 from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
+from vex_cli.errors import NotFoundError
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.orm import ProjectORM
 from vex_cli.models.pydantic import Project, ProjectCreate, ResponseStatus
@@ -113,6 +114,9 @@ async def select_project(
     project = Project.model_validate(project_row)
 
     project_path = vex_projects_directory() / str(project_id)
+    if not project_path.is_dir():
+        raise NotFoundError(f"Project directory for project {project_id} not found")
+
     await db_manager.switch_project_databases(project_path)
 
     await state_obj.set_active_project(project)

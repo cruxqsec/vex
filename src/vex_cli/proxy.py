@@ -1,14 +1,20 @@
 import asyncio
 import logging
+import time
 
 from mitmproxy import http
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
+from vex_cli.errors import DatabaseError
+from vex_cli.errors import ValidationError as VexValidationError
 from vex_cli.flow_history import FlowHistory
 from vex_cli.flow_scope import FlowScope
+from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
 from vex_cli.models.pydantic import (
+    CaptureErrorEvent,
+    CaptureErrorKind,
     RawRequest,
     RawResponse,
     RequestSummary,
@@ -52,10 +58,15 @@ class VexCapture:
             summary = RequestSummary.from_flow(flow)
             raw = RawRequest.from_flow(flow)
 
-            await self._save_and_broadcast(summary, raw)
+            await self._save_and_broadcast(flow, summary, raw)
 
-        except Exception:
-            logger.exception("Proxy error in request processing")
+        except (DatabaseError, VexValidationError) as e:
+            await self._report_capture_error(flow.request.pretty_host, e, kind="database")
+        except (ValueError, TypeError) as e:
+            await self._report_capture_error(flow.request.pretty_host, e, kind="parse")
+        except Exception as e:
+            logger.exception("Unexpected error in request processing")
+            await self._report_capture_error(flow.request.pretty_host, e, kind="unknown")
 
     async def response(self, flow: http.HTTPFlow):
         """Called when response is received"""
@@ -69,27 +80,76 @@ class VexCapture:
             summary = ResponseSummary.from_flow(flow)
             raw = RawResponse.from_flow(flow)
 
-            await self._save_and_broadcast(summary, raw)
+            await self._save_and_broadcast(flow, summary, raw)
 
-        except Exception:
-            logger.exception("Proxy error in response processing")
+        except (DatabaseError, VexValidationError) as e:
+            await self._report_capture_error(flow.request.pretty_host, e, kind="database")
+        except (ValueError, TypeError) as e:
+            await self._report_capture_error(flow.request.pretty_host, e, kind="parse")
+        except Exception as e:
+            logger.exception("Unexpected error in response processing")
+            await self._report_capture_error(flow.request.pretty_host, e, kind="unknown")
 
     async def error(self, flow: http.HTTPFlow):
         """Called when request errors and no response is captured"""
-        pass
 
     async def _save_and_broadcast(
         self,
+        flow: http.HTTPFlow,
         summary: RequestSummary | ResponseSummary,
         raw: RawRequest | RawResponse,
     ):
-        created_orm, _ = await asyncio.gather(
-            self.db_manager.summaries_db.create(summary.to_orm()),
-            self.db_manager.raw_db.create(raw.to_orm()),
-        )
-        summary.id = created_orm.id
-        await self.flow_history.broadcast_summary(summary)
+        databases = self.db_manager.active_databases()
+        if databases is None:
+            return
+        summaries_db, raw_db = databases
 
+        # Summaries are the source of truth, so they commit first; 
+        # if the raw side then fails, roll the summary back 
+        created_orm: RequestSummaryORM | ResponseSummaryORM = await summaries_db.create(summary.to_orm())
+        try:
+            await raw_db.create(raw.to_orm())
+        except Exception as raw_exp:
+            logger.exception(
+                "Raw write failed for flow %s; rolling back its summary",
+                summary.flow_id,
+            )
+            await self._report_capture_error(flow.request.pretty_host,raw_exp, kind="database")
+            try:
+                await summaries_db.delete_by_flow_id(type(created_orm), summary.flow_id)
+            except Exception as delete_exp:
+                logger.error(
+                    "Rollback failed for flow %s; orphaned summary left behind",
+                    summary.flow_id,
+                )
+                await self._report_capture_error(flow.request.pretty_host, delete_exp, kind="database")
+            return
+
+        summary.id = created_orm.id
+        await self.flow_history.broadcast(summary)
+
+    async def _report_capture_error(
+            self,
+            host: str | None,
+            exc: Exception,
+            *, # so kind is a keyword argument
+            kind: CaptureErrorKind,
+        ) -> None:
+            """Log and push a capture failure to subscribers. Never raises."""
+            log = logger.error
+            log("Capture failure (%s): %s", kind, exc, exc_info=exc)
+
+            event = CaptureErrorEvent(
+                kind=kind,
+                message=f"{type(exc).__name__}: {exc}",
+                host=host if host else None,
+                timestamp=time.time(),
+            )
+
+            try:
+                await self.flow_history.broadcast(event)
+            except Exception:
+                logger.exception("Failed to broadcast capture error")
 
 async def start_proxy(app_state: VexState):
     server_info = app_state.get_server_info()

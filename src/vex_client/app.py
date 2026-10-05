@@ -1,45 +1,46 @@
 import asyncio
-import logging
 import json
+import logging
+from uuid import UUID
+
 import httpx
 import websockets
-from uuid import UUID
 from pydantic import ValidationError
-
 from textual import work
-from textual.worker import Worker
 from textual.app import App
 from textual.binding import Binding
-from textual.widgets import Select
-from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
-from textual.reactive import reactive
 from textual.css.query import NoMatches
+from textual.reactive import reactive
+from textual.theme import BUILTIN_THEMES as TEXTUAL_BUILTIN_THEMES
+from textual.widgets import Select
+from textual.worker import Worker
 
 from vex_cli.models.pydantic import (
+    FlowSummary,
+    CaptureErrorEvent,
+    FlowEvent, 
+    Project,
     RequestSummary,
     ResponseSummary,
-    FlowSummary,
-    Project,
     Scope,
 )
+from vex_cli.pid_func import is_process_running
+from vex_client.api.scope_api import get_active_scope, get_all_scopes
+from vex_client.api.summaries_api import get_all_summaries
 from vex_client.cli_controller import VexController
 from vex_client.history.screen import VexHTTPHistoryScreen
 from vex_client.intercept.screen import VexInterceptScreen
+from vex_client.process import INACTIVE_PROCESS
 from vex_client.projects.screen import VexProjectsScreen
 from vex_client.proxy.screen import VexProxyScreen
 from vex_client.replay.screen import VexReplayScreen
 from vex_client.scope.screen import VexScopeScreen
 from vex_client.settings import Settings
 from vex_client.themes.builtin import BUILTIN_THEMES
-from vex_client.themes.models import VexTheme
-from vex_client.widgets.text_area import VexTextArea
-from vex_client.themes.models import MethodStyles, FileStyle
-from vex_client.widgets.logs_panel import VexLogsPanel, LogMessage
+from vex_client.themes.models import FileStyle, MethodStyles, VexTheme
+from vex_client.widgets.logs_panel import LogMessage, VexLogsPanel
 from vex_client.widgets.navigation_bar import VexNavigationBar
-from vex_client.api.summaries_api import get_all_summaries
-from vex_client.api.scope_api import get_all_scopes, get_active_scope
-from vex_client.process import INACTIVE_PROCESS
-from vex_cli.pid_func import is_process_running
+from vex_client.widgets.text_area import VexTextArea
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +282,11 @@ class VexApp(App[str]):
         if self.active_project is None:
             return
         try:
-            message = self.parse_summary_message(str(raw_message))
+            message = self.parse_ws_message(str(raw_message))
+            if isinstance(message, CaptureErrorEvent):
+                self.log_vex(message.message, "error")
+                return
+
             self.add_to_summary_cache(message)
 
             if self.history_screen is None:
@@ -300,8 +305,10 @@ class VexApp(App[str]):
             self.log_vex("Message handling failed. Check logs.", "error")
             logger.exception("Message handling failed")
 
-    def parse_summary_message(self, raw_data: str) -> RequestSummary | ResponseSummary:
+    def parse_ws_message(self, raw_data: str) -> FlowEvent:
         data = json.loads(raw_data)
+        if data.get("type") == "capture_error":
+            return CaptureErrorEvent.model_validate(data)
         try:
             return RequestSummary.model_validate(data)
         except ValidationError:

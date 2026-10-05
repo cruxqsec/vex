@@ -301,3 +301,32 @@ async def test_delete_by_flow_id_removes_only_target_model(db):
 
     result = await db.get_by_flow_id(ResponseSummaryORM, flow_id)
     assert result.flow_id == flow_id
+
+
+@pytest.mark.asyncio
+async def test_get_full_summaries_paginates_in_timestamp_order(db):
+    """Pages must come back in deterministic (timestamp, id) order with no
+    skipped or repeated flows, even with ties on timestamp."""
+    stamps_and_flow_ids = [
+        (50.0, uuid4()),
+        (10.0, uuid4()),
+        (40.0, uuid4()),
+        (20.0, uuid4()),
+        (30.0, uuid4()),
+        (40.0, uuid4()),  # tie on timestamp; lower id (inserted first) wins
+    ]
+    for ts, fid in stamps_and_flow_ids:
+        await db.create(make_request_summary(flow_id=fid, timestamp=ts))
+
+    pages = [
+        await db.get_full_summaries(skip=skip, size=2) for skip in (0, 2, 4)
+    ]
+    rows = [row for page in pages for row in page]
+
+    assert len(rows) == 6
+    assert len({row.flow_id for row in rows}) == 6
+
+    expected = [
+        fid for _, fid in sorted(stamps_and_flow_ids, key=lambda t: t[0])
+    ]
+    assert [row.flow_id for row in rows] == expected

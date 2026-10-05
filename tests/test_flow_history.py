@@ -75,7 +75,7 @@ async def test_unsubscribe_only_removes_target_queue(flow_history):
 async def test_broadcast_delivers_to_subscriber(flow_history, mock_request_summary):
     queue = await flow_history.subscribe()
 
-    await flow_history.broadcast_summary(mock_request_summary)
+    await flow_history.broadcast(mock_request_summary)
 
     assert queue.get_nowait() is mock_request_summary
 
@@ -84,20 +84,20 @@ async def test_broadcast_delivers_to_all_subscribers(flow_history, mock_request_
     queue1 = await flow_history.subscribe()
     queue2 = await flow_history.subscribe()
 
-    await flow_history.broadcast_summary(mock_request_summary)
+    await flow_history.broadcast(mock_request_summary)
 
     assert queue1.get_nowait() is mock_request_summary
     assert queue2.get_nowait() is mock_request_summary
 
 @pytest.mark.asyncio
 async def test_broadcast_with_no_subscribers_does_not_raise(flow_history, mock_request_summary):
-    await flow_history.broadcast_summary(mock_request_summary)  # should not raise
+    await flow_history.broadcast(mock_request_summary)  # should not raise
 
 @pytest.mark.asyncio
 async def test_broadcast_works_with_response_summary(flow_history, mock_response_summary):
     queue = await flow_history.subscribe()
 
-    await flow_history.broadcast_summary(mock_response_summary)
+    await flow_history.broadcast(mock_response_summary)
 
     assert queue.get_nowait() is mock_response_summary
 
@@ -109,7 +109,7 @@ async def test_broadcast_removes_full_queue(flow_history, mock_request_summary):
     for _ in range(100):
         await queue.put(MagicMock())
 
-    await flow_history.broadcast_summary(mock_request_summary)
+    await flow_history.broadcast(mock_request_summary)
 
     assert queue not in flow_history._subscribers
 
@@ -121,7 +121,7 @@ async def test_broadcast_removes_only_full_queues(flow_history, mock_request_sum
     for _ in range(100):
         await full_queue.put(MagicMock())
 
-    await flow_history.broadcast_summary(mock_request_summary)
+    await flow_history.broadcast(mock_request_summary)
 
     assert full_queue not in flow_history._subscribers
     assert healthy_queue in flow_history._subscribers
@@ -132,7 +132,7 @@ async def test_broadcast_multiple_messages_in_order(flow_history):
     summaries = [MagicMock(spec=RequestSummary) for _ in range(3)]
 
     for s in summaries:
-        await flow_history.broadcast_summary(s)
+        await flow_history.broadcast(s)
 
     for s in summaries:
         assert queue.get_nowait() is s

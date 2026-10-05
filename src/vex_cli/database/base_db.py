@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import Table, delete as sa_delete, func, select, text
+from sqlalchemy import Table, func, select, text
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -44,46 +45,47 @@ class BaseDatabase:
     async def initialize(self) -> None:
         """Connect to database and create tables"""
         async with self._lock:
-            try:
-                if self._engine:
-                    return
+            if self._engine:
+                return
 
-                self._engine = create_async_engine(
+            engine: AsyncEngine | None = None
+            try:
+                engine = create_async_engine(
                     f"sqlite+aiosqlite:///{self.db_path}"
                 )
 
-                self._session_maker = async_sessionmaker(
-                    bind=self._engine,
-                    class_=AsyncSession,
-                    expire_on_commit=False,
-                )
-
-                await self._create_tables()
+                await self._create_tables(engine)
 
                 if self._wal_mode:
-                    await self._enable_wal()
+                    await self._enable_wal(engine)
 
             except SQLAlchemyError as e:
+                if engine is not None:
+                    try:
+                        await engine.dispose()
+                    except SQLAlchemyError:
+                        logger.warning("Failed to dispose engine after init error")
                 logger.error(f"Database error: {e}")
                 raise DatabaseError("Error initializing database")
 
-    async def _create_tables(self) -> None:
-        """Creates specific table based on ORM modles specified in subclass."""
-        if not self._engine:
-            raise DatabaseError("Engine not initialized")
+            self._engine = engine
+            self._session_maker = async_sessionmaker(
+                bind=engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+            )
 
+    async def _create_tables(self, engine: AsyncEngine) -> None:
+        """Creates specific table based on ORM modles specified in subclass."""
         tables = [cast(Table, model.__table__) for model in self._orm_models]
 
-        async with self._engine.begin() as conn:
+        async with engine.begin() as conn:
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
             )
 
-    async def _enable_wal(self) -> None:
-        if not self._engine:
-            raise DatabaseError("Engine not initialized")
-
-        async with self._engine.begin() as conn:
+    async def _enable_wal(self, engine: AsyncEngine) -> None:
+        async with engine.begin() as conn:
             await conn.execute(text("PRAGMA journal_mode=WAL;"))
 
     @asynccontextmanager
@@ -128,7 +130,10 @@ class BaseDatabase:
 
     async def get_all(self, model: type[T], skip: int, size: int) -> list[T]:
         async with self.session() as s:
-            result = await s.execute(select(model).offset(skip).limit(size))
+            # offset/limit without a total order can skip or repeat rows
+            result = await s.execute(
+                select(model).order_by(model.id).offset(skip).limit(size) # type: ignore
+            )
             return list(result.scalars().all())
 
     async def update(self, model: type[T], obj: T) -> None:
