@@ -1,28 +1,24 @@
-from uuid import UUID
-from datetime import datetime
 import logging
-
-from typing import TYPE_CHECKING, cast, Any, Callable
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Callable, cast
+from uuid import UUID
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 
-from rich.text import Text
-from rich.style import Style
 from rich.color import Color
-
-from textual.widgets import Static, Input
+from rich.style import Style
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.widgets import Input, Static
 from textual.widgets.data_table import CellDoesNotExist
 from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
-
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
-from vex_client.widgets.table import VexDataTable, IconColumnCell, SortDirection
+from vex_cli.models.pydantic import FlowSummary, RequestSummary, ResponseSummary
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
-
+from vex_client.widgets.table import IconColumnCell, SortDirection, VexDataTable
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +246,9 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
+            app: VexApp = cast("VexApp", self.app)
+            if request_summary.flow_id in app.history_summary_cache: 
+                return
             self.add_row(
                 request_summary.id,
                 request_summary.host,
@@ -267,7 +266,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             )
             self.post_message(VexDataTable.RowAdded())
         except ValueError:
-            self.app.log_vex("Error inserting request into table. Check logs.", "error")  # type: ignore
+            app.log_vex("Error inserting request into table. Check logs.", "error")
             logger.exception("Error inserting request summary into table")
 
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:

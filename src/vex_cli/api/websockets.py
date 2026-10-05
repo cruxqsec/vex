@@ -28,10 +28,10 @@ async def history_websocket(
     websocket: WebSocket,
     flow_history: Annotated[FlowHistory, Depends(get_flow_history)],
 ):
-    await websocket.accept()
-
     client_queue: asyncio.Queue[FlowEvent] = await flow_history.subscribe()
+
     try:
+        await websocket.accept()
         while True:
             event: FlowEvent = await client_queue.get()
             await websocket.send_text(event.model_dump_json())

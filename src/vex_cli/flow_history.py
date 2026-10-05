@@ -17,7 +17,7 @@ class FlowHistory:
         self._lock = asyncio.Lock()
 
     async def subscribe(self) -> asyncio.Queue:
-        queue: asyncio.Queue[FlowEvent] = asyncio.Queue(maxsize=100)
+        queue: asyncio.Queue[FlowEvent] = asyncio.Queue(maxsize=200)
         async with self._lock:
             self._subscribers.add(queue)
         return queue
