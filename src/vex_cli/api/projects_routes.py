@@ -1,7 +1,7 @@
 import logging
 import shutil
 import uuid
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
@@ -20,7 +20,7 @@ projects_router = APIRouter(tags=["Projects"])
 # ==================== basic CRUD routes ====================
 
 
-@projects_router.get("/projects/", response_model=List[Project], status_code=200)
+@projects_router.get("/projects/", response_model=list[Project], status_code=200)
 async def get_all_projects(
     projects_db: Annotated[ProjectsDatabase, Depends(get_projects_db)],
     skip: int = Query(0, ge=0),

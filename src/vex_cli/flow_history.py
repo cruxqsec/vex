@@ -27,16 +27,16 @@ class FlowHistory:
             self._subscribers.discard(dead_queue)
 
     async def broadcast(self, event: FlowEvent):
-        """Broadcast flow summary to all subscribers"""
+        """Broadcast flow summary to all subscribers."""
         async with self._lock:
-            dead_clients = []
-
             for queue in self._subscribers:
-                try:
-                    queue.put_nowait(event)
-                except asyncio.QueueFull:
-                    dead_clients.append(queue)
-
-            if dead_clients:
-                for q in dead_clients:
-                    self._subscribers.discard(q)
+                while True:
+                    try:
+                        queue.put_nowait(event)
+                        break
+                    except asyncio.QueueFull:
+                        try:
+                            queue.get_nowait()  # drop oldest, retry
+                        except asyncio.QueueEmpty:
+                            # queue drained concurrently, retry the put
+                            pass

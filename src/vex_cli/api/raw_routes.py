@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -15,7 +15,7 @@ raw_response_router = APIRouter(tags=["Raw responses"])
 
 
 @raw_request_router.get(
-    "/raw/request/", response_model=List[RawRequest], status_code=200
+    "/raw/request/", response_model=list[RawRequest], status_code=200
 )
 async def get_all_raw_requests(
     raw_db: Annotated[RawDatabase, Depends(get_raw_db)],
@@ -36,7 +36,7 @@ async def get_raw_request(
 
 
 @raw_response_router.get(
-    "/raw/response/", response_model=List[RawResponse], status_code=200
+    "/raw/response/", response_model=list[RawResponse], status_code=200
 )
 async def get_all_raw_responses(
     raw_db: Annotated[RawDatabase, Depends(get_raw_db)],

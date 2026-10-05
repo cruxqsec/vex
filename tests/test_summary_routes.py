@@ -491,7 +491,38 @@ async def test_delete_flow_raw_request_not_found(
 
     response = await delete_client.delete(f"/api/summary/{flow_id}")
 
-    assert response.status_code == 404
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+    mock_raw_db.delete.assert_any_call(RawRequestORM, flow_id)
+    mock_summaries_db.delete_by_flow_id.assert_any_call(ResponseSummaryORM, flow_id)
+    mock_raw_db.delete.assert_any_call(RawResponseORM, flow_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_flow_orphaned_parts_still_deleted(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    """Raw request AND both response rows missing (orphaned flow) -> 202, no 404 partway."""
+    flow_id = uuid4()
+
+    def raw_delete_side_effect(model, fid):
+        raise NotFoundError("Not found")
+
+    def summary_delete_side_effect(model, fid):
+        if model is ResponseSummaryORM:
+            raise NotFoundError("Not found")
+        return None
+
+    mock_summaries_db.delete_by_flow_id.side_effect = summary_delete_side_effect
+    mock_raw_db.delete.side_effect = raw_delete_side_effect
+
+    response = await delete_client.delete(f"/api/summary/{flow_id}")
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "Success"
+    mock_raw_db.delete.assert_any_call(RawRequestORM, flow_id)
+    mock_summaries_db.delete_by_flow_id.assert_any_call(ResponseSummaryORM, flow_id)
+    mock_raw_db.delete.assert_any_call(RawResponseORM, flow_id)
 
 
 @pytest.mark.asyncio
@@ -557,6 +588,30 @@ async def test_delete_all_flows_empty_is_ok(
 
     assert response.status_code == 202
     assert response.json()["status"] == "Success"
+
+
+@pytest.mark.asyncio
+async def test_delete_all_flows_deletes_sequentially(
+    delete_client, mock_summaries_db, mock_raw_db
+):
+    """No asyncio.gather: same-file deletes must not run concurrently."""
+    order: list[str] = []
+
+    async def track(model):
+        order.append(model.__name__)
+
+    mock_summaries_db.delete_all.side_effect = track
+    mock_raw_db.delete_all.side_effect = track
+
+    response = await delete_client.delete("/api/summary/")
+
+    assert response.status_code == 202
+    assert order == [
+        "RequestSummaryORM",
+        "ResponseSummaryORM",
+        "RawRequestORM",
+        "RawResponseORM",
+    ]
 
 
 @pytest.mark.asyncio

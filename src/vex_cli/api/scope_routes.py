@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
@@ -18,7 +18,7 @@ scope_router = APIRouter(tags=["Scope"])
 # ==================== scope CRUD routes ====================
 
 
-@scope_router.get("/scope/", response_model=List[Scope], status_code=200)
+@scope_router.get("/scope/", response_model=list[Scope], status_code=200)
 async def get_all_scopes(
     scope_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
     skip: int = Query(0, ge=0),

@@ -43,8 +43,7 @@ async def test_subscribe_multiple_returns_distinct_queues(flow_history):
 async def test_subscribe_queue_has_correct_maxsize(flow_history):
     queue = await flow_history.subscribe()
 
-    assert queue.maxsize == 100
-
+    assert queue.maxsize == 200
 
 @pytest.mark.asyncio
 async def test_unsubscribe_removes_queue(flow_history):
@@ -100,31 +99,45 @@ async def test_broadcast_works_with_response_summary(flow_history, mock_response
     await flow_history.broadcast(mock_response_summary)
 
     assert queue.get_nowait() is mock_response_summary
-
 @pytest.mark.asyncio
-async def test_broadcast_removes_full_queue(flow_history, mock_request_summary):
+async def test_broadcast_full_queue_drops_oldest_keeps_subscriber(
+    flow_history, mock_request_summary
+):
     queue = await flow_history.subscribe()
 
     # fill the queue to maxsize
-    for _ in range(100):
+    for _ in range(200):
         await queue.put(MagicMock())
 
     await flow_history.broadcast(mock_request_summary)
 
-    assert queue not in flow_history._subscribers
+    # subscriber survives the overflow
+    assert queue in flow_history._subscribers
+    # oldest event was dropped, newest sits at the back (FIFO)
+    assert queue.qsize() == 200
+    drained = [queue.get_nowait() for _ in range(200)]
+    assert all(item is not mock_request_summary for item in drained[:199])
+    assert drained[-1] is mock_request_summary
+
 
 @pytest.mark.asyncio
-async def test_broadcast_removes_only_full_queues(flow_history, mock_request_summary):
+async def test_broadcast_full_queue_drops_oldest_only_in_that_queue(
+    flow_history, mock_request_summary
+):
     full_queue = await flow_history.subscribe()
     healthy_queue = await flow_history.subscribe()
 
-    for _ in range(100):
+    for _ in range(200):
         await full_queue.put(MagicMock())
 
+    healthy_first = MagicMock()
+    await flow_history.broadcast(healthy_first)
     await flow_history.broadcast(mock_request_summary)
 
-    assert full_queue not in flow_history._subscribers
+    assert full_queue in flow_history._subscribers
     assert healthy_queue in flow_history._subscribers
+    assert healthy_queue.get_nowait() is healthy_first
+    assert healthy_queue.get_nowait() is mock_request_summary
 
 @pytest.mark.asyncio
 async def test_broadcast_multiple_messages_in_order(flow_history):
