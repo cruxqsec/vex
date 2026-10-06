@@ -10,6 +10,10 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import RichLog
 
+# in-memory log caps: RichLog lines per panel, and app-wide history entries
+MAX_LOG_LINES = 2000
+MAX_LOG_HISTORY = 500
+
 indicators = {
     "info": ("-", "dim"),
     "success": ("+", "green"),
@@ -34,7 +38,9 @@ class VexLogsPanel(Widget):
         return self.query_one("#log-output", RichLog)
 
     def compose(self) -> ComposeResult:
-        yield RichLog(id="log-output", highlight=True, markup=True)
+        yield RichLog(
+            id="log-output", highlight=True, markup=True, max_lines=MAX_LOG_LINES
+        )
 
     def on_mount(self) -> None:
         app = cast("VexApp", self.app)

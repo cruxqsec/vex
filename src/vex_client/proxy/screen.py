@@ -1,36 +1,38 @@
+import asyncio
+import time
 from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
-import time
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 import logging
-import httpx
 
+import httpx
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.screen import Screen
-from textual.widgets import ListView, Static, Button, Label
 from textual.containers import Container, Horizontal, Vertical
+from textual.screen import Screen
+from textual.widgets import Button, Label, ListView, Static
 
 from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_pid_file
 from vex_cli.models.pydantic import VexServerInfo
-from vex_cli.pid_func import is_process_running, read_pid_file
+from vex_cli.pid_func import read_pid_file
 from vex_client.api.client import ApiClient
-from vex_client.modals.proxy_modal import CreateUpdateProxyScreen
 from vex_client.modals.confirm import ConfirmModal
-from vex_client.widgets.footer import VexFooter
+from vex_client.modals.proxy_modal import CreateUpdateProxyScreen
+from vex_client.process import INACTIVE_PROCESS, is_vex_server_live
+from vex_client.proxy.cards import ProxyInfoCard, ProxyStatusCard
 from vex_client.proxy.list import (
-    VexProxyListWidget,
+    ProxyInstance,
     ProxyList,
     ProxyListItem,
-    ProxyInstance,
+    VexProxyListWidget,
 )
-from vex_client.proxy.cards import ProxyStatusCard, ProxyInfoCard
+from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 
 logger = logging.getLogger(__name__)
@@ -147,7 +149,11 @@ class VexProxyScreen(Screen):
         try:
             pid_data = read_pid_file(pid_file)
 
-            if not is_process_running(pid_data.pid):
+            # Liveness is the file lock, not the pid: the kernel releases
+            # the server's exclusive flock on death, so a contended probe
+            # == live instance; a won probe == crashed/gone server, even
+            # if the stale pid inside happens to be running (PID reuse).
+            if not is_vex_server_live(pid_file):
                 return
 
             instance_data = ProxyInstance(
@@ -180,8 +186,7 @@ class VexProxyScreen(Screen):
                     proxy_port=instance_data.proxy_port,
                     api_port=instance_data.api_port,
                 )
-                app.vex_controller.server_info = server_info
-                app.vex_controller.cli_pid = pid_data.pid
+                app.vex_controller.attach(pid_data.pid, server_info)
                 await app.adopt_api(client, api_info)
                 list_item.set_running(True)
                 self._proxy_start_time = time.monotonic()
@@ -204,7 +209,7 @@ class VexProxyScreen(Screen):
             api_port=selected_item.instance.api_port,
         )
 
-        can_bind, port = try_bind_ports(server_info)
+        can_bind, port = await asyncio.to_thread(try_bind_ports, server_info)
         address = server_info.server_address
 
         if not can_bind:
@@ -214,7 +219,7 @@ class VexProxyScreen(Screen):
             )
             return
 
-        successful_startup = app.vex_controller.start_vex_cli(server_info)
+        successful_startup = await app.vex_controller.start_vex_cli(server_info)
 
         if successful_startup:
             app.log_vex("Successfuly started vex-cli.", severity="success")
@@ -228,7 +233,10 @@ class VexProxyScreen(Screen):
 
     async def _enter_vex(self):
         app = cast("VexApp", self.app)
-        if not app.server_online:
+        monitor = app.server_monitor_worker
+        if not app.server_online and (
+            monitor is None or monitor.is_finished or monitor.is_cancelled
+        ):
             app.server_monitor_worker = app._server_monitor()
 
         host, port = app.get_api_info()
@@ -261,6 +269,9 @@ class VexProxyScreen(Screen):
 
             if successful_stop:
                 await app.close_api()
+                selected_instance.set_running(False)
+                self._proxy_start_time = NOT_STARTED
+                self.status_card.set_active(None, self._elapsed_str())
                 app.log_vex(message="Server stopped.")
             else:
                 app.log_vex(

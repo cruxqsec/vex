@@ -7,7 +7,6 @@ import pytest
 from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import (
     delete_pid_file,
-    is_process_running,
     pid_file_check,
     read_pid_file,
     write_pid_file,
@@ -26,28 +25,6 @@ def server_info():
 @pytest.fixture
 def pid_file(tmp_path) -> Path:
     return tmp_path / "vex.pid"
-
-
-def test_is_process_running_returns_false_for_zero():
-    assert is_process_running(0) is False
-
-
-def test_is_process_running_returns_false_for_negative():
-    assert is_process_running(-1) is False
-
-
-def test_is_process_running_returns_true_for_current_process():
-    assert is_process_running(os.getpid()) is True
-
-
-def test_is_process_running_returns_false_for_dead_process(mocker):
-    mocker.patch("os.kill", side_effect=ProcessLookupError)
-    assert is_process_running(99999) is False
-
-
-def test_is_process_running_returns_false_on_os_error(mocker):
-    mocker.patch("os.kill", side_effect=OSError)
-    assert is_process_running(99999) is False
 
 
 def test_write_and_read_pid_file(pid_file):

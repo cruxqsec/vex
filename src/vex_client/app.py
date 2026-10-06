@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from collections import deque
 from uuid import UUID
 
 import httpx
@@ -24,11 +25,11 @@ from vex_cli.models.pydantic import (
     ResponseSummary,
     Scope,
 )
-from vex_cli.pid_func import is_process_running
 from vex_client.api.client import ApiClient
 from vex_client.cli_controller import VexController
 from vex_client.history.screen import VexHTTPHistoryScreen
 from vex_client.intercept.screen import VexInterceptScreen
+from vex_client.modals.confirm import ConfirmModal
 from vex_client.process import INACTIVE_PROCESS
 from vex_client.projects.screen import VexProjectsScreen
 from vex_client.proxy.screen import VexProxyScreen
@@ -37,7 +38,11 @@ from vex_client.scope.screen import VexScopeScreen
 from vex_client.settings import Settings
 from vex_client.themes.builtin import BUILTIN_THEMES
 from vex_client.themes.models import FileStyle, MethodStyles, VexTheme
-from vex_client.widgets.logs_panel import LogMessage, VexLogsPanel
+from vex_client.widgets.logs_panel import (
+    MAX_LOG_HISTORY,
+    LogMessage,
+    VexLogsPanel,
+)
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.widgets.text_area import VexTextArea
 
@@ -49,6 +54,8 @@ _SEVERITY_TO_LEVEL = {
     "warning": logging.WARNING,
     "error": logging.ERROR,
 }
+
+MAX_SUMMARY_PAGES = 100
 
 
 class VexApp(App[str]):
@@ -117,7 +124,7 @@ class VexApp(App[str]):
         self.vex_controller: VexController = VexController()
         self.settings: Settings = Settings()
 
-        self._log_history: list[LogMessage] = []
+        self._log_history: deque[LogMessage] = deque(maxlen=MAX_LOG_HISTORY)
         self.history_summary_cache: dict[UUID, FlowSummary] = {}
         self.scope_cache: dict[int, Scope] = {}
 
@@ -141,6 +148,33 @@ class VexApp(App[str]):
 
     async def on_unmount(self) -> None:
         await self.close_api()
+
+    async def action_quit(self) -> None:
+        """Prompt to stop a still-running server before quitting.
+
+        On a hard crash nothing can prompt; the pid file remains for adoption
+        on the next launch.
+        """
+        if not self.vex_controller.is_cli_running:
+            self.exit()
+            return
+
+        async def on_confirm(stop: bool) -> None:
+            if stop:
+                stopped = await self.vex_controller.stop_vex_cli()
+                if stopped:
+                    await self.close_api()
+                else:
+                    self.log_vex(
+                        "Server kept running. It can be adopted next launch.",
+                        "warning",
+                    )
+            self.exit()
+
+        self.push_screen(
+            ConfirmModal("Server still running. Stop it before quitting?"),
+            on_confirm,
+        )
 
     def get_api_info(self) -> tuple[str, int] | tuple[None, None]:
         """Return the API info so we can call vex-cli API."""
@@ -244,14 +278,13 @@ class VexApp(App[str]):
                 self.log_vex("Server monitor error. Check logs.", "error")
                 logger.exception("Server monitor error")
 
-            if not is_process_running(self.vex_controller.cli_pid):
+            if not self.vex_controller.is_cli_running:
                 break
 
             await asyncio.sleep(3)
 
         self.server_online = False
-        self.vex_controller.cli_pid = INACTIVE_PROCESS
-        self.vex_controller.server_info = None
+        self.vex_controller.clear()
         await self.close_api()
 
     def _cleanup(self) -> None:
@@ -262,7 +295,9 @@ class VexApp(App[str]):
         if self.history_manager_worker is not None:
             self.history_manager_worker.cancel()
             self.history_manager_worker = None
-        self._server_monitor_worker = None
+        if self.server_monitor_worker is not None:
+            self.server_monitor_worker.cancel()
+            self.server_monitor_worker = None
 
         try:
             proxy_screen: VexProxyScreen = self.get_screen("proxy-screen")  # type: ignore
@@ -395,7 +430,10 @@ class VexApp(App[str]):
             self.history_screen.response_area.clear()
 
         skip = 0
-        while True:
+        # bounded pagination: live traffic never terminates an empty-page
+        # break, so cap the pages defensively (a running capture keeps
+        # appending rows; each page can be non-empty forever)
+        for _ in range(MAX_SUMMARY_PAGES):
             try:
                 summaries = await api.summaries.get_all_summaries(skip, 50)
             except httpx.HTTPError:
@@ -405,7 +443,15 @@ class VexApp(App[str]):
                 break
             for summary in summaries:
                 self.add_to_summary_cache(summary)
+            if len(summaries) < 50:
+                break
             skip += 50
+        else:
+            self.log_vex(
+                "Stopped loading summaries: too many pages. "
+                "Showing the first 5000 flows.",
+                "warning",
+            )
 
         # only populate table after full fetch is done
         if self.history_screen is not None:

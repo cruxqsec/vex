@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
+import asyncio
 import httpx
 
 if TYPE_CHECKING:
@@ -14,6 +15,7 @@ from textual.widgets import DataTable, Button, Static
 
 from vex_cli.models.pydantic import ProjectCreate, Project
 from vex_cli.locations import vex_projects_directory
+from vex_client.get_size import get_directory_size, human_readable
 from vex_client.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.navigation_bar import VexNavigationBar
@@ -53,6 +55,16 @@ class VexProjectsScreen(Screen):
         # parent constructor
         super().__init__(**kwargs)
 
+    def get_cached_project(self, project_id: str | UUID) -> Project | None:
+        """Look up a project in the cache. Table rows alone are display-only."""
+        try:
+            cache_id = (
+                project_id if isinstance(project_id, UUID) else UUID(project_id)
+            )
+        except ValueError:
+            return None
+        return self._projects_cache.get(cache_id)
+
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
         with Horizontal(id="projects-main-container"):
@@ -91,7 +103,7 @@ class VexProjectsScreen(Screen):
         if api is None:
             return
 
-        project: Project | None = self.projects_table.get_project(project_id)
+        project: Project | None = self.get_cached_project(project_id)
         try:
             successfully_selected: bool = await api.projects.select_project(project_id)
         except httpx.HTTPError:
@@ -121,14 +133,15 @@ class VexProjectsScreen(Screen):
             return
 
         try:
+            fetched_ids: set[UUID] = set()
             skip = 0
             while True:
                 batch = await api.projects.get_all_projects(skip=skip, size=50)
                 if not batch:
                     break
                 for project in batch:
-                    if project.id not in self._projects_cache:
-                        self._projects_cache[project.id] = project
+                    self._projects_cache[project.id] = project
+                    fetched_ids.add(project.id)
                 if len(batch) < 50:
                     break
                 skip += 50
@@ -136,6 +149,11 @@ class VexProjectsScreen(Screen):
             app.log_vex("Failed to load projects. Check logs.", "error")
             self.projects_table.set_loading(False)
             return
+
+        # server truth wins: drop cache entries for projects deleted elsewhere
+        for cached_id in list(self._projects_cache):
+            if cached_id not in fetched_ids:
+                del self._projects_cache[cached_id]
 
         self.populate_table()
 
@@ -186,6 +204,23 @@ class VexProjectsScreen(Screen):
         self.projects_table.end_bulk_insert()
 
         self.projects_table.set_loading(False)
+        self._fill_project_sizes()
+
+    @work(name="project_sizes", exclusive=True, group="project_sizes")
+    async def _fill_project_sizes(self) -> None:
+        """Compute per-project directory sizes in a thread, then update rows."""
+        projects_dir = vex_projects_directory()
+        projects = list(self._projects_cache.values())
+
+        sizes: dict[UUID, int] = {}
+        for project in projects:
+            size = await asyncio.to_thread(
+                get_directory_size, projects_dir / str(project.id)
+            )
+            sizes[project.id] = size
+
+        for project_id, size in sizes.items():
+            self.projects_table.update_size(str(project_id), human_readable(size))
 
     @work(name="flow_count", exclusive=True, group="flow_count")
     async def fetch_flow_count(self) -> None:
@@ -258,22 +293,17 @@ class VexProjectsScreen(Screen):
         Update a project by calling vex-cli API.
         If successful update highlighted in the table.
         """
-        selected_project = self.projects_table.get_highlighted_row()
-        project_name = ""
+        selected_project_row_key = self.projects_table.get_highlighted_row_key()
 
-        if selected_project is None:
+        if selected_project_row_key is None:
             return
 
-        if len(selected_project) == 4:
-            project_name = selected_project[0]
+        project = self.get_cached_project(selected_project_row_key)
+        project_name = project.name if project else ""
 
         # callback
         async def update(updated_name: str):
-            selected_project_row_key = self.projects_table.get_highlighted_row_key()
-            if selected_project_row_key is None:
-                return
-
-            project = self.projects_table.get_project(selected_project_row_key)
+            project = self.get_cached_project(selected_project_row_key)
             if project is None:
                 return
 
@@ -306,7 +336,7 @@ class VexProjectsScreen(Screen):
         if project_id is None:
             return
 
-        project = self.projects_table.get_project(project_id)
+        project = self.get_cached_project(project_id)
         project_name = project.name if project else "this project"
 
         async def do_delete(confirmed: bool):

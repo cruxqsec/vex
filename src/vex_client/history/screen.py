@@ -388,7 +388,8 @@ class VexHTTPHistoryScreen(Screen):
                 return
             if success:
                 app.history_summary_cache.pop(flow_id, None)
-                self.http_table.remove_row(row_key_str)
+                if self.http_table.row_exists(row_key_str):
+                    self.http_table.remove_row(row_key_str)
                 if flow_id == self._selected_summary_uuid:
                     self.request_area.clear()
                     self.response_area.clear()

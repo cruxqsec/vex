@@ -39,17 +39,6 @@ def _acquire_file_lock(pid_file_fd: int) -> None:
         fcntl.flock(pid_file_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
-def is_process_running(pid: int) -> bool:
-    """Check if a process with given PID is running."""
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ProcessLookupError):
-        return False
-
-
 def write_pid_file(host: str, proxy_port: int, api_port: int, pid_file: Path) -> None:
     """Write server information to pid file."""
     data = PIDData(pid=os.getpid(), host=host, proxy_port=proxy_port, api_port=api_port)

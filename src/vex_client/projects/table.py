@@ -1,5 +1,3 @@
-import uuid
-from datetime import datetime
 from typing import Any, Callable
 
 from textual import on
@@ -88,12 +86,13 @@ class VexProjectTable(VexDataTable, can_focus=True):
         )
 
     def insert(self, project: Project):
-        """Calculate the size of the project directory and insert the row into the table."""
-        size = get_directory_size(vex_projects_directory() / str(project.id))
+        """Insert the row with a placeholder size; the real size is filled in
+        by the threaded size worker (stat-walk must not run on the UI thread).
+        """
         try:
             self.add_row(
                 project.name,
-                human_readable(size),
+                "…",
                 project.created_at.strftime("%H:%M %d %B %Y"),
                 project.updated_at.strftime("%H:%M %d %B %Y"),
                 key=str(project.id),
@@ -102,50 +101,11 @@ class VexProjectTable(VexDataTable, can_focus=True):
         except ValueError:
             self.notify("Error inserting project into table!", severity="error")
 
-    def get_project(self, project_id: str) -> Project | None:
+    def update_size(self, project_id: str, size_str: str) -> None:
         try:
-            project_data = self.get_row(project_id)
-        except RowDoesNotExist:
-            return None
-
-        if len(project_data) != 4:
-            return None
-
-        created_at_tmp: str = project_data[2]
-        updated_at_tmp: str = project_data[3]
-
-        created_at: datetime = datetime.strptime(created_at_tmp, "%H:%M %d %B %Y")
-        updated_at: datetime = datetime.strptime(updated_at_tmp, "%H:%M %d %B %Y")
-
-        project = Project(
-            id=uuid.UUID(project_id),
-            name=project_data[0],
-            # project_data[1] is the size which is calculated on the fly
-            created_at=created_at,
-            updated_at=updated_at,
-        )
-
-        return project
-
-    def update_project_row(self, project: Project):
-        size = get_directory_size(vex_projects_directory() / str(project.id))
-
-        try:
-            self.update_cell(str(project.id), "Name", project.name)
-            self.update_cell(str(project.id), "Size", human_readable(size))
-            self.update_cell(
-                str(project.id),
-                "Created at",
-                project.created_at.strftime("%H:%M %d %B %Y"),
-            )
-            self.update_cell(
-                str(project.id),
-                "Updated at",
-                project.updated_at.strftime("%H:%M %d %B %Y"),
-            )
+            self.update_cell(project_id, "Size", size_str)
         except CellDoesNotExist:
-            self.notify("Error updating cells!", severity="error")
-            return
+            pass
 
     def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
         try:
