@@ -10,7 +10,7 @@ from vex_cli.dependencies import get_flow_history
 from vex_cli.flow_history import FlowHistory
 from vex_cli.models.pydantic import RequestSummary
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def make_request_summary():
@@ -23,7 +23,7 @@ def make_request_summary():
         is_tls=False,
         query=None,
         file_extension=None,
-        timestamp=datetime.now().timestamp(),
+        timestamp=datetime.now(timezone.utc).timestamp(),
     )
 
 

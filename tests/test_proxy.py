@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from vex_cli.errors import DatabaseError
-from vex_cli.errors import ValidationError as VexValidationError
+from vex_cli.errors import RequestValidationError as VexValidationError
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.pydantic import (
     CaptureErrorEvent,
@@ -378,7 +378,7 @@ async def test_request_reports_database_error_when_summary_create_fails(
     errors = error_events(capture)
     assert len(errors) == 1
     assert errors[0].kind == "database"
-    assert errors[0].message == "ValidationError: Record already exists"
+    assert errors[0].message == "RequestValidationError: Record already exists"
     assert not any(
         isinstance(c.args[0], (RequestSummary, ResponseSummary))
         for c in capture.flow_history.broadcast.call_args_list

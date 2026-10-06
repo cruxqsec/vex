@@ -29,24 +29,28 @@ class SummariesDatabase(BaseDatabase):
         ]
 
     async def get_by_flow_id(self, model: type[T], flow_id: UUID) -> T:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             result = await s.execute(
                 select(model).where(model.flow_id == flow_id)  # type: ignore
             )
             obj = result.scalars().first()
             if obj is None:
-                raise NotFoundError("Object not found")
+                raise NotFoundError(
+                    f"{model.__name__} for flow {flow_id} not found"
+                )
             return obj
 
     async def delete_by_flow_id(self, model: type[T], flow_id: UUID) -> None:
         async with self.session() as s:
             result = await s.execute(delete(model).where(model.flow_id == flow_id))  # type: ignore
             if result.rowcount == 0:
-                raise NotFoundError("Object not found")
+                raise NotFoundError(
+                    f"{model.__name__} for flow {flow_id} not found"
+                )
 
     async def get_full_summaries(self, skip: int, size: int) -> list[FlowSummary]:
         """List of full summaries (Request/ResponseSummary)"""
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             statement = (
                 select(*self._req_cols, *self._res_cols)
                 .outerjoin(
@@ -64,7 +68,7 @@ class SummariesDatabase(BaseDatabase):
 
     async def get_full_summary_by_id(self, flow_id: UUID) -> FlowSummary:
         """Get a single summary (Request/ResponseSummary). TODO: Improve return type!"""
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             statement = (
                 select(*self._req_cols, *self._res_cols)
                 .outerjoin(
@@ -76,5 +80,5 @@ class SummariesDatabase(BaseDatabase):
             result = await s.execute(statement)
             row: RowMapping | None = result.mappings().first()
             if row is None:
-                raise NotFoundError("Summary not found")
+                raise NotFoundError(f"Flow summary for flow {flow_id} not found")
             return FlowSummary.model_validate(dict(row))

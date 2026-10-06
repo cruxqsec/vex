@@ -3,7 +3,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 from vex_cli.app import create_app
 from vex_cli.dependencies import get_raw_db, get_summaries_db
@@ -32,7 +32,7 @@ def make_request_summary(
         is_tls=False,
         query=None,
         file_extension=None,
-        timestamp=datetime.timestamp(datetime.now()),
+        timestamp=datetime.now(timezone.utc).timestamp(),
     )
 
 
@@ -51,7 +51,7 @@ def make_response_summary(
         http_title=http_title,
         cookie=cookie,
         duration_ms=100,
-        timestamp=datetime.timestamp(datetime.now()),
+        timestamp=datetime.now(timezone.utc).timestamp(),
     )
 
 
@@ -151,7 +151,7 @@ async def test_create_request_summary_returns_201(client, mock_summaries_db):
         "is_tls": False,
         "query": None,
         "file_extension": None,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.post("/api/summary/request/", json=payload)
@@ -182,7 +182,7 @@ async def test_update_request_summary_returns_202(client, mock_summaries_db):
         "is_tls": False,
         "query": None,
         "file_extension": None,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.put("/api/summary/request/", json=payload)
@@ -205,7 +205,7 @@ async def test_update_request_summary_not_found(client, mock_summaries_db):
         "is_tls": False,
         "query": None,
         "file_extension": None,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.put("/api/summary/request/", json=payload)
@@ -304,7 +304,7 @@ async def test_create_response_summary_returns_201(client, mock_summaries_db):
         "http_title": "Example",
         "cookie": "",
         "duration_ms": 100,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.post("/api/summary/response/", json=payload)
@@ -333,7 +333,7 @@ async def test_update_response_summary_returns_202(client, mock_summaries_db):
         "http_title": "Example",
         "cookie": "",
         "duration_ms": 100,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.put("/api/summary/response/", json=payload)
@@ -375,7 +375,7 @@ async def test_get_all_full_summaries_returns_200(client, mock_summaries_db):
             "http_title": "Example",
             "cookie": "",
             "duration_ms": 100,
-            "timestamp": datetime.timestamp(datetime.now()),
+            "timestamp": datetime.now(timezone.utc).timestamp(),
         }
     ]
 
@@ -414,7 +414,7 @@ async def test_get_full_summary_by_id_returns_200(client, mock_summaries_db):
         "http_title": "Example",
         "cookie": "",
         "duration_ms": 100,
-        "timestamp": datetime.timestamp(datetime.now()),
+        "timestamp": datetime.now(timezone.utc).timestamp(),
     }
 
     response = await client.get(f"/api/summary/{flow_id}")

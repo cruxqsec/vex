@@ -48,3 +48,5 @@ async def intercept_websocket(
     websocket: WebSocket,
 ):
     await websocket.accept()
+
+    # TODO: to implement

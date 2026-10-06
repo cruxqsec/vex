@@ -4,10 +4,12 @@ from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 
 from vex_cli.app import create_app
+from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.dependencies import get_summaries_db, get_flow_scope
 from vex_cli.models.orm import ScopeORM
 from vex_cli.models.pydantic import Scope
-from vex_cli.errors import NotFoundError
+from vex_cli.errors import NoProjectActiveError, NotFoundError
+from vex_cli.database.summaries_db import SummariesDatabase
 
 
 def make_scope_orm(
@@ -51,6 +53,24 @@ async def client(mock_scope_db, mock_flow_scope):
     ) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def no_project_client(tmp_path):
+    """Client wired through the real dependency chain with no project active —
+    the summaries_db resolver must hit NoProjectActiveError (409), not 500."""
+    manager = DatabaseManager()
+    await manager.initialize()
+
+    app = create_app()
+    app.state.vex_state = MagicMock()
+    app.state.vex_state.get_db_manager.return_value = manager
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://localhost"
+    ) as c:
+        yield c
+    app.dependency_overrides.clear()
+    await manager.close()
 
 
 # --- GET /scope/ ---
@@ -341,3 +361,48 @@ async def test_count_scopes_empty_returns_zero(client, mock_scope_db):
 
     assert response.status_code == 200
     assert response.json() == {"count": 0}
+
+
+# --- No active project -> 409 (not 500) ---
+
+
+@pytest.mark.asyncio
+async def test_scope_routes_without_active_project_return_409(no_project_client):
+    response = await no_project_client.get("/api/scope/")
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["error"] == "NoProjectActiveError"
+    assert "select a project" in body["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_scope_create_without_active_project_returns_409(no_project_client):
+    response = await no_project_client.post(
+        "/api/scope/",
+        json={"name": "s", "allow_endpoints": [], "deny_endpoints": []},
+    )
+
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_raw_routes_without_active_project_return_409(tmp_path):
+    from httpx import AsyncClient, ASGITransport
+
+    from vex_cli.dependencies import get_raw_db
+
+    manager = DatabaseManager()
+    await manager.initialize()
+
+    app = create_app()
+    app.state.vex_state = MagicMock()
+    app.state.vex_state.get_db_manager.return_value = manager
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://localhost"
+    ) as client:
+        response = await client.get("/api/raw/request/")
+    await manager.close()
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "NoProjectActiveError"

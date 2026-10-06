@@ -1,6 +1,6 @@
 import pytest
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from mitmproxy import http
 from mitmproxy.test import tflow, tutils
@@ -64,7 +64,7 @@ def mock_flow() -> http.HTTPFlow:
 def test_request_summary(mock_flow: http.HTTPFlow):
     raw = flow_to_raw_request(mock_flow)
     summary = RequestSummary.from_flow(mock_flow, raw)
-    now = datetime.timestamp(datetime.now())
+    now = datetime.now(timezone.utc).timestamp()
 
     assert type(summary.flow_id) is UUID
     assert summary.host == "example.com"
@@ -83,7 +83,7 @@ def test_request_summary(mock_flow: http.HTTPFlow):
 def test_response_summary(mock_flow: http.HTTPFlow):
     raw = flow_to_raw_response(mock_flow)
     summary = ResponseSummary.from_flow(mock_flow, raw)
-    now = datetime.timestamp(datetime.now())
+    now = datetime.now(timezone.utc).timestamp()
 
     print("-----------")
     print(summary.cookie)

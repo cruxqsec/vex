@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -16,6 +16,7 @@ from pydantic import (
     IPvAnyAddress,
     TypeAdapter,
     field_serializer,
+    field_validator,
 )
 
 from vex_cli.flow_helper import (
@@ -43,7 +44,7 @@ _orm_config = ConfigDict(from_attributes=True)
 
 def now_utc_timestamp() -> float:
     """UTC wall-clock as a unix timestamp."""
-    return datetime.now(timezone.utc).timestamp()
+    return datetime.now(UTC).timestamp()
 
 _ip_adapter = TypeAdapter(IPvAnyAddress)
 _url_adapter = TypeAdapter(AnyUrl)
@@ -124,6 +125,14 @@ class Project(BaseModel):
     name: str
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("created_at", "updated_at", mode="after")
+    @classmethod
+    def _ensure_utc(cls, v: datetime) -> datetime:
+        """DB stores naive UTC; attach UTC at the API boundary so comparisons stay sane."""
+        if v.tzinfo is None:
+            return v.replace(tzinfo=UTC)
+        return v.astimezone(UTC)
 
     def to_orm(self) -> ProjectORM:
         return ProjectORM(**self.model_dump())

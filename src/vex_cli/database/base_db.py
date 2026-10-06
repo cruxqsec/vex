@@ -15,7 +15,11 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from vex_cli.errors import DatabaseError, NotFoundError, ValidationError
+from vex_cli.errors import (
+    DatabaseError,
+    NotFoundError,
+    RequestValidationError,
+)
 from vex_cli.models.orm import (
     Base,
 )
@@ -90,25 +94,30 @@ class BaseDatabase:
             await conn.execute(text("PRAGMA journal_mode=WAL;"))
 
     @asynccontextmanager
-    async def session(self):
-        """Get a database session"""
+    async def session(self, *, commit: bool = True):
+        """Get a database session.
+
+        Read-only use should pass commit=False so pure reads don't open a
+        write-context transaction. 
+        """
 
         if not self._session_maker:
             raise DatabaseError("Session not initialized")
         async with self._session_maker() as s:
             try:
                 yield s
-                await s.commit()
+                if commit:
+                    await s.commit()
             except IntegrityError as e:
                 await s.rollback()
                 logger.error(f"Integrity error: {e}")
                 error_msg = str(e.orig).lower()
                 if "unique" in error_msg or "duplicate" in error_msg:
-                    raise ValidationError("Record already exists")
+                    raise RequestValidationError("Record already exists")
                 elif "foreign key" in error_msg:
-                    raise ValidationError("Invalid reference")
+                    raise RequestValidationError("Invalid reference")
                 else:
-                    raise ValidationError("Constraint violation")
+                    raise RequestValidationError("Constraint violation")
             except SQLAlchemyError as e:
                 await s.rollback()
                 logger.error(f"Database error: {e}")
@@ -123,14 +132,14 @@ class BaseDatabase:
 
     # accepts both because some models have int and others UUID as PK!
     async def get(self, model: type[T], id: UUID | int) -> T:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             obj = await s.get(model, id)
             if not obj:
-                raise NotFoundError("Object not found")
+                raise NotFoundError(f"{model.__name__} with id {id} not found")
             return obj
 
     async def get_all(self, model: type[T], skip: int, size: int) -> list[T]:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             # offset/limit without a total order can skip or repeat rows
             result = await s.execute(
                 select(model).order_by(model.id).offset(skip).limit(size) # type: ignore
@@ -141,14 +150,16 @@ class BaseDatabase:
         async with self.session() as s:
             existing_obj = await s.get(model, obj.id)  # type: ignore (all vex models have id)
             if not existing_obj:
-                raise NotFoundError("Object could not be updated")
+                raise NotFoundError(
+                    f"{model.__name__} with id {obj.id} could not be updated" # type: ignore
+                )
             await s.merge(obj)
 
     async def delete(self, model: type[T], id: UUID | int) -> None:
         async with self.session() as s:
             obj = await s.get(model, id)
             if not obj:
-                raise NotFoundError("Object could not be deleted")
+                raise NotFoundError(f"{model.__name__} with id {id} could not be deleted")
             await s.delete(obj)
 
     async def delete_all(self, model: type[T]) -> None:
@@ -156,7 +167,7 @@ class BaseDatabase:
             await s.execute(sa_delete(model))
 
     async def count(self, model: type[T]) -> int:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             result = await s.execute(select(func.count()).select_from(model))
             return result.scalar() or 0
 

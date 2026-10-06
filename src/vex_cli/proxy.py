@@ -9,7 +9,7 @@ from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.errors import DatabaseError
-from vex_cli.errors import ValidationError as VexValidationError
+from vex_cli.errors import RequestValidationError as VexValidationError
 from vex_cli.flow_helper import flow_to_raw_request, flow_to_raw_response
 from vex_cli.flow_history import FlowHistory
 from vex_cli.flow_scope import FlowScope

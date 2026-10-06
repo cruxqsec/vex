@@ -4,7 +4,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4, UUID
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from vex_cli.app import create_app
@@ -19,8 +19,8 @@ def make_project_orm(id: UUID | None = None, name: str = "Test Project"):
     project = ProjectORM()
     project.id = uuid4() if id is None else id
     project.name = name
-    project.created_at = datetime.now()
-    project.updated_at = datetime.now()
+    project.created_at = datetime.now(timezone.utc)
+    project.updated_at = datetime.now(timezone.utc)
     return project
 
 
@@ -29,8 +29,8 @@ def make_project(id: UUID | None = None, name: str = "Test Project"):
     return Project(
         id=project_id,
         name=name,
-        created_at=datetime.now(),
-        updated_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -244,8 +244,8 @@ async def test_update_project_not_found(client, mock_projects_db):
         json={
             "id": str(project_id),
             "name": "Updated Project",
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -284,6 +284,25 @@ async def test_update_project_ignores_client_timestamps(real_projects_client):
         datetime.fromisoformat(fetched["updated_at"])
         > datetime.fromisoformat(original_updated_at)
     )
+
+
+@pytest.mark.asyncio
+async def test_project_timestamps_round_trip_aware_utc(real_projects_client):
+    """DB stores naive UTC; the API boundary attaches UTC so returned timestamps
+    are aware and comparable against aware datetimes without TypeError."""
+    client = real_projects_client
+
+    created = (await client.post("/api/projects/", json={"name": "tz"})).json()
+    created_at = datetime.fromisoformat(created["created_at"])
+    updated_at = datetime.fromisoformat(created["updated_at"])
+
+    assert created_at.tzinfo is not None
+    assert updated_at.tzinfo is not None
+    assert created_at.utcoffset() == timedelta(0)
+
+    # the comparison that used to raise TypeError with naive read-backs
+    assert created_at <= datetime.now(timezone.utc)
+    assert updated_at <= datetime.now(timezone.utc)
 
 
 @pytest.mark.asyncio

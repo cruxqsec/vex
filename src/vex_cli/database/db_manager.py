@@ -5,7 +5,7 @@ from pathlib import Path
 from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
-from vex_cli.errors import DatabaseError
+from vex_cli.errors import DatabaseError, NoProjectActiveError
 from vex_cli.locations import vex_projects_db_path
 
 logger = logging.getLogger(__name__)
@@ -40,15 +40,13 @@ class DatabaseManager:
     @property
     def summaries_db(self) -> SummariesDatabase:
         if not self._summaries_db:
-            raise DatabaseError(
-                "No active project — summaries database not initialized"
-            )
+            raise NoProjectActiveError()
         return self._summaries_db
 
     @property
     def raw_db(self) -> RawDatabase:
         if not self._raw_db:
-            raise DatabaseError("No active project — raw database not initialized")
+            raise NoProjectActiveError()
         return self._raw_db
 
     @property

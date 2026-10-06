@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import AsyncMock
 
 from vex_cli.database.db_manager import DatabaseManager
-from vex_cli.errors import DatabaseError
+from vex_cli.errors import DatabaseError, NoProjectActiveError
 from vex_cli.models.orm import RequestSummaryORM
 
 
@@ -66,7 +66,7 @@ async def test_get_projects_db_raises_before_initialize(mocker):
 
 @pytest.mark.asyncio
 async def test_get_summaries_db_raises_before_switch(manager):
-    with pytest.raises(DatabaseError, match="summaries database not initialized"):
+    with pytest.raises(NoProjectActiveError):
         manager.summaries_db
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_get_summaries_db_returns_db_after_switch(manager, tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_raw_db_raises_before_switch(manager):
-    with pytest.raises(DatabaseError, match="raw database not initialized"):
+    with pytest.raises(NoProjectActiveError):
         manager.raw_db
 
 @pytest.mark.asyncio

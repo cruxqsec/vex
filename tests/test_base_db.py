@@ -11,7 +11,7 @@ from datetime import datetime
 
 from vex_cli.models.orm import Base
 from vex_cli.database.base_db import BaseDatabase
-from vex_cli.errors import DatabaseError, NotFoundError, ValidationError
+from vex_cli.errors import DatabaseError, NotFoundError, RequestValidationError
 
 
 # Minimal throwaway model
@@ -403,7 +403,7 @@ async def test_session_raises_validation_error_on_duplicate(db, make_test_model)
     shared_uuid = uuid4()
     await db.create(make_test_model(uuid=shared_uuid))
 
-    with pytest.raises(ValidationError, match="Record already exists"):
+    with pytest.raises(RequestValidationError, match="Record already exists"):
         await db.create(make_test_model(uuid=shared_uuid))
 
 
@@ -421,6 +421,45 @@ async def test_get_all_pages_are_ordered_and_complete(db, make_test_model):
 
     assert ids == sorted(ids)
     assert len(set(ids)) == 5
+
+
+@pytest.mark.asyncio
+async def test_read_sessions_do_not_commit(db, mocker, make_test_model):
+    """get/get_all/count pass commit=False; a read must not issue a COMMIT."""
+    await db.create(make_test_model())
+
+    commit = AsyncMock()
+    rollback = AsyncMock()
+    real_session = db.session
+
+    def tracking_session(*args, **kwargs):
+        cm = real_session(*args, **kwargs)
+        # wrap so we can observe commit/rollback on the inner session
+        return cm
+
+    # spy on the session maker to intercept sessions and count COMMITs
+    mocker.patch.object(
+        db._session_maker,
+        "__call__",
+        side_effect=lambda: db._session_maker(),  # keep behavior, observe below
+    )
+
+    # simpler and precise: spy on AsyncSession.commit via the engine's sessions
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    commit_spy = mocker.patch.object(
+        AsyncSession, "commit", new_callable=AsyncMock
+    )
+
+    await db.get(_TestModelORM, 1)
+    await db.get_all(_TestModelORM, skip=0, size=10)
+    await db.count(_TestModelORM)
+
+    assert commit_spy.await_count == 0
+
+    # writes still commit
+    await db.create(make_test_model())
+    assert commit_spy.await_count >= 1
 
 
 @pytest.mark.asyncio
