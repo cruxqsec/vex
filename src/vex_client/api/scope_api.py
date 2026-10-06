@@ -10,13 +10,18 @@ logger = logging.getLogger(__name__)
 # ==================== Scope ====================
 
 
-async def get_all_scopes(
-    host: str, port: int, skip: int = 0, size: int = 10
-) -> list[Scope]:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"http://{host}:{port}/api/scope/",
+class ScopeApi:
+    """Scope API methods sharing one pooled httpx client."""
+
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
+
+    async def get_all_scopes(
+        self, skip: int = 0, size: int = 10
+    ) -> list[Scope]:
+        try:
+            response = await self._client.get(
+                "/api/scope/",
                 params={"skip": skip, "size": size},
             )
             if response.status_code == 200:
@@ -27,21 +32,19 @@ async def get_all_scopes(
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return []
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return []
 
-
-async def get_scope(id: int, host: str, port: int) -> Scope | None:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://{host}:{port}/api/scope/{id}")
+    async def get_scope(self, id: int) -> Scope | None:
+        try:
+            response = await self._client.get(f"/api/scope/{id}")
             if response.status_code == 200:
                 return Scope.model_validate(response.json())
             else:
@@ -51,22 +54,20 @@ async def get_scope(id: int, host: str, port: int) -> Scope | None:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return None
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return None
 
-
-async def create_scope(scope: ScopeCreate, host: str, port: int) -> Scope | None:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"http://{host}:{port}/api/scope/",
+    async def create_scope(self, scope: ScopeCreate) -> Scope | None:
+        try:
+            response = await self._client.post(
+                "/api/scope/",
                 json=scope.model_dump(mode="json"),
             )
             if response.status_code == 201:
@@ -77,22 +78,20 @@ async def create_scope(scope: ScopeCreate, host: str, port: int) -> Scope | None
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return None
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return None
 
-
-async def update_scope(scope: Scope, host: str, port: int) -> bool:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.put(
-                f"http://{host}:{port}/api/scope/",
+    async def update_scope(self, scope: Scope) -> bool:
+        try:
+            response = await self._client.put(
+                "/api/scope/",
                 json=scope.model_dump(mode="json"),
             )
             if response.status_code == 202:
@@ -103,21 +102,19 @@ async def update_scope(scope: Scope, host: str, port: int) -> bool:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return False
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return False
 
-
-async def delete_scope(id: int, host: str, port: int) -> bool:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(f"http://{host}:{port}/api/scope/{id}")
+    async def delete_scope(self, id: int) -> bool:
+        try:
+            response = await self._client.delete(f"/api/scope/{id}")
             if response.status_code == 202:
                 return True
             else:
@@ -127,24 +124,21 @@ async def delete_scope(id: int, host: str, port: int) -> bool:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return False
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return False
 
+    # ==================== Scope runtime ====================
 
-# ==================== Scope runtime ====================
-
-
-async def set_scope(id: int, host: str, port: int) -> bool:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"http://{host}:{port}/api/scope/set/{id}")
+    async def set_scope(self, id: int) -> bool:
+        try:
+            response = await self._client.post(f"/api/scope/set/{id}")
             if response.status_code == 202:
                 return True
             else:
@@ -154,21 +148,19 @@ async def set_scope(id: int, host: str, port: int) -> bool:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return False
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return False
 
-
-async def unset_scope(host: str, port: int) -> bool:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"http://{host}:{port}/api/scope/unset/")
+    async def unset_scope(self) -> bool:
+        try:
+            response = await self._client.post("/api/scope/unset/")
             if response.status_code == 202:
                 return True
             else:
@@ -177,21 +169,19 @@ async def unset_scope(host: str, port: int) -> bool:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return False
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return False
 
-
-async def get_active_scope(host: str, port: int) -> Scope | None:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://{host}:{port}/api/scope/active/")
+    async def get_active_scope(self) -> Scope | None:
+        try:
+            response = await self._client.get("/api/scope/active/")
             if response.status_code == 200:
                 data = response.json()
                 if data is None:
@@ -203,24 +193,21 @@ async def get_active_scope(host: str, port: int) -> Scope | None:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return None
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return None
 
+    # ==================== Scope count ====================
 
-# ==================== Scope count ====================
-
-
-async def count_scopes(host: str, port: int) -> int:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://{host}:{port}/api/scope/count")
+    async def count_scopes(self) -> int:
+        try:
+            response = await self._client.get("/api/scope/count")
             if response.status_code == 200:
                 return CountResponse.model_validate(response.json()).count
             else:
@@ -229,12 +216,12 @@ async def count_scopes(host: str, port: int) -> int:
                     response.status_code,
                     response.text,
                 )
-    except httpx.TimeoutException:
-        logger.exception("Timeout occurred")
-        raise
-    except httpx.RequestError:
-        logger.exception("Request failed")
-        raise
-    except (ValueError, KeyError):
-        logger.exception("Failed to parse response")
-    return 0
+        except httpx.TimeoutException:
+            logger.exception("Timeout occurred")
+            raise
+        except httpx.RequestError:
+            logger.exception("Request failed")
+            raise
+        except (ValueError, KeyError):
+            logger.exception("Failed to parse response")
+        return 0

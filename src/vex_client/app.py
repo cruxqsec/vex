@@ -25,8 +25,7 @@ from vex_cli.models.pydantic import (
     Scope,
 )
 from vex_cli.pid_func import is_process_running
-from vex_client.api.scope_api import get_active_scope, get_all_scopes
-from vex_client.api.summaries_api import get_all_summaries
+from vex_client.api.client import ApiClient
 from vex_client.cli_controller import VexController
 from vex_client.history.screen import VexHTTPHistoryScreen
 from vex_client.intercept.screen import VexInterceptScreen
@@ -125,6 +124,10 @@ class VexApp(App[str]):
         # reference to the history screen so we don't have to query it each time
         self.history_screen: VexHTTPHistoryScreen | None = None
 
+        # app-owned API client for the currently connected server (lazy)
+        self._api_client: ApiClient | None = None
+        self._api_info: tuple[str, int] | None = None
+
         # worker references easier management
         self.server_monitor_worker: Worker | None = None
         self.history_manager_worker: Worker | None = None
@@ -136,6 +139,9 @@ class VexApp(App[str]):
         # Start with the proxy selection screen
         self.push_screen("proxy-screen")
 
+    async def on_unmount(self) -> None:
+        await self.close_api()
+
     def get_api_info(self) -> tuple[str, int] | tuple[None, None]:
         """Return the API info so we can call vex-cli API."""
         server_info = self.vex_controller.server_info
@@ -144,6 +150,45 @@ class VexApp(App[str]):
             return None, None
 
         return server_info.server_address, server_info.api_port
+
+    @property
+    def api_client(self) -> ApiClient | None:
+        """The API client for the currently connected server, or None.
+
+        Built lazily from server_info; rebuilt (with the stale client closed)
+        when the (host, port) pair changes; None while no server is known.
+        """
+        server_info = self.vex_controller.server_info
+
+        if server_info is None:
+            return None
+
+        key = (server_info.server_address, server_info.api_port)
+        if self._api_client is not None and self._api_info == key:
+            return self._api_client
+
+        self._api_info = key
+        old_client = self._api_client
+        self._api_client = ApiClient(*key)
+        if old_client is not None and not old_client.is_closed:
+            asyncio.get_running_loop().create_task(old_client.aclose())
+        return self._api_client
+
+    async def adopt_api(self, client: ApiClient, api_info: tuple[str, int]) -> None:
+        """Adopt an externally built client as the app-owned client for api_info."""
+        await self.close_api()
+        self._api_client = client
+        self._api_info = api_info
+
+    async def close_api(self) -> None:
+        """Close the current API client and forget it."""
+        if self._api_client is not None:
+            client = self._api_client
+            self._api_client = None
+            self._api_info = None
+            await client.aclose()
+        else:
+            self._api_info = None
 
     def get_screen_name(self) -> str:
         """Get screen name for the screen we use to install it and is defined in the SCREENS."""
@@ -207,6 +252,7 @@ class VexApp(App[str]):
         self.server_online = False
         self.vex_controller.cli_pid = INACTIVE_PROCESS
         self.vex_controller.server_info = None
+        await self.close_api()
 
     def _cleanup(self) -> None:
         self.active_project = None
@@ -336,8 +382,8 @@ class VexApp(App[str]):
 
     @work(name="fetch_summaries", group="summaries", exclusive=True)
     async def _fetch_all_summaries(self) -> None:
-        host, port = self.get_api_info()
-        if host is None or port is None:
+        api = self.api_client
+        if api is None:
             self.log_vex("Cannot load summaries: no server info available", "error")
             return
 
@@ -351,7 +397,7 @@ class VexApp(App[str]):
         skip = 0
         while True:
             try:
-                summaries = await get_all_summaries(host, port, skip, 50)
+                summaries = await api.summaries.get_all_summaries(skip, 50)
             except httpx.HTTPError:
                 self.log_vex("Failed to load summaries. Check logs.", "error")
                 break
@@ -376,15 +422,15 @@ class VexApp(App[str]):
 
     @work(name="fetch_scopes", group="fetch_scopes", exclusive=True)
     async def _fetch_scopes(self):
-        host, port = self.get_api_info()
-        if host is None or port is None:
+        api = self.api_client
+        if api is None:
             return
 
         try:
             all_scopes: list[Scope] = []
             skip = 0
             while True:
-                batch = await get_all_scopes(host, port, skip=skip, size=50)
+                batch = await api.scope.get_all_scopes(skip=skip, size=50)
                 if not batch:
                     break
                 all_scopes += batch
@@ -409,11 +455,11 @@ class VexApp(App[str]):
 
     @work(name="fetch_active_scope", group="fetch_active_scope", exclusive=True)
     async def _fetch_active_scope(self):
-        host, port = self.get_api_info()
-        if host is None or port is None:
+        api = self.api_client
+        if api is None:
             return
         try:
-            active = await get_active_scope(host, port)
+            active = await api.scope.get_active_scope()
         except httpx.HTTPError:
             return
         self.active_scope = active

@@ -20,7 +20,7 @@ from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_pid_file
 from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
-from vex_client.api.health_check import check_health_pid, check_health_retries
+from vex_client.api.client import ApiClient
 from vex_client.modals.proxy_modal import CreateUpdateProxyScreen
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
@@ -166,10 +166,12 @@ class VexProxyScreen(Screen):
 
             # call /health endpoint to confirm the pid from
             # the file is the same as from the endpoint
-            health_check_pid_result = await check_health_pid(
-                host=list_item.instance.server_address,
-                port=list_item.instance.api_port,
+            api_info = (
+                list_item.instance.server_address,
+                list_item.instance.api_port,
             )
+            client = ApiClient(*api_info)
+            health_check_pid_result = await client.health.check_health_pid()
 
             if health_check_pid_result == pid_data.pid:
                 app.log_vex("Found running instance", severity="info")
@@ -180,9 +182,12 @@ class VexProxyScreen(Screen):
                 )
                 app.vex_controller.server_info = server_info
                 app.vex_controller.cli_pid = pid_data.pid
+                await app.adopt_api(client, api_info)
                 list_item.set_running(True)
                 self._proxy_start_time = time.monotonic()
                 self.status_card.set_active(list_item.instance, self._elapsed_str())
+            else:
+                await client.aclose()
 
         except (OSError, ValidationError, httpx.HTTPError):
             app.log_vex(
@@ -230,8 +235,13 @@ class VexProxyScreen(Screen):
         if host is None or port is None:
             app.log_vex("Cannot enter: no server info available", "error")
             return
-        
-        server_ready = await check_health_retries(5, host, port)
+
+        api_client = app.api_client
+        if api_client is None:
+            app.log_vex("Cannot enter: no server info available", "error")
+            return
+
+        server_ready = await api_client.health.check_health_retries(5)
         if not server_ready:
             app.log_vex("Server not reachable. Check if vex-cli is running.", "error")
             return
@@ -250,6 +260,7 @@ class VexProxyScreen(Screen):
             successful_stop = await app.vex_controller.stop_vex_cli()
 
             if successful_stop:
+                await app.close_api()
                 app.log_vex(message="Server stopped.")
             else:
                 app.log_vex(

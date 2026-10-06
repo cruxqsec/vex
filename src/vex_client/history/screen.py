@@ -26,8 +26,6 @@ from vex_client.history.table import (
 from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.request_area import RequestAreaContainer
 from vex_client.widgets.response_area import ResponseAreaContainer
-from vex_client.api.raw_api import get_raw_request, get_raw_response
-from vex_client.api.summaries_api import delete_flow, delete_all_flows
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
@@ -315,19 +313,18 @@ class VexHTTPHistoryScreen(Screen):
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
     async def fetch_raw_summaries(self, summary_id: UUID) -> None:
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             return
 
         try:
-            raw_request = await get_raw_request(summary_id, host, port)
+            raw_request = await api.raw.get_raw_request(summary_id)
         except httpx.HTTPError:
             app.log_vex("Couldn't fetch request data! Check logs.", severity="error")
             raw_request = None
 
         try:
-            raw_response = await get_raw_response(summary_id, host, port)
+            raw_response = await api.raw.get_raw_response(summary_id)
         except httpx.HTTPError:
             app.log_vex("Couldn't fetch response data! Check logs.", severity="error")
             raw_response = None
@@ -374,8 +371,7 @@ class VexHTTPHistoryScreen(Screen):
             return
 
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        if app.api_client is None:
             return
 
         flow_id = UUID(row_key_str)
@@ -384,7 +380,7 @@ class VexHTTPHistoryScreen(Screen):
             if not confirmed:
                 return
             try:
-                success = await delete_flow(flow_id, host, port)
+                success = await app.api_client.summaries.delete_flow(flow_id)
             except httpx.HTTPError:
                 self.notify(
                     "Network error deleting entry. Check logs.", severity="error"
@@ -404,15 +400,14 @@ class VexHTTPHistoryScreen(Screen):
 
     def action_delete_all_entries(self) -> None:
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        if app.api_client is None:
             return
 
         async def do_delete_all(confirmed: bool) -> None:
             if not confirmed:
                 return
             try:
-                success = await delete_all_flows(host, port)
+                success = await app.api_client.summaries.delete_all_flows()
             except httpx.HTTPError:
                 self.notify(
                     "Network error deleting entries. Check logs.", severity="error"

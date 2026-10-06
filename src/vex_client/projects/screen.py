@@ -13,17 +13,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Button, Static
 
 from vex_cli.models.pydantic import ProjectCreate, Project
-from vex_client.api.summaries_api import count_flows
-from vex_client.api.scope_api import count_scopes
 from vex_cli.locations import vex_projects_directory
-from vex_client.api.project_api import (
-    create_project,
-    delete_project,
-    get_active_project,
-    get_all_projects,
-    select_project,
-    update_project,
-)
 from vex_client.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.navigation_bar import VexNavigationBar
@@ -96,14 +86,14 @@ class VexProjectsScreen(Screen):
         if project_id is None:
             return
 
-        host, port = app.get_api_info()
+        api = app.api_client
 
-        if host is None or port is None:
+        if api is None:
             return
 
         project: Project | None = self.projects_table.get_project(project_id)
         try:
-            successfully_selected: bool = await select_project(project_id, host, port)
+            successfully_selected: bool = await api.projects.select_project(project_id)
         except httpx.HTTPError:
             self.active_project_card.set_empty()
             self.notify(
@@ -125,15 +115,15 @@ class VexProjectsScreen(Screen):
         updates the cache, and populates the table.
         """
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             app.log_vex("Cannot load projects: no server info available", "error")
             return
 
         try:
             skip = 0
             while True:
-                batch = await get_all_projects(host, port, skip=skip, size=50)
+                batch = await api.projects.get_all_projects(skip=skip, size=50)
                 if not batch:
                     break
                 for project in batch:
@@ -156,16 +146,13 @@ class VexProjectsScreen(Screen):
         if it is then we set it as active project
         """
         app = cast("VexApp", self.app)
-
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             app.log_vex("Cannot check active project: no server info available", "error")
             return
 
         try:
-            fetched_active_project: Project | None = await get_active_project(
-                host, port
-            )
+            fetched_active_project: Project | None = await api.projects.get_active_project()
         except httpx.HTTPError:
             app.log_vex("Failed to check active project. Check logs.", "error")
             return
@@ -203,14 +190,13 @@ class VexProjectsScreen(Screen):
     @work(name="flow_count", exclusive=True, group="flow_count")
     async def fetch_flow_count(self) -> None:
         app = cast("VexApp", self.app)
-
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             app.log_vex("Cannot check active project: no server info available", "error")
             return
 
         try:
-            fetched_flow_count: int = await count_flows(host,port)
+            fetched_flow_count: int = await api.summaries.count_flows()
             self.active_project_card.query_one("#ap-flows", Static).update(str(fetched_flow_count))
         except httpx.HTTPError:
             app.log_vex("Failed to check active project. Check logs.", "error")
@@ -219,14 +205,13 @@ class VexProjectsScreen(Screen):
     @work(name="scope_count", exclusive=True, group="scope_count")
     async def fetch_scope_count(self) -> None:
         app = cast("VexApp", self.app)
-
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             app.log_vex("Cannot check active project: no server info available", "error")
             return
 
         try:
-            fetched_scope_count: int = await count_scopes(host,port)
+            fetched_scope_count: int = await api.scope.count_scopes()
             self.active_project_card.query_one("#ap-scopes", Static).update(str(fetched_scope_count))
         except httpx.HTTPError:
             app.log_vex("Failed to check active project. Check logs.", "error")
@@ -248,9 +233,12 @@ class VexProjectsScreen(Screen):
         # callback
         async def create(project_name: str):
             new_project = ProjectCreate(name=project_name)
-            host, port = self.app.get_api_info()  # type: ignore
+            api = self.app.api_client  # type: ignore
+            if api is None:
+                self.log_vex("Cannot create project: no server info available", "error")
+                return
             try:
-                created_project = await create_project(new_project, host, port)
+                created_project = await api.projects.create_project(new_project)
             except httpx.HTTPError:
                 self.notify(
                     "Network error creating project. Check logs.", severity="error"
@@ -291,9 +279,12 @@ class VexProjectsScreen(Screen):
 
             project.name = updated_name
 
-            host, port = self.app.get_api_info()  # type: ignore
+            api = self.app.api_client  # type: ignore
+            if api is None:
+                self.log_vex("Cannot update project: no server info available", "error")
+                return
             try:
-                successfully_updated = await update_project(project, host, port)
+                successfully_updated = await api.projects.update_project(project)
             except httpx.HTTPError:
                 self.notify(
                     "Network error updating project. Check logs.", severity="error"
@@ -315,10 +306,6 @@ class VexProjectsScreen(Screen):
         if project_id is None:
             return
 
-        host, port = app.get_api_info()
-        if host is None or port is None:
-            return
-
         project = self.projects_table.get_project(project_id)
         project_name = project.name if project else "this project"
 
@@ -326,8 +313,11 @@ class VexProjectsScreen(Screen):
             if not confirmed:
                 return
 
+            api = app.api_client
+            if api is None:
+                return
             try:
-                is_deleted = await delete_project(project_id, host, port)
+                is_deleted = await api.projects.delete_project(project_id)
             except httpx.HTTPError:
                 self.notify(
                     "Network error deleting project. Check logs.", severity="error"
