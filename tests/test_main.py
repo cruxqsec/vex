@@ -119,8 +119,31 @@ def test_start_command_exits_if_port_in_use(mocker):
     assert "already in use" in result.output
 
 
+def test_start_command_propagates_failure_exit_code(mocker):
+    mocker.patch("vex_cli.__main__.try_bind_ports", return_value=(True, None))
+    mocker.patch("vex_cli.__main__.main", return_value=1, new_callable=MagicMock)
+    mock_asyncio_run = mocker.patch("vex_cli.__main__.asyncio.run", return_value=1)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["start"])
+
+    mock_asyncio_run.assert_called_once()
+    assert result.exit_code == 1
+
+
+def test_start_command_propagates_success_exit_code(mocker):
+    mocker.patch("vex_cli.__main__.try_bind_ports", return_value=(True, None))
+    mocker.patch("vex_cli.__main__.main", return_value=0, new_callable=MagicMock)
+    mock_asyncio_run = mocker.patch("vex_cli.__main__.asyncio.run", return_value=0)
+    runner = CliRunner()
+    result = runner.invoke(cli, ["start"])
+
+    mock_asyncio_run.assert_called_once()
+    assert result.exit_code == 0
+
+
 def test_start_command_passes_correct_defaults(mocker):
     mocker.patch("vex_cli.__main__.try_bind_ports", return_value=(True, None))
+    mocker.patch("vex_cli.__main__.main", return_value=0, new_callable=MagicMock)
     mocker.patch("vex_cli.__main__.asyncio.run", return_value=0)
     mock_server_info = mocker.patch("vex_cli.__main__.VexServerInfo")
     runner = CliRunner()

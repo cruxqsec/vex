@@ -150,7 +150,7 @@ def start(address: str, proxy_port: int, api_port: int) -> int:
         sys.exit(1)
 
     code = asyncio.run(main(server_info))
-    return code
+    sys.exit(code)
 
 
 if __name__ == "__main__":

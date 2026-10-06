@@ -51,7 +51,8 @@ class BaseDatabase:
             engine: AsyncEngine | None = None
             try:
                 engine = create_async_engine(
-                    f"sqlite+aiosqlite:///{self.db_path}"
+                    f"sqlite+aiosqlite:///{self.db_path}",
+                    connect_args={"timeout": 10},
                 )
 
                 await self._create_tables(engine)

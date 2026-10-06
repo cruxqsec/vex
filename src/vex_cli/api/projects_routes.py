@@ -64,7 +64,8 @@ async def update_project(
     Update a project from a given project.
     """
     # TODO check if the project being updated is an active project
-    await projects_db.update(ProjectORM, project.to_orm())
+    # Only the name is client-writable; created_at/updated_at are DB-generated.
+    await projects_db.update_name(project.id, project.name)
 
     return ResponseStatus(status="Success", msg="Object updated")
 

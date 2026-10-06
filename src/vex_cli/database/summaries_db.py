@@ -15,7 +15,7 @@ class SummariesDatabase(BaseDatabase):
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
-        _exclude = {"flow_id", "timestamp"}
+        _exclude = {"id", "flow_id", "timestamp"}
         # RequestSummary columns to select
         self._req_cols = [
             getattr(RequestSummaryORM, c.name)

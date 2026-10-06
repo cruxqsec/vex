@@ -1,11 +1,14 @@
+import asyncio
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
 from vex_cli.app import create_app
+from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
 from vex_cli.models.orm import ProjectORM
 from vex_cli.models.pydantic import Project, ProjectCreate
@@ -58,6 +61,24 @@ async def client(mock_projects_db, mock_state_obj):
     ) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def real_projects_client(tmp_path: Path):
+    """Client wired to a real ProjectsDatabase — for behavior the mocks can't see."""
+    from pathlib import Path
+
+    database = ProjectsDatabase(db_path=tmp_path / "projects.db")
+    await database.initialize()
+
+    app = create_app()
+    app.dependency_overrides[get_projects_db] = lambda: database
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://localhost"
+    ) as c:
+        yield c
+    app.dependency_overrides.clear()
+    await database.close()
 
 
 # --- GET /projects/ ---
@@ -179,7 +200,7 @@ async def test_update_project_returns_202(client, mock_projects_db):
 @pytest.mark.asyncio
 async def test_update_project_not_found(client, mock_projects_db):
     project_id = uuid4()
-    mock_projects_db.update.side_effect = NotFoundError("Not found")
+    mock_projects_db.update_name.side_effect = NotFoundError("Not found")
 
     response = await client.put(
         "/api/projects/",
@@ -188,6 +209,55 @@ async def test_update_project_not_found(client, mock_projects_db):
             "name": "Updated Project",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
+        },
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_project_ignores_client_timestamps(real_projects_client):
+    """PUT must not persist client-supplied created_at/updated_at; rename
+    bumps updated_at via the onupdate default."""
+    client = real_projects_client
+
+    created = (await client.post("/api/projects/", json={"name": "v1"})).json()
+    project_id = created["id"]
+    original_created_at = created["created_at"]
+    original_updated_at = created["updated_at"]
+
+    await asyncio.sleep(0.01)  # ensure a later timestamp is observable
+
+    put_response = await client.put(
+        "/api/projects/",
+        json={
+            "id": project_id,
+            "name": "v2",
+            "created_at": "1970-01-01T00:00:00Z",
+            "updated_at": "1970-01-01T00:00:00Z",
+        },
+    )
+    assert put_response.status_code == 202
+
+    fetched = (await client.get(f"/api/projects/{project_id}")).json()
+
+    assert fetched["name"] == "v2"
+    assert fetched["created_at"] == original_created_at
+    assert (
+        datetime.fromisoformat(fetched["updated_at"])
+        > datetime.fromisoformat(original_updated_at)
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_project_unknown_id_returns_404(real_projects_client):
+    response = await real_projects_client.put(
+        "/api/projects/",
+        json={
+            "id": str(uuid4()),
+            "name": "Ghost",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         },
     )
 

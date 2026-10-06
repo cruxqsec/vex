@@ -51,6 +51,7 @@ def test_res_cols_excludes_correct_columns(db):
     """id, flow_id, timestamp should be excluded from response cols."""
     res_col_names = {col.key for col in db._res_cols}
 
+    assert "id" not in res_col_names
     assert "flow_id" not in res_col_names
     assert "timestamp" not in res_col_names
 
@@ -61,7 +62,7 @@ def test_res_cols_contains_remaining_columns(db):
     expected = {
         c.name
         for c in ResponseSummaryORM.__table__.columns
-        if c.name not in {"flow_id", "timestamp"}
+        if c.name not in {"id", "flow_id", "timestamp"}
     }
 
     assert res_col_names == expected
@@ -108,6 +109,22 @@ async def test_get_full_summary(db):
     for k in res_summary_keys:
         assert hasattr(result[0], k)
         assert hasattr(result[1], k)
+
+
+@pytest.mark.asyncio
+async def test_get_full_summaries_id_is_request_id(db):
+    """FlowSummary.id must be the RequestSummary row id, with or without a response."""
+    request = await db.create(make_request_summary())
+
+    flow_id = uuid4()
+    await db.create(make_request_summary(flow_id=flow_id))
+    await db.create(make_response_summary(flow_id=flow_id))
+
+    result = await db.get_full_summaries(skip=0, size=10)
+
+    assert len(result) == 2
+    assert result[-1].id == 2
+    assert result[-1].id != request.id
 
 
 @pytest.mark.asyncio

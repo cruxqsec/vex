@@ -437,3 +437,17 @@ async def test_wal_enabled_after_initialize(tmp_path):
 
     await database.close()
     assert mode == "wal"
+
+
+@pytest.mark.asyncio
+async def test_busy_timeout_configured_after_initialize(tmp_path):
+    """Every engine sets a 10s busy timeout via connect_args (PRAGMA in ms)."""
+    database = _TestModelDB(db_path=tmp_path / "test.db")
+    await database.initialize()
+
+    async with database._engine.connect() as conn:
+        (await conn.execute(text("PRAGMA busy_timeout;")))
+        timeout_ms = (await conn.execute(text("PRAGMA busy_timeout;"))).scalar()
+
+    await database.close()
+    assert timeout_ms == 10000
