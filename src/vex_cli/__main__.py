@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import signal
 import sys
 
 import click
@@ -50,18 +49,10 @@ async def main(server_info: VexServerInfo) -> int:
 
 async def _run_vex_tasks(server_info: VexServerInfo) -> None:
     tasks: list[asyncio.Task] = []
-    shutdown_event = asyncio.Event()
 
-    loop = asyncio.get_running_loop()
-
-    def handle_signal():
-        if shutdown_event.is_set():
-            sys.exit(1)
-        shutdown_event.set()
-
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, handle_signal)
-
+    # Signal handling is owned by uvicorn: SIGINT/SIGTERM set should_exit and
+    # serve() returns normally, which completes fastapi_task and falls into
+    # the cleanup below. We install no handlers of our own.
     app_state = VexState(server_info)
 
     try:
@@ -69,27 +60,25 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
 
         proxy_task = asyncio.create_task(start_proxy(app_state))
         fastapi_task = asyncio.create_task(start_fastapi(app_state))
-        shutdown_task = asyncio.create_task(shutdown_event.wait())
 
-        tasks = [proxy_task, fastapi_task, shutdown_task]
+        tasks = [proxy_task, fastapi_task]
 
+        # Wait until either server exits: cleanly via signal-triggered shutdown,
+        # or by crashing (exception surfaced below).
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
-        # if shutdown_task has not finished it means one of the servers crashed
-        if shutdown_task in pending:
-            # gather exceptions from all completed non-shutdown tasks
-            crashed = [t for t in done if t is not shutdown_task and not t.cancelled()]
-            exceptions: list[Exception] = []
-            for task in crashed:
-                exc = task.exception()
-                if exc is not None and isinstance(exc, Exception):
-                    exceptions.append(exc)
+        crashed = [t for t in done if not t.cancelled()]
+        exceptions: list[Exception] = []
+        for task in crashed:
+            exc = task.exception()
+            if exc is not None and isinstance(exc, Exception):
+                exceptions.append(exc)
 
-            if exceptions:
-                if len(exceptions) == 1:
-                    raise exceptions[0]
-                else:
-                    raise ExceptionGroup("Multiple tasks crashed", exceptions)
+        if exceptions:
+            if len(exceptions) == 1:
+                raise exceptions[0]
+            else:
+                raise ExceptionGroup("Multiple tasks crashed", exceptions)
 
     except asyncio.CancelledError:
         pass
@@ -120,6 +109,14 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
         await app_state.shutdown()
 
 
+def _configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(vex_log_directory() / "vex-cli.log")],
+    )
+
+
 @cli.command()
 @click.option(
     "--address",
@@ -140,6 +137,7 @@ async def _run_vex_tasks(server_info: VexServerInfo) -> None:
 )
 def start(address: str, proxy_port: int, api_port: int) -> int:
     """Start both the FastAPI and proxy servers."""
+    _configure_logging()
     server_info = VexServerInfo(
         server_address=address, proxy_port=proxy_port, api_port=api_port
     )

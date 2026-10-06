@@ -1,14 +1,16 @@
 import os
+import sys
 from pathlib import Path
+
 import pytest
 
 from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import (
     delete_pid_file,
     is_process_running,
+    pid_file_check,
     read_pid_file,
     write_pid_file,
-    pid_file_check,
 )
 
 
@@ -35,7 +37,6 @@ def test_is_process_running_returns_false_for_negative():
 
 
 def test_is_process_running_returns_true_for_current_process():
-    # current process is definitely running
     assert is_process_running(os.getpid()) is True
 
 
@@ -78,72 +79,132 @@ def test_delete_pid_file_does_not_raise_if_missing(pid_file):
 
 
 @pytest.mark.asyncio
-async def test_pid_file_check_creates_pid_file(server_info, tmp_path, mocker):
+async def test_pid_file_check_writes_metadata(server_info, tmp_path, mocker):
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
     async with pid_file_check(server_info) as pf:
-        assert pf.exists()  # file exists during context
+        assert pf.exists()
+        data = read_pid_file(pf)
+        assert data.pid == os.getpid()
+        assert data.host == "127.0.0.1"
+        assert data.proxy_port == 8080
+        assert data.api_port == 8081
 
 
 @pytest.mark.asyncio
-async def test_pid_file_check_deletes_pid_file_on_exit(server_info, tmp_path, mocker):
+async def test_pid_file_check_replaces_stale_content(server_info, tmp_path, mocker):
+    """Content from a crashed instance is rewritten once we hold the lock."""
+    pid_file = tmp_path / "vex.pid"
+    mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
+    pid_file.write_text("this is not valid json {{{{")
+
+    async with pid_file_check(server_info):
+        data = read_pid_file(pid_file)  # must now parse
+        assert data.pid == os.getpid()
+
+
+@pytest.mark.asyncio
+async def test_pid_file_check_persists_file_after_clean_exit(
+    server_info, tmp_path, mocker
+):
+    """The file survives exit; the lock (not the file) decides liveness."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
     async with pid_file_check(server_info):
         pass
 
-    assert not pid_file.exists()
+    assert pid_file.exists()
 
 
 @pytest.mark.asyncio
-async def test_pid_file_check_deletes_pid_file_on_exception(
+async def test_pid_file_check_second_start_raises_while_held(
     server_info, tmp_path, mocker
 ):
+    """A held lock excludes any concurrent pid_file_check."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
-    with pytest.raises(RuntimeError, match="test error"):
-        async with pid_file_check(server_info):
-            raise RuntimeError("test error")
-
-    assert not pid_file.exists()
+    async with pid_file_check(server_info):
+        with pytest.raises(RuntimeError, match="already running"):
+            async with pid_file_check(server_info):
+                pass
 
 
 @pytest.mark.asyncio
-async def test_pid_file_check_raises_if_already_running(server_info, tmp_path, mocker):
+async def test_pid_file_check_lock_released_after_exit(server_info, tmp_path, mocker):
+    """After exit a new instance can acquire the gate (no stale-file lock)."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
-    mocker.patch("vex_cli.pid_func.is_process_running", return_value=True)
 
-    write_pid_file("127.0.0.1", 8080, 8081, pid_file)
+    async with pid_file_check(server_info):
+        pass
+
+    async with pid_file_check(server_info):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_pid_file_check_raises_if_lock_contended(
+    server_info, tmp_path, mocker
+):
+    """BlockingIOError/OSError from the lock attempt maps to RuntimeError."""
+    pid_file = tmp_path / "vex.pid"
+    mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
+    mocker.patch(
+        "vex_cli.pid_func._acquire_file_lock",
+        side_effect=BlockingIOError,
+    )
 
     with pytest.raises(RuntimeError, match="already running"):
         async with pid_file_check(server_info):
             pass
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX flock behavior")
 @pytest.mark.asyncio
-async def test_pid_file_check_cleans_stale_pid_file(server_info, tmp_path, mocker):
-    """If pid file exists but process is dead, it should be cleaned up and proceed."""
-    pid_file = tmp_path / "vex.pid"
-    mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
-    mocker.patch("vex_cli.pid_func.is_process_running", return_value=False)
+async def test_pid_file_check_real_two_process_exclusion(
+    server_info, tmp_path, mocker
+):
+    """True cross-process contention: a subprocess holds the lock, we must fail."""
+    import subprocess
 
-    write_pid_file("127.0.0.1", 8080, 8081, pid_file)
-
-    async with pid_file_check(server_info):
-        pass
-
-
-@pytest.mark.asyncio
-async def test_pid_file_check_cleans_corrupt_pid_file(server_info, tmp_path, mocker):
-    """If pid file is corrupt/unreadable, it should be deleted and proceed."""
     pid_file = tmp_path / "vex.pid"
     mocker.patch("vex_cli.pid_func.vex_pid_file", return_value=pid_file)
 
-    pid_file.write_text("this is not valid json {{{{")
+    # Child opens + flocks the same file and sleeps; parent must lose.
+    child_code = (
+        "import fcntl, os, sys, time;"
+        f"fd = os.open({str(pid_file)!r}, os.O_RDWR | os.O_CREAT);"
+        "fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB);"
+        "print('locked', flush=True);"
+        "time.sleep(30)"
+    )
+    proc = subprocess.Popen([sys.executable, "-c", child_code])
+    try:
+        # wait until the child actually holds the lock
+        import time as _time
 
-    async with pid_file_check(server_info):
-        pass
+        deadline = _time.time() + 5
+        while _time.time() < deadline:
+            with open(pid_file, "a"):
+                pass
+            probe = os.open(pid_file, os.O_RDWR)
+            try:
+                import fcntl as _fcntl
+
+                _fcntl.flock(probe, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+                _fcntl.flock(probe, _fcntl.LOCK_UN)
+            except OSError:
+                break  # child holds it
+            finally:
+                os.close(probe)
+            _time.sleep(0.05)
+
+        with pytest.raises(RuntimeError, match="already running"):
+            async with pid_file_check(server_info):
+                pass
+    finally:
+        proc.kill()
+        proc.wait()

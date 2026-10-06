@@ -23,29 +23,25 @@ def mock_project():
 
 @pytest_asyncio.fixture
 async def state(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
     mocker.patch("vex_cli.state.DatabaseManager", return_value=AsyncMock())
     s = VexState(server_info)
     await s.initialize_db_manager()
     return s
 
 
-def test_init_sets_server_info(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
+def test_init_sets_server_info(server_info):
     s = VexState(server_info)
 
     assert s.server_info is server_info
 
 
-def test_init_active_project_is_none(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
+def test_init_active_project_is_none(server_info):
     s = VexState(server_info)
 
     assert s._active_project is None
 
 
-def test_init_creates_flow_history(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
+def test_init_creates_flow_history(server_info):
     from vex_cli.flow_history import FlowHistory
 
     s = VexState(server_info)
@@ -163,10 +159,7 @@ async def test_shutdown_closes_db_manager(state):
 
 
 @pytest.mark.asyncio
-async def test_shutdown_without_db_manager_does_not_raise(
-    server_info, mocker, tmp_path
-):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
+async def test_shutdown_without_db_manager_does_not_raise(server_info):
     s = VexState(server_info)
     # never called initialize_db_manager so _db_manager is not set
 
