@@ -44,5 +44,7 @@ async def check_health_pid(host: str, port: int) -> int:
         logger.debug("Health check PID request timed out")
     except httpx.RequestError:
         logger.debug("Health check PID request failed")
+    except (ValueError, KeyError):
+        logger.exception("Health check response was not valid vex /health output")
 
     return INACTIVE_PROCESS

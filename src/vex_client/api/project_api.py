@@ -33,6 +33,8 @@ async def get_all_projects(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -55,6 +57,8 @@ async def get_project(id: str, host: str, port: int) -> Project | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -81,6 +85,8 @@ async def create_project(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -105,6 +111,8 @@ async def update_project(updated_project: Project, host: str, port: int) -> bool
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -127,6 +135,8 @@ async def delete_project(id: str, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -151,6 +161,8 @@ async def select_project(id: str, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -172,4 +184,6 @@ async def get_active_project(host: str, port: int) -> Project | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None

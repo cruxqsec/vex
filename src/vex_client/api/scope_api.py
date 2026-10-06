@@ -33,6 +33,8 @@ async def get_all_scopes(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -55,6 +57,8 @@ async def get_scope(id: int, host: str, port: int) -> Scope | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -79,6 +83,8 @@ async def create_scope(scope: ScopeCreate, host: str, port: int) -> Scope | None
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -103,6 +109,8 @@ async def update_scope(scope: Scope, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -125,6 +133,8 @@ async def delete_scope(id: int, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -150,6 +160,8 @@ async def set_scope(id: int, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -171,6 +183,8 @@ async def unset_scope(host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -195,6 +209,8 @@ async def get_active_scope(host: str, port: int) -> Scope | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -219,4 +235,6 @@ async def count_scopes(host: str, port: int) -> int:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return 0

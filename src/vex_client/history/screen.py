@@ -16,6 +16,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Input
 from textual.widget import Widget
 
+from vex_cli.models.pydantic import RequestSummary, ResponseSummary
 from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.history.table import (
     VexHTTPTable,
@@ -256,6 +257,60 @@ class VexHTTPHistoryScreen(Screen):
 
         self._selected_summary_uuid = summary_id
         self.fetch_raw_summaries(summary_id)
+
+    # ------------------ Live insert path ------------------
+
+    def insert_live_summary(self, message: "RequestSummary | ResponseSummary") -> None:
+        """Insert a live WS flow under the current scope/search predicates.
+
+        When a sort is active (or the response updates a response-sorted
+        column) the row's position can't be honored by append-only add_row,
+        so a full rebuild runs instead, preserving selection.
+        """
+        app = cast("VexApp", self.app)
+
+        if isinstance(message, RequestSummary):
+            flow = app.history_summary_cache.get(message.flow_id)
+            if flow is None:
+                # cache is guaranteed to contain the flow (inserted by
+                # _handle_message just before); defensive only
+                return
+            if not self._filter_by_scope([flow]) or not self._filter_by_search([flow]):
+                return
+            if self.http_table.has_active_sort:
+                self._rebuild_preserving_selection()
+            else:
+                self.http_table.insert_request_summary(message)
+        else:
+            sorted_by_response = (
+                self.http_table.has_active_sort
+                and self.http_table._sort_column_key in self.http_table.RESPONSE_SORT_KEYS
+            )
+            if sorted_by_response:
+                self._rebuild_preserving_selection()
+            else:
+                self.http_table.insert_response_summary(message)
+
+    @work(
+        name="rebuild_preserving_selection",
+        exclusive=True,
+        group="rebuild_preserving_selection",
+    )
+    async def _rebuild_preserving_selection(self) -> None:
+        """Full repopulate that restores highlight and refetches the raw panes."""
+        previous_key = self.http_table.get_highlighted_row_key()
+        selected_uuid = self._selected_summary_uuid
+
+        await self.populate_table()
+
+        if previous_key is not None and self.http_table.row_exists(previous_key):
+            self.http_table.move_cursor(
+                row=self.http_table.get_row_index(previous_key)
+            )
+        if selected_uuid is not None and self.http_table.row_exists(
+            str(selected_uuid)
+        ):
+            self.fetch_raw_summaries(selected_uuid)
 
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
     async def fetch_raw_summaries(self, summary_id: UUID) -> None:

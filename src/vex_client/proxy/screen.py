@@ -234,6 +234,7 @@ class VexProxyScreen(Screen):
         server_ready = await check_health_retries(5, host, port)
         if not server_ready:
             app.log_vex("Server not reachable. Check if vex-cli is running.", "error")
+            return
         app.switch_screen("projects-screen")
 
     async def _stop_vex(self, selected_instance: ProxyListItem):
@@ -246,7 +247,7 @@ class VexProxyScreen(Screen):
             if not confirmed:
                 return
 
-            successful_stop = app.vex_controller.stop_vex_cli()
+            successful_stop = await app.vex_controller.stop_vex_cli()
 
             if successful_stop:
                 app.log_vex(message="Server stopped.")

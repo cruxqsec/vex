@@ -16,9 +16,9 @@ from textual.widgets import Select
 from textual.worker import Worker
 
 from vex_cli.models.pydantic import (
-    FlowSummary,
     CaptureErrorEvent,
-    FlowEvent, 
+    FlowEvent,
+    FlowSummary,
     Project,
     RequestSummary,
     ResponseSummary,
@@ -218,20 +218,20 @@ class VexApp(App[str]):
             self.history_manager_worker = None
         self._server_monitor_worker = None
 
-        proxy_screen: VexProxyScreen = self.get_screen("proxy-screen")  # type: ignore
         try:
+            proxy_screen: VexProxyScreen = self.get_screen("proxy-screen")  # type: ignore
             proxy_screen.reset()
         except NoMatches:
             pass
 
-        history_screen: VexHTTPHistoryScreen = self.get_screen("history-screen")  # type: ignore
         try:
+            history_screen: VexHTTPHistoryScreen = self.get_screen("history-screen")  # type: ignore
             history_screen.reset()
         except NoMatches:
             pass
 
-        scope_screen: VexScopeScreen = self.get_screen("scope-screen")  # type: ignore
         try:
+            scope_screen: VexScopeScreen = self.get_screen("scope-screen")  # type: ignore
             scope_screen.reset()
         except NoMatches:
             pass
@@ -292,10 +292,8 @@ class VexApp(App[str]):
             if self.history_screen is None:
                 return
 
-            if isinstance(message, RequestSummary):
-                self.history_screen.http_table.insert_request_summary(message)
-            else:
-                self.history_screen.http_table.insert_response_summary(message)
+            if isinstance(message, (RequestSummary, ResponseSummary)):
+                self.history_screen.insert_live_summary(message)
         except ValidationError:
             self.log_vex("Received invalid data from server. Check logs.", "warning")
             logger.exception("Invalid JSON structure from server")

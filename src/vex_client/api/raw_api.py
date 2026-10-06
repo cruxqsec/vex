@@ -34,6 +34,8 @@ async def get_all_raw_requests(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -56,6 +58,8 @@ async def get_raw_request(id: UUID, host: str, port: int) -> RawRequest | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -82,6 +86,8 @@ async def create_raw_request(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -106,6 +112,8 @@ async def update_raw_request(raw_req: RawRequest, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -128,6 +136,8 @@ async def delete_raw_request(id: UUID, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -157,6 +167,8 @@ async def get_all_raw_responses(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -179,6 +191,8 @@ async def get_raw_response(id: UUID, host: str, port: int) -> RawResponse | None
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -205,6 +219,8 @@ async def create_raw_response(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -229,6 +245,8 @@ async def update_raw_response(raw_res: RawResponse, host: str, port: int) -> boo
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -253,4 +271,6 @@ async def delete_raw_response(id: UUID, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False

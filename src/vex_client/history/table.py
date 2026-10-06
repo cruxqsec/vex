@@ -168,8 +168,10 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         "Time(ms)": lambda f: f.duration_ms or -1,
         "Sent at": lambda f: f.timestamp or 0.0,
         "Cookie": lambda f: bool(f.cookie),
-        "Extension": lambda f: (f.file_extension or "").lower(),
+        "Ext": lambda f: (f.file_extension or "").lower(),
     }
+
+    RESPONSE_SORT_KEYS = {"Status", "Size", "Title", "Time(ms)", "Sent at", "Cookie"}
 
     def sorted_summaries(self, summaries: list[FlowSummary]) -> list[FlowSummary]:
         if self._sort_column_key is None:
@@ -247,7 +249,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
             app: VexApp = cast("VexApp", self.app)
-            if request_summary.flow_id in app.history_summary_cache: 
+            if self.row_exists(str(request_summary.flow_id)):
                 return
             self.add_row(
                 request_summary.id,
@@ -271,6 +273,9 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:
         flow_id = str(response_summary.flow_id)
+        if not self.row_exists(flow_id):
+            # row is filtered out; cache holds the update for the next rebuild
+            return
         try:
             self.update_cell(
                 flow_id, "Status", self.render_status(response_summary.status_code)
@@ -359,6 +364,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 return None
             case "Cookie":
                 return flow.cookie
-            case "Extension":
+            case "Ext":
                 return flow.file_extension
         return None

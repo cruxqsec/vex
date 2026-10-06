@@ -64,6 +64,7 @@ class ScopeSelect(Select, can_focus=False):
                 successfuly_unset = await unset_scope(host, port)
             except httpx.HTTPError:
                 app.log_vex("Failed to unset scope on server. Check logs", "error")
+                return
             if successfuly_unset:
                 app.active_scope = None
         else:
@@ -74,6 +75,7 @@ class ScopeSelect(Select, can_focus=False):
                 successfuly_set = await set_scope(scope.id, host, port)
             except httpx.HTTPError:
                 app.log_vex("Failed to set scope on server. Check logs.", "error")
+                return
 
             if successfuly_set:
                 app.active_scope = scope

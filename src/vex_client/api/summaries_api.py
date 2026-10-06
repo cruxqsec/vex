@@ -39,6 +39,8 @@ async def get_all_request_summaries(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -63,6 +65,8 @@ async def get_request_summary(id: UUID, host: str, port: int) -> RequestSummary 
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -89,6 +93,8 @@ async def create_request_summary(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -115,6 +121,8 @@ async def update_request_summary(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -139,6 +147,8 @@ async def delete_request_summary(id: UUID, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -168,6 +178,8 @@ async def get_all_response_summaries(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -194,6 +206,8 @@ async def get_response_summary(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -220,6 +234,8 @@ async def create_response_summary(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -246,6 +262,8 @@ async def update_response_summary(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -270,6 +288,8 @@ async def delete_response_summary(id: UUID, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -299,6 +319,8 @@ async def get_all_summaries(
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return []
 
 
@@ -321,6 +343,8 @@ async def get_summary(id: UUID, host: str, port: int) -> FlowSummary | None:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return None
 
 
@@ -345,6 +369,8 @@ async def delete_flow(flow_id: UUID, host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -366,6 +392,8 @@ async def delete_all_flows(host: str, port: int) -> bool:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return False
 
 
@@ -387,4 +415,6 @@ async def count_flows(host: str, port: int) -> int:
     except httpx.RequestError:
         logger.exception("Request failed")
         raise
+    except (ValueError, KeyError):
+        logger.exception("Failed to parse response")
     return 0
