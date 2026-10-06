@@ -3,12 +3,14 @@ import logging
 import time
 
 from mitmproxy import http
+from mitmproxy.log import ALERT
 from mitmproxy.options import Options
 from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
 from vex_cli.errors import DatabaseError
 from vex_cli.errors import ValidationError as VexValidationError
+from vex_cli.flow_helper import flow_to_raw_request, flow_to_raw_response
 from vex_cli.flow_history import FlowHistory
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.orm import RequestSummaryORM, ResponseSummaryORM
@@ -23,6 +25,55 @@ from vex_cli.models.pydantic import (
 from vex_cli.state import VexState
 
 logger = logging.getLogger(__name__)
+
+MITMPROXY_LOG_LEVELS = {
+    "error": logging.ERROR,
+    "warn": logging.WARNING,
+    "info": logging.INFO,
+    "alert": ALERT,
+    "debug": logging.DEBUG,
+}
+
+
+class MitmproxyLogForwarder:
+    """Addon that forwards mitmproxy's internal log entries into our logging.
+
+    Mitmproxy's legacy log handler re-emits stdlib records it sees as LogEntry
+    events again, so our own records must never come back through here — they
+    are filtered out at the source instead.
+    """
+
+    def __init__(self):
+        self.logger = logging.getLogger("vex.mitmproxy")
+        self.logger.propagate = True  # reach root's file handler
+        self.logger.addHandler(logging.NullHandler())  # no double logging if root reconfigured
+        _suppress_echo_into_mitmproxy(self.logger.name)
+
+
+def _suppress_echo_into_mitmproxy(logger_name: str) -> None:
+    """Mitmproxy's LegacyLogEvents root handler turns every stdlib record into
+    an AddLogHook event again; records from our forwarder must not re-enter it
+    or logging loops forever."""
+    from mitmproxy.log import LegacyLogEvents
+
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, LegacyLogEvents):
+            for f in handler.filters:
+                if getattr(f, "__name__", None) == "_vex_skip_echo":
+                    return
+            handler.addFilter(_make_echo_filter(logger_name))
+            return
+
+
+def _make_echo_filter(logger_name: str):
+    def _vex_skip_echo(record: logging.LogRecord) -> bool:
+        return record.name != logger_name
+
+    return _vex_skip_echo
+
+    async def add_log(self, entry):
+        level = MITMPROXY_LOG_LEVELS.get(entry.level, logging.INFO)
+        self.logger.log(level, entry.msg)
 
 
 class VexCapture:
@@ -55,8 +106,9 @@ class VexCapture:
             )  # we don't want to receive cached response
             flow.request.headers.pop("If-None-Match", None)  # requests
 
-            summary = RequestSummary.from_flow(flow)
-            raw = RawRequest.from_flow(flow)
+            raw_req = await asyncio.to_thread(flow_to_raw_request, flow)
+            summary = RequestSummary.from_flow(flow, raw_req)
+            raw = RawRequest.from_flow(flow, raw_req)
 
             await self._save_and_broadcast(flow, summary, raw)
 
@@ -77,8 +129,9 @@ class VexCapture:
             if not flow.metadata.get("in_scope", False):
                 return
 
-            summary = ResponseSummary.from_flow(flow)
-            raw = RawResponse.from_flow(flow)
+            raw_res = await asyncio.to_thread(flow_to_raw_response, flow)
+            summary = ResponseSummary.from_flow(flow, raw_res)
+            raw = RawResponse.from_flow(flow, raw_res)
 
             await self._save_and_broadcast(flow, summary, raw)
 
@@ -92,6 +145,24 @@ class VexCapture:
 
     async def error(self, flow: http.HTTPFlow):
         """Called when request errors and no response is captured"""
+        try:
+            if not self.app_state.is_project_active:
+                return
+
+            if not flow.metadata.get("in_scope", False):
+                return
+
+            if flow.error is None:
+                return
+
+            logger.error(
+                "Connection error for flow %s (%s): %s",
+                flow.id,
+                flow.request.pretty_host,
+                flow.error.msg,
+            )
+        except Exception:
+            logger.exception("Unexpected error in error handling")
 
     async def _save_and_broadcast(
         self,
@@ -164,7 +235,8 @@ async def start_proxy(app_state: VexState):
     app_state.mitmproxy_master = master
 
     addon = VexCapture(app_state)
-    master.addons.add(addon)
+    mitmproxy_log_forwarder = MitmproxyLogForwarder()
+    master.addons.add(addon, mitmproxy_log_forwarder)
 
     try:
         await master.run()

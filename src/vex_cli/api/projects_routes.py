@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import shutil
 import uuid
@@ -7,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 
 from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
-from vex_cli.errors import NotFoundError
+from vex_cli.errors import DatabaseError, NotFoundError
 from vex_cli.locations import vex_projects_directory
 from vex_cli.models.orm import ProjectORM
 from vex_cli.models.pydantic import Project, ProjectCreate, ResponseStatus
@@ -46,11 +47,25 @@ async def create_project(
     Create the project directory (under APP_DIR/projects/) and the project
     Returns the created object
     """
-    project_orm = ProjectORM(**project.model_dump())
-    created_project = await projects_db.create(project_orm)
+    # Directory first, then the row: a DB row must never exist without its directory.
+    project_id = uuid.uuid4()
+    path = vex_projects_directory() / str(project_id)
+    try:
+        await asyncio.to_thread(path.mkdir)
+    except OSError:
+        logger.error(f"Failed to create project directory {path}")
+        raise DatabaseError("Could not create project directory")
 
-    path = vex_projects_directory() / str(created_project.id)
-    path.mkdir(exist_ok=True)
+    project_orm = ProjectORM(id=project_id, **project.model_dump())
+    try:
+        created_project = await projects_db.create(project_orm)
+    except Exception:
+        # No row will reference this directory; remove it.
+        try:
+            await asyncio.to_thread(shutil.rmtree, path)
+        except OSError:
+            logger.warning(f"Failed to clean up project directory {path}")
+        raise
 
     return created_project
 
@@ -85,7 +100,7 @@ async def delete_project(
 
     path = vex_projects_directory() / str(project_id)
     if path.exists() and path.is_dir():
-        shutil.rmtree(path)  # delete directory
+        await asyncio.to_thread(shutil.rmtree, path)
 
     active_project = state_obj.get_active_project()
 

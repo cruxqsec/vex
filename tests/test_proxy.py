@@ -101,8 +101,9 @@ async def test_request_does_nothing_if_no_active_project(capture, mock_flow):
 async def test_request_calls_save_and_broadcast(capture, mock_flow, mocker):
     mock_summary = MagicMock(spec=RequestSummary)
     mock_raw = MagicMock(spec=RawRequest)
-    mocker.patch.object(RequestSummary, "from_flow", return_value=mock_summary)
-    mocker.patch.object(RawRequest, "from_flow", return_value=mock_raw)
+    mocker.patch("vex_cli.proxy.flow_to_raw_request", return_value=b"raw request bytes")
+    mocker.patch("vex_cli.proxy.RequestSummary.from_flow", return_value=mock_summary)
+    mocker.patch("vex_cli.proxy.RawRequest.from_flow", return_value=mock_raw)
     capture._save_and_broadcast = AsyncMock()
 
     await capture.request(mock_flow)
@@ -112,8 +113,8 @@ async def test_request_calls_save_and_broadcast(capture, mock_flow, mocker):
 
 @pytest.mark.asyncio
 async def test_request_does_not_raise_on_exception(capture, mock_flow, mocker):
-    mocker.patch.object(
-        RequestSummary, "from_flow", side_effect=Exception("unexpected")
+    mocker.patch(
+        "vex_cli.proxy.flow_to_raw_request", side_effect=Exception("unexpected")
     )
 
     await capture.request(mock_flow)
@@ -129,8 +130,9 @@ async def test_request_sets_in_scope_metadata(capture, mock_flow, mocker):
     mock_flow.request.pretty_host = "example.com"
     mock_flow.metadata = {}
     capture.flow_scope.apply_scope.return_value = True
-    mocker.patch.object(RequestSummary, "from_flow", return_value=MagicMock())
-    mocker.patch.object(RawRequest, "from_flow", return_value=MagicMock())
+    mocker.patch("vex_cli.proxy.flow_to_raw_request", return_value=b"raw")
+    mocker.patch("vex_cli.proxy.RequestSummary.from_flow", return_value=MagicMock())
+    mocker.patch("vex_cli.proxy.RawRequest.from_flow", return_value=MagicMock())
     capture._save_and_broadcast = AsyncMock()
 
     await capture.request(mock_flow)
@@ -144,7 +146,6 @@ async def test_request_skips_out_of_scope(capture, mock_flow, mocker):
     mock_flow.request.pretty_host = "evil.com"
     mock_flow.metadata = {}
     capture.flow_scope.apply_scope.return_value = False
-    mocker.patch.object(RequestSummary, "from_flow")
     capture._save_and_broadcast = AsyncMock()
 
     await capture.request(mock_flow)
@@ -166,8 +167,9 @@ async def test_response_does_nothing_if_no_active_project(capture, mock_flow):
 async def test_response_calls_save_and_broadcast(capture, mock_flow, mocker):
     mock_summary = MagicMock(spec=ResponseSummary)
     mock_raw = MagicMock(spec=RawResponse)
-    mocker.patch.object(ResponseSummary, "from_flow", return_value=mock_summary)
-    mocker.patch.object(RawResponse, "from_flow", return_value=mock_raw)
+    mocker.patch("vex_cli.proxy.flow_to_raw_response", return_value=b"raw response bytes")
+    mocker.patch("vex_cli.proxy.ResponseSummary.from_flow", return_value=mock_summary)
+    mocker.patch("vex_cli.proxy.RawResponse.from_flow", return_value=mock_raw)
     capture._save_and_broadcast = AsyncMock()
 
     await capture.response(mock_flow)
@@ -177,8 +179,8 @@ async def test_response_calls_save_and_broadcast(capture, mock_flow, mocker):
 
 @pytest.mark.asyncio
 async def test_response_does_not_raise_on_exception(capture, mock_flow, mocker):
-    mocker.patch.object(
-        ResponseSummary, "from_flow", side_effect=Exception("unexpected")
+    mocker.patch(
+        "vex_cli.proxy.flow_to_raw_response", side_effect=Exception("unexpected")
     )
 
     await capture.response(mock_flow)  # should not raise
@@ -207,8 +209,9 @@ async def test_response_processes_in_scope_flows(capture, mock_flow, mocker):
 
     mock_summary = MagicMock(spec=ResponseSummary)
     mock_raw = MagicMock(spec=RawResponse)
-    mocker.patch.object(ResponseSummary, "from_flow", return_value=mock_summary)
-    mocker.patch.object(RawResponse, "from_flow", return_value=mock_raw)
+    mocker.patch("vex_cli.proxy.flow_to_raw_response", return_value=b"raw")
+    mocker.patch("vex_cli.proxy.ResponseSummary.from_flow", return_value=mock_summary)
+    mocker.patch("vex_cli.proxy.RawResponse.from_flow", return_value=mock_raw)
     capture._save_and_broadcast = AsyncMock()
 
     await capture.response(mock_flow)
@@ -231,8 +234,10 @@ async def test_response_processes_in_scope_flows(capture, mock_flow, mocker):
 async def test_capture_error_classification(
     capture, mock_flow, mocker, handler, exc, expected_kind
 ):
-    summary_cls = RequestSummary if handler == "request" else ResponseSummary
-    mocker.patch.object(summary_cls, "from_flow", side_effect=exc)
+    if handler == "request":
+        mocker.patch("vex_cli.proxy.flow_to_raw_request", side_effect=exc)
+    else:
+        mocker.patch("vex_cli.proxy.flow_to_raw_response", side_effect=exc)
 
     await getattr(capture, handler)(mock_flow)
 
@@ -361,8 +366,9 @@ async def test_save_and_broadcast_propagates_summary_create_failure(capture, moc
 async def test_request_reports_database_error_when_summary_create_fails(
     capture, mock_flow, mocker
 ):
-    mocker.patch.object(RequestSummary, "from_flow", return_value=MagicMock())
-    mocker.patch.object(RawRequest, "from_flow", return_value=MagicMock())
+    mocker.patch("vex_cli.proxy.flow_to_raw_request", return_value=b"raw")
+    mocker.patch("vex_cli.proxy.RequestSummary.from_flow", return_value=MagicMock())
+    mocker.patch("vex_cli.proxy.RawRequest.from_flow", return_value=MagicMock())
     capture.db_manager.summaries_db.create = AsyncMock(
         side_effect=VexValidationError("Record already exists")
     )

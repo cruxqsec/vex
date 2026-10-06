@@ -3,12 +3,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from vex_cli.dependencies import get_summaries_db, get_flow_scope
 from vex_cli.database.summaries_db import SummariesDatabase
-from vex_cli.models.pydantic import CountResponse, Scope, ScopeCreate, ResponseStatus
+from vex_cli.dependencies import get_flow_scope, get_summaries_db
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.orm import ScopeORM
-
+from vex_cli.models.pydantic import CountResponse, ResponseStatus, Scope, ScopeCreate
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +60,8 @@ async def update_scope(
     flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
 ):
     await scope_db.update(ScopeORM, scope.to_orm())
-    if flow_scope._active_scope and  flow_scope._active_scope.id == scope.id:
+    active = flow_scope.get_active_scope()
+    if active and active.id == scope.id:
         flow_scope.set_active_scope(scope)
     return ResponseStatus(status="Success", msg="Object updated")
 
@@ -73,7 +73,10 @@ async def delete_scope(
     flow_scope: Annotated[FlowScope, Depends(get_flow_scope)],
 ):
     await scope_db.delete(ScopeORM, id)
-    flow_scope.set_active_scope(None)
+    active = flow_scope.get_active_scope()
+    if active and active.id == id:
+        flow_scope.set_active_scope(None)
+
     return ResponseStatus(status="Success", msg="Object deleted")
 
 

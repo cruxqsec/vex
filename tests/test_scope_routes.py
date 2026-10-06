@@ -196,6 +196,70 @@ async def test_delete_scope_not_found(client, mock_scope_db):
     assert response.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_delete_active_scope_clears_it(client, mock_scope_db, mock_flow_scope):
+    mock_flow_scope.get_active_scope.return_value = make_scope(id=5)
+
+    response = await client.delete("/api/scope/5")
+
+    assert response.status_code == 202
+    mock_flow_scope.set_active_scope.assert_called_once_with(None)
+
+
+@pytest.mark.asyncio
+async def test_delete_inactive_scope_keeps_active(client, mock_scope_db, mock_flow_scope):
+    mock_flow_scope.get_active_scope.return_value = make_scope(id=2)
+
+    response = await client.delete("/api/scope/1")
+
+    assert response.status_code == 202
+    mock_flow_scope.set_active_scope.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_scope_no_active_is_noop(client, mock_scope_db, mock_flow_scope):
+    mock_flow_scope.get_active_scope.return_value = None
+
+    response = await client.delete("/api/scope/1")
+
+    assert response.status_code == 202
+    mock_flow_scope.set_active_scope.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_active_scope_updates_it(client, mock_scope_db, mock_flow_scope):
+    mock_flow_scope.get_active_scope.return_value = make_scope(id=1)
+    payload = {
+        "id": 1,
+        "name": "Renamed",
+        "allow_endpoints": [],
+        "deny_endpoints": [],
+    }
+
+    response = await client.put("/api/scope/", json=payload)
+
+    assert response.status_code == 202
+    mock_flow_scope.set_active_scope.assert_called_once()
+    updated = mock_flow_scope.set_active_scope.call_args[0][0]
+    assert updated.name == "Renamed"
+
+
+@pytest.mark.asyncio
+async def test_update_inactive_scope_leaves_active(client, mock_scope_db, mock_flow_scope):
+    mock_flow_scope.get_active_scope.return_value = make_scope(id=2)
+    payload = {
+        "id": 1,
+        "name": "Renamed",
+        "allow_endpoints": [],
+        "deny_endpoints": [],
+    }
+
+    response = await client.put("/api/scope/", json=payload)
+
+    assert response.status_code == 202
+    mock_flow_scope.set_active_scope.assert_not_called()
+
+
 # --- POST /scope/set/{id} ---
 
 

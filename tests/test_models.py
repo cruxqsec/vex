@@ -5,6 +5,7 @@ import json
 from mitmproxy import http
 from mitmproxy.test import tflow, tutils
 
+from vex_cli.flow_helper import flow_to_raw_request, flow_to_raw_response
 from vex_cli.models.pydantic import (
     RequestSummary,
     ResponseSummary,
@@ -61,7 +62,8 @@ def mock_flow() -> http.HTTPFlow:
 
 
 def test_request_summary(mock_flow: http.HTTPFlow):
-    summary = RequestSummary.from_flow(mock_flow)
+    raw = flow_to_raw_request(mock_flow)
+    summary = RequestSummary.from_flow(mock_flow, raw)
     now = datetime.timestamp(datetime.now())
 
     assert type(summary.flow_id) is UUID
@@ -79,7 +81,8 @@ def test_request_summary(mock_flow: http.HTTPFlow):
 
 
 def test_response_summary(mock_flow: http.HTTPFlow):
-    summary = ResponseSummary.from_flow(mock_flow)
+    raw = flow_to_raw_response(mock_flow)
+    summary = ResponseSummary.from_flow(mock_flow, raw)
     now = datetime.timestamp(datetime.now())
 
     print("-----------")
@@ -100,7 +103,7 @@ def test_response_summary(mock_flow: http.HTTPFlow):
 
 
 def test_req_summary_serialize(mock_flow: http.HTTPFlow):
-    summary = RequestSummary.from_flow(mock_flow)
+    summary = RequestSummary.from_flow(mock_flow, flow_to_raw_request(mock_flow))
     json_str = summary.model_dump_json()
 
     # then the summary is sent over the network and recieved
@@ -110,7 +113,7 @@ def test_req_summary_serialize(mock_flow: http.HTTPFlow):
 
 
 def test_res_summary_serialize(mock_flow: http.HTTPFlow):
-    summary = ResponseSummary.from_flow(mock_flow)
+    summary = ResponseSummary.from_flow(mock_flow, flow_to_raw_response(mock_flow))
     json_str = summary.model_dump_json()
 
     # then the summary is sent over the network and recieved
@@ -120,7 +123,7 @@ def test_res_summary_serialize(mock_flow: http.HTTPFlow):
 
 
 def test_raw_request(mock_flow: http.HTTPFlow):
-    raw_req = RawRequest.from_flow(mock_flow)
+    raw_req = RawRequest.from_flow(mock_flow, flow_to_raw_request(mock_flow))
     raw_result = (
         b"GET /path/to/content.php?query=test&query2=test2 HTTP/1.1\r\n"
         b"header: qvalue\r\n"
@@ -155,7 +158,7 @@ def test_raw_response(mock_flow: http.HTTPFlow):
         b"Connection: keep-alive\r\n\r\n" + html
     )
 
-    raw_res = RawResponse.from_flow(mock_flow)
+    raw_res = RawResponse.from_flow(mock_flow, flow_to_raw_response(mock_flow))
 
     assert type(raw_res.id) is UUID
     assert raw_res.data == raw_result

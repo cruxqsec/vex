@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -26,10 +26,6 @@ from vex_cli.flow_helper import (
     extract_mime,
     extract_query,
     extract_url_path,
-    flow_to_raw_request,
-    flow_to_raw_response,
-    request_total_size,
-    response_total_size,
     uses_tls,
 )
 from vex_cli.models.orm import (
@@ -43,6 +39,11 @@ from vex_cli.models.orm import (
 
 # For Pydantic->ORM conversion
 _orm_config = ConfigDict(from_attributes=True)
+
+
+def now_utc_timestamp() -> float:
+    """UTC wall-clock as a unix timestamp."""
+    return datetime.now(timezone.utc).timestamp()
 
 _ip_adapter = TypeAdapter(IPvAnyAddress)
 _url_adapter = TypeAdapter(AnyUrl)
@@ -164,17 +165,18 @@ class RequestSummary(BaseModel):
     timestamp: float
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> RequestSummary:
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes) -> RequestSummary:
+        """raw: pre-serialized request bytes (see flow_to_raw_request) — size is len(raw)."""
         return cls(
             flow_id=UUID(flow.id),
             host=flow.request.host,
             method=flow.request.method,
             path=extract_url_path(flow),
-            request_size=request_total_size(flow),
+            request_size=len(raw),
             is_tls=uses_tls(flow),
             query=extract_query(flow),
             file_extension=extract_extension(flow),
-            timestamp=datetime.timestamp(datetime.now()),
+            timestamp=now_utc_timestamp(),
         )
 
     def to_orm(self) -> RequestSummaryORM:
@@ -197,16 +199,17 @@ class ResponseSummary(BaseModel):
     timestamp: float
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> ResponseSummary:
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes | None) -> ResponseSummary:
+        """raw: pre-serialized response bytes (see flow_to_raw_response) — size is len(raw)."""
         return cls(
             flow_id=UUID(flow.id),
             status_code=flow.response.status_code,  # type: ignore
-            response_size=response_total_size(flow),
+            response_size=len(raw) if raw is not None else 0,
             mime=extract_mime(flow),
             http_title=extract_http_title(flow),
             cookie=extract_cookies(flow),
             duration_ms=calculate_response_time_ms(flow),
-            timestamp=datetime.timestamp(datetime.now()),
+            timestamp=now_utc_timestamp(),
         )
 
     def to_orm(self) -> ResponseSummaryORM:
@@ -257,8 +260,9 @@ class RawRequest(BaseModel):
         return v.decode("latin-1")
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> RawRequest:
-        return cls(id=UUID(flow.id), data=flow_to_raw_request(flow))
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes) -> RawRequest:
+        """raw: pre-serialized request bytes (see flow_to_raw_request)."""
+        return cls(id=UUID(flow.id), data=raw)
 
     def to_orm(self) -> RawRequestORM:
         return RawRequestORM(**self.model_dump())
@@ -280,10 +284,11 @@ class RawResponse(BaseModel):
         return v.decode("latin-1")
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> RawResponse:
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes | None) -> RawResponse:
+        """raw: pre-serialized response bytes (see flow_to_raw_response)."""
         return cls(
             id=UUID(flow.id),
-            data=flow_to_raw_response(flow),
+            data=raw,
         )
 
     def to_orm(self) -> RawResponseORM:

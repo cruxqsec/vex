@@ -12,7 +12,7 @@ from vex_cli.database.projects_db import ProjectsDatabase
 from vex_cli.dependencies import get_projects_db, get_state_object
 from vex_cli.models.orm import ProjectORM
 from vex_cli.models.pydantic import Project, ProjectCreate
-from vex_cli.errors import NotFoundError
+from vex_cli.errors import DatabaseError, NotFoundError
 
 
 def make_project_orm(id: UUID | None = None, name: str = "Test Project"):
@@ -172,6 +172,43 @@ async def test_create_project_invalid_payload(client, mock_projects_db):
     response = await client.post("/api/projects/", json={"bad": "data"})
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_project_mkdir_failure_returns_500_and_no_row(
+    client, mock_projects_db, mocker
+):
+    """A failed mkdir must not leave an orphan project row behind."""
+    mocker.patch(
+        "vex_cli.api.projects_routes.vex_projects_directory", return_value=Path("/tmp")
+    )
+    mkdir = mocker.patch("pathlib.Path.mkdir", side_effect=OSError("disk full"))
+    mock_projects_db.create.return_value = make_project()
+
+    response = await client.post("/api/projects/", json={"name": "Never Made"})
+
+    assert response.status_code == 500
+    mkdir.assert_called_once()
+    mock_projects_db.create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_project_db_failure_cleans_up_directory(
+    client, mock_projects_db, mocker, tmp_path
+):
+    """A failed create must remove the project directory it just made."""
+    projects_dir = tmp_path / "projects"
+    projects_dir.mkdir()
+    mocker.patch(
+        "vex_cli.api.projects_routes.vex_projects_directory", return_value=projects_dir
+    )
+    mock_projects_db.create.side_effect = DatabaseError("unique constraint")
+
+    response = await client.post("/api/projects/", json={"name": "Doomed"})
+
+    assert response.status_code == 500
+    leftover_dirs = [p for p in projects_dir.iterdir()]
+    assert leftover_dirs == []
 
 
 # --- PUT /projects/ ---

@@ -14,8 +14,6 @@ from vex_cli.flow_helper import (
     flow_to_raw_response,
     get_status_text,
     has_cookies,
-    request_total_size,
-    response_total_size,
     uses_tls,
 )
 
@@ -105,19 +103,6 @@ def test_extract_mime_no_content_type(mock_flow: http.HTTPFlow):
 
 def test_extract_mime_no_response(mock_flow_no_resp: http.HTTPFlow):
     assert extract_mime(mock_flow_no_resp) is None
-
-
-def test_request_total_size(mock_flow: http.HTTPFlow):
-    assert request_total_size(mock_flow) == 96
-
-
-def test_response_total_size(mock_flow: http.HTTPFlow):
-    assert response_total_size(mock_flow) == 530
-
-
-def test_response_total_size_no_response(mock_flow: http.HTTPFlow):
-    mock_flow.response = None
-    assert response_total_size(mock_flow) == 0
 
 
 def test_extract_http_title_found(mock_flow: http.HTTPFlow):
@@ -304,11 +289,6 @@ def test_flow_to_raw_request_binary_body():
 
 def test_extract_http_title_binary_response(mock_binary_flow: http.HTTPFlow):
     assert extract_http_title(mock_binary_flow) is None
-
-
-def test_response_total_size_binary_body(mock_binary_flow: http.HTTPFlow):
-    size = response_total_size(mock_binary_flow)
-    assert size > 0
 
 
 def test_flow_to_raw_response_strips_content_encoding():
