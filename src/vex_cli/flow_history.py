@@ -1,8 +1,7 @@
 import asyncio
 import logging
-from typing import Set
 
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary
+from vex_cli.models.pydantic import FlowEvent
 
 logger = logging.getLogger(__name__)
 
@@ -14,30 +13,23 @@ class FlowHistory:
     """
 
     def __init__(self):
-        self._subscribers: Set[asyncio.Queue] = set()
-        self._lock = asyncio.Lock()
+        self._subscribers: set[asyncio.Queue[FlowEvent]] = set()
 
-    async def subscribe(self) -> asyncio.Queue:
-        queue = asyncio.Queue(maxsize=100)
-        async with self._lock:
-            self._subscribers.add(queue)
+    @property
+    def subscribers_count(self) -> int:
+        return len(self._subscribers)
+
+    def subscribe(self) -> asyncio.Queue:
+        queue: asyncio.Queue[FlowEvent] = asyncio.Queue(maxsize=1000)
+        self._subscribers.add(queue)
         return queue
 
-    async def unsubscribe(self, dead_queue: asyncio.Queue):
-        async with self._lock:
-            self._subscribers.discard(dead_queue)
+    def unsubscribe(self, dead_queue: asyncio.Queue[FlowEvent]):
+        self._subscribers.discard(dead_queue)
 
-    async def broadcast_summary(self, summary: RequestSummary | ResponseSummary):
-        """Broadcast flow summary to all subscribers"""
-        async with self._lock:
-            dead_clients = []
-
-            for queue in self._subscribers:
-                try:
-                    queue.put_nowait(summary)
-                except asyncio.QueueFull:
-                    dead_clients.append(queue)
-
-            if dead_clients:
-                for q in dead_clients:
-                    self._subscribers.discard(q)
+    def broadcast(self, event: FlowEvent):
+        """Broadcast flow summary to all subscribers."""
+        for queue in tuple(self._subscribers):
+            if queue.full():
+                queue.get_nowait()  # drop oldest
+            queue.put_nowait(event)

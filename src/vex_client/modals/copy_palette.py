@@ -6,7 +6,11 @@ from textual.fuzzy import Matcher
 from textual.screen import ModalScreen
 from textual.widgets.option_list import Option
 
+import logging
+
 import pyperclip
+
+logger = logging.getLogger(__name__)
 
 
 class CopyPalette(ModalScreen[None]):
@@ -107,6 +111,13 @@ class CopyPalette(ModalScreen[None]):
                 value = str(v) if v is not None else ""
                 break
         if value:
-            pyperclip.copy(value)
-            self.app.notify(f"Copied {col_name}: {value}", title="Vex")
+            try:
+                pyperclip.copy(value)
+            except pyperclip.PyperclipException:
+                self.app.notify(
+                    "Clipboard unavailable. Check logs.", severity="error"
+                )
+                logger.exception("pyperclip.copy failed")
+            else:
+                self.app.notify(f"Copied {col_name}: {value}", title="Vex")
         self.dismiss()

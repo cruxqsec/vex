@@ -26,26 +26,17 @@ def extract_mime(flow: http.HTTPFlow) -> str | None:
     return None
 
 
-def request_total_size(flow: http.HTTPFlow) -> int:
-    raw_req = flow_to_raw_request(flow)
-    return len(raw_req) if raw_req is not None else 0
-
-
-def response_total_size(flow: http.HTTPFlow) -> int:
-    raw_res = flow_to_raw_response(flow)
-    return len(raw_res) if raw_res is not None else 0
-
-
 def extract_http_title(flow: http.HTTPFlow) -> str | None:
     if flow.response is None:
         return None
 
-    # Use latin-1 to avoid UTF-8 corruption on binary responses
-    text = (flow.response.content or b"").decode("latin-1", errors="ignore")
-
-    match = re.search(r"<title>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+    match = re.search(
+        rb"<title>(.*?)</title>",
+        flow.response.content or b"",
+        re.IGNORECASE | re.DOTALL,
+    )
     if match:
-        return match.group(1).strip()
+        return match.group(1).decode("latin-1", errors="ignore").strip()
     return None
 
 

@@ -1,24 +1,23 @@
+from typing import Annotated
 from uuid import UUID
-from typing import List, Annotated
-import asyncio
 
 from fastapi import APIRouter, Depends, Query
 
-from vex_cli.dependencies import get_raw_db, get_summaries_db
 from vex_cli.database.raw_db import RawDatabase
 from vex_cli.database.summaries_db import SummariesDatabase
-from vex_cli.errors import DatabaseError, NotFoundError
-from vex_cli.models.pydantic import (
-    CountResponse,
-    ResponseSummary,
-    RequestSummary,
-    ResponseStatus,
-)
+from vex_cli.dependencies import get_raw_db, get_summaries_db
+from vex_cli.errors import NotFoundError
 from vex_cli.models.orm import (
     RawRequestORM,
     RawResponseORM,
-    ResponseSummaryORM,
     RequestSummaryORM,
+    ResponseSummaryORM,
+)
+from vex_cli.models.pydantic import (
+    CountResponse,
+    RequestSummary,
+    ResponseStatus,
+    ResponseSummary,
 )
 
 """
@@ -26,27 +25,26 @@ This is all the routes for getting ResponseSummary, RequestSummary and together
 summary flows
 Endpoints:
 
-    RequestSummary endpoints:
-    GET /api/summary/request/        - get all request summaries
-    GET /api/summary/request/{id}    - get request summary by id
-    POST /api/summary/request/       - create request summary
-    PUT /api/summary/request/{id}    - update request summary by id
-    DELETE /api/summary/request/{id} - delete request summary by id
+    RequestSummary CRUD endpoints:
+    GET /api/summary/request/             - get all request summaries
+    GET /api/summary/request/{flow_id}    - get request summary by flow id
+    POST /api/summary/request/            - create request summary
+    PUT /api/summary/request/             - update request summary
+    DELETE /api/summary/request/{id}      - delete request summary by id
 
-    ResponseSummary endpoints:
-    GET /api/summary/response/        - get all response summaries
-    GET /api/summary/response/{id}    - get response summary by id
-    POST /api/summary/response/       - create response summary
-    PUT /api/summary/response/{id}    - update response summary by id
-    DELETE /api/summary/response/{id} - delete response summary by id
+    ResponseSummary CRUD endpoints:
+    GET /api/summary/response/            - get all response summaries
+    GET /api/summary/response/{flow_id}   - get response summary by flow id
+    POST /api/summary/response/           - create response summary
+    PUT /api/summary/response/            - update response summary
+    DELETE /api/summary/response/{id}     - delete response summary by id
 
-    FlowSummary(joined Req+Res summary) endpoints:
-    GET /api/summary/        - get all response summaries
-    GET /api/summary/{id}    - get response summary by id
-    POST /api/summary/       - create response summary
-    PUT /api/summary/{id}    - update response summary by id
-    DELETE /api/summary/{id} - delete response summary by id
-
+    FlowSummary (joined Req+Res summary) CRUD endpoints:
+    GET /api/summary/             - get all full summaries
+    GET /api/summary/count        - count flows
+    GET /api/summary/{id}         - get full summary by id
+    DELETE /api/summary/{flow_id} - delete a flow (cascades to raw req/res)
+    DELETE /api/summary/          - delete all flows
 """
 
 request_summary_router = APIRouter(tags=["Request summaries"])
@@ -56,7 +54,7 @@ summary_router = APIRouter(tags=["Full summaries"])
 # ==================== basic request CRUD routes ====================
 
 
-@request_summary_router.get("/summary/request/", response_model=List[RequestSummary])
+@request_summary_router.get("/summary/request/", response_model=list[RequestSummary])
 async def get_all_request_summaries(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
     skip: int = Query(0, ge=0),
@@ -100,7 +98,7 @@ async def update_request_summary(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
     await summaries_db.update(RequestSummaryORM, req_summary.to_orm())
-    return ResponseStatus(status="Success", msg="Object updated")
+    return ResponseStatus(status="Success", message="Object updated")
 
 
 # -------------------------------------------------------------------
@@ -114,14 +112,14 @@ async def delete_request_summary(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
     await summaries_db.delete(RequestSummaryORM, id)
-    return ResponseStatus(status="Success", msg="Object deleted")
+    return ResponseStatus(status="Success", message="Object deleted")
 
 
 # ==================== basic response CRUD routes ====================
 
 
 @response_summary_router.get(
-    "/summary/response/", response_model=List[ResponseSummary], status_code=200
+    "/summary/response/", response_model=list[ResponseSummary], status_code=200
 )
 async def get_all_response_summaries(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
@@ -168,7 +166,7 @@ async def update_response_summary(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
     await summaries_db.update(ResponseSummaryORM, res_summary.to_orm())
-    return ResponseStatus(status="Success", msg="Object updated")
+    return ResponseStatus(status="Success", message="Object updated")
 
 
 # -------------------------------------------------------------------
@@ -182,7 +180,7 @@ async def delete_response_summary(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
 ):
     await summaries_db.delete(ResponseSummaryORM, id)
-    return ResponseStatus(status="Success", msg="Object deleted")
+    return ResponseStatus(status="Success", message="Object deleted")
 
 
 # ==================== basic summaryflow CRUD routes ====================
@@ -227,8 +225,11 @@ async def delete_flow(
     raw_db: Annotated[RawDatabase, Depends(get_raw_db)],
 ):
     await summaries_db.delete_by_flow_id(RequestSummaryORM, flow_id)
-    await raw_db.delete(RawRequestORM, flow_id)
 
+    try:
+        await raw_db.delete(RawRequestORM, flow_id)
+    except NotFoundError:
+        pass
     try:
         await summaries_db.delete_by_flow_id(ResponseSummaryORM, flow_id)
     except NotFoundError:
@@ -238,7 +239,7 @@ async def delete_flow(
     except NotFoundError:
         pass
 
-    return ResponseStatus(status="Success", msg=f"Flow {flow_id} deleted")
+    return ResponseStatus(status="Success", message=f"Flow {flow_id} deleted")
 
 
 @summary_router.delete("/summary/", response_model=ResponseStatus, status_code=202)
@@ -246,16 +247,9 @@ async def delete_all_flows(
     summaries_db: Annotated[SummariesDatabase, Depends(get_summaries_db)],
     raw_db: Annotated[RawDatabase, Depends(get_raw_db)],
 ):
-    results = await asyncio.gather(
-        summaries_db.delete_all(RequestSummaryORM),
-        summaries_db.delete_all(ResponseSummaryORM),
-        raw_db.delete_all(RawRequestORM),
-        raw_db.delete_all(RawResponseORM),
-        return_exceptions=True,
-    )
+    await summaries_db.delete_all(RequestSummaryORM)
+    await summaries_db.delete_all(ResponseSummaryORM)
+    await raw_db.delete_all(RawRequestORM)
+    await raw_db.delete_all(RawResponseORM)
 
-    errors = [e for e in results if isinstance(e, Exception)]
-    if errors:
-        raise DatabaseError("Failed to delete all flows — some records may remain")
-
-    return ResponseStatus(status="Success", msg="All flows deleted")
+    return ResponseStatus(status="Success", message="All flows deleted!")

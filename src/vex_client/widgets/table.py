@@ -115,6 +115,13 @@ class VexDataTable(DataTable, can_focus=True):
         except RowDoesNotExist:
             return False
 
+    @property
+    def has_active_sort(self) -> bool:
+        return (
+            self._sort_column_key is not None
+            and self._sort_direction != SortDirection.NONE
+        )
+
     def get_highlighted_row(self) -> list[Any] | None:
         try:
             result = self.get_row_at(self.cursor_row)

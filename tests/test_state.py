@@ -1,173 +1,83 @@
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
-import pytest_asyncio
 
-from vex_cli.models.pydantic import Project, VexServerInfo
+from vex_cli.errors import AppException
+from vex_cli.models.orm import ProjectORM
 from vex_cli.state import VexState
 
 
 @pytest.fixture
-def server_info():
-    return VexServerInfo(
-        server_address="127.0.0.1",
-        proxy_port=8080,
-        api_port=8081,
+def bare_state(server_info):
+    return VexState(server_info)
+
+
+def test_new_state_has_no_active_project(bare_state):
+    assert bare_state.get_active_project() is None
+
+
+def test_get_db_manager_before_initialize_raises(bare_state):
+    with pytest.raises(AppException):
+        bare_state.get_db_manager()
+
+
+async def test_initialize_db_manager_creates_usable_projects_db(
+    bare_state, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        "vex_cli.database.db_manager.vex_projects_db_path",
+        lambda: tmp_path / "projects.db",
     )
 
+    await bare_state.initialize_db_manager()
 
-@pytest.fixture
-def mock_project():
-    return MagicMock(spec=Project)
-
-
-@pytest_asyncio.fixture
-async def state(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
-    mocker.patch("vex_cli.state.DatabaseManager", return_value=AsyncMock())
-    s = VexState(server_info)
-    await s.initialize_db_manager()
-    return s
+    assert await bare_state.get_db_manager().projects_db.count(ProjectORM) == 0
+    await bare_state.shutdown()
 
 
-def test_init_sets_server_info(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
-    s = VexState(server_info)
+async def test_active_project_can_be_set_replaced_and_cleared(state, project):
+    first, second = project(), project()
 
-    assert s.server_info is server_info
+    await state.set_active_project(first)
+    assert state.get_active_project() == first
 
+    await state.set_active_project(second)
+    assert state.get_active_project() == second
 
-def test_init_active_project_is_none(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
-    s = VexState(server_info)
-
-    assert s._active_project is None
-
-
-def test_init_creates_flow_history(server_info, mocker, tmp_path):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
-    from vex_cli.flow_history import FlowHistory
-
-    s = VexState(server_info)
-
-    assert isinstance(s._flow_history, FlowHistory)
-
-
-@pytest.mark.asyncio
-async def test_initialize_db_manager_calls_initialize(state):
-    state._db_manager.initialize.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_initialize_db_manager_sets_db_manager(state):
-    assert state._db_manager is not None
-
-
-def test_get_server_info_returns_server_info(state, server_info):
-    assert state.get_server_info() is server_info
-
-
-def test_get_active_project_returns_none_initially(state):
+    await state.set_active_project(None)
     assert state.get_active_project() is None
 
 
-@pytest.mark.asyncio
-async def test_get_active_project_returns_project_after_set(state, mock_project):
-    await state.set_active_project(mock_project)
-
-    assert state.get_active_project() is mock_project
-
-
-@pytest.mark.asyncio
-async def test_set_active_project_sets_project(state, mock_project):
-    await state.set_active_project(mock_project)
-
-    assert state._active_project is mock_project
-
-
-@pytest.mark.asyncio
-async def test_set_active_project_can_be_set_to_none(state, mock_project):
-    await state.set_active_project(mock_project)
-    await state.set_active_project(None)
-
-    assert state._active_project is None
-
-
-@pytest.mark.asyncio
-async def test_set_active_project_can_be_overwritten(state, mock_project):
-    other_project = MagicMock(spec=Project)
-    await state.set_active_project(mock_project)
-    await state.set_active_project(other_project)
-
-    assert state._active_project is other_project
-
-
-def test_get_flow_history_returns_flow_history(state):
-    from vex_cli.flow_history import FlowHistory
-
-    assert isinstance(state.get_flow_history(), FlowHistory)
-
-
-def test_get_flow_history_returns_same_instance(state):
-    result1 = state.get_flow_history()
-    result2 = state.get_flow_history()
-
-    assert result1 is result2
-
-
-def test_get_db_manager_returns_db_manager(state):
-    assert state.get_db_manager() is state._db_manager
-
-
-def test_get_flow_scope_returns_flow_scope(state):
-    from vex_cli.flow_scope import FlowScope
-
-    assert isinstance(state.get_flow_scope(), FlowScope)
-
-
-def test_get_flow_scope_returns_same_instance(state):
-    result1 = state.get_flow_scope()
-    result2 = state.get_flow_scope()
-
-    assert result1 is result2
-
-
-@pytest.mark.asyncio
-async def test_is_project_active_false_without_project(state):
-    state._db_manager.is_project_active = False
-
+def test_is_project_active_false_without_project(state):
     assert state.is_project_active is False
 
 
-@pytest.mark.asyncio
-async def test_is_project_active_false_when_db_inactive(state, mock_project):
-    await state.set_active_project(mock_project)
-    state._db_manager.is_project_active = False
-
-    assert state.is_project_active is False
-
-
-@pytest.mark.asyncio
-async def test_is_project_active_true_when_both_set(state, mock_project):
-    await state.set_active_project(mock_project)
-    state._db_manager.is_project_active = True
+async def test_is_project_active_true_with_project_and_databases(state, project):
+    await state.set_active_project(project())
 
     assert state.is_project_active is True
 
 
-@pytest.mark.asyncio
-async def test_shutdown_closes_db_manager(state):
+async def test_is_project_active_false_when_databases_closed(
+    state, db_manager, project
+):
+    await state.set_active_project(project())
+    await db_manager.close_project_databases()
+
+    assert state.is_project_active is False
+
+
+async def test_is_project_active_false_without_db_manager(bare_state, project):
+    await bare_state.set_active_project(project())
+
+    assert bare_state.is_project_active is False
+
+
+async def test_shutdown_closes_project_databases(state, db_manager):
+    assert db_manager.is_project_active
+
     await state.shutdown()
 
-    state._db_manager.close.assert_called_once()
+    assert not db_manager.is_project_active
 
 
-@pytest.mark.asyncio
-async def test_shutdown_without_db_manager_does_not_raise(
-    server_info, mocker, tmp_path
-):
-    mocker.patch("vex_cli.state.vex_log_directory", return_value=tmp_path)
-    s = VexState(server_info)
-    # never called initialize_db_manager so _db_manager is not set
-
-    await s.shutdown()  # should not raise
+async def test_shutdown_without_db_manager_does_not_raise(bare_state):
+    await bare_state.shutdown()

@@ -1,42 +1,40 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Literal, Union
 import json
+import time
+from typing import Annotated, Literal
 from uuid import UUID
 
 from mitmproxy import http
 from pydantic import (
+    AnyUrl,
     BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
     IPvAnyAddress,
-    AnyUrl,
     TypeAdapter,
     field_serializer,
 )
 
 from vex_cli.flow_helper import (
     calculate_response_time_ms,
+    extract_cookies,
     extract_extension,
     extract_http_title,
     extract_mime,
     extract_query,
     extract_url_path,
-    extract_cookies,
     flow_to_raw_request,
     flow_to_raw_response,
-    request_total_size,
-    response_total_size,
     uses_tls,
 )
 from vex_cli.models.orm import (
+    ProjectORM,
     RawRequestORM,
     RawResponseORM,
     RequestSummaryORM,
     ResponseSummaryORM,
-    ProjectORM,
     ScopeORM,
 )
 
@@ -75,13 +73,12 @@ def check_domain(v: str) -> str:
 IPStr = Annotated[str, BeforeValidator(check_ip)]
 PortNumber = Annotated[int, Field(ge=0, le=65535)]
 DomainStr = Annotated[str, BeforeValidator(check_domain)]
-ScopeEndpoint = Union[Literal[""], IPStr, DomainStr]
+ScopeEndpoint = Literal[""] | IPStr | DomainStr
 endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
+
 class VexServerInfo(BaseModel):
-    """
-    Object with the vex-cli server information.
-    """
+    """Object with the vex-cli server information."""
 
     server_address: IPStr
     proxy_port: PortNumber
@@ -89,9 +86,7 @@ class VexServerInfo(BaseModel):
 
 
 class PIDData(BaseModel):
-    """
-    Data that will be saved to the vex.pid file.
-    """
+    """Data that will be saved to the vex.pid file."""
 
     pid: int = Field(ge=1)
     host: IPStr
@@ -100,15 +95,15 @@ class PIDData(BaseModel):
 
 
 class ResponseStatus(BaseModel):
-    """
-    We return this from endpoints where we don't return any other data.
-    """
+    """We return this from endpoints where we don't return any other data."""
 
     status: Literal["Success", "Failure"]
-    msg: str
+    message: str
+
 
 class CountResponse(BaseModel):
     count: int
+
 
 class Project(BaseModel):
     """Vex project object."""
@@ -117,8 +112,8 @@ class Project(BaseModel):
 
     id: UUID
     name: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: float
+    updated_at: float
 
     def to_orm(self) -> ProjectORM:
         return ProjectORM(**self.model_dump())
@@ -128,6 +123,19 @@ class ProjectCreate(BaseModel):
     """Used when creating or updating a project — id and timestamps are DB-generated."""
 
     name: str
+
+
+CaptureErrorKind = Literal["parse", "database", "broadcast", "unknown"]
+
+
+class CaptureErrorEvent(BaseModel):
+    """Event sent over the websocket when there was a capture error in the proxy."""
+
+    type: Literal["capture_error"] = "capture_error"
+    kind: CaptureErrorKind = "unknown"
+    message: str
+    host: str | None = None
+    timestamp: float = Field(default_factory=time.time)
 
 
 class RequestSummary(BaseModel):
@@ -147,17 +155,17 @@ class RequestSummary(BaseModel):
     timestamp: float
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> RequestSummary:
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes) -> RequestSummary:
         return cls(
             flow_id=UUID(flow.id),
             host=flow.request.host,
             method=flow.request.method,
             path=extract_url_path(flow),
-            request_size=request_total_size(flow),
+            request_size=len(raw),
             is_tls=uses_tls(flow),
             query=extract_query(flow),
             file_extension=extract_extension(flow),
-            timestamp=datetime.timestamp(datetime.now()),
+            timestamp=flow.request.timestamp_start,
         )
 
     def to_orm(self) -> RequestSummaryORM:
@@ -180,20 +188,23 @@ class ResponseSummary(BaseModel):
     timestamp: float
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow) -> ResponseSummary:
+    def from_flow(cls, flow: http.HTTPFlow, raw: bytes | None) -> ResponseSummary:
         return cls(
             flow_id=UUID(flow.id),
             status_code=flow.response.status_code,  # type: ignore
-            response_size=response_total_size(flow),
+            response_size=len(raw) if raw is not None else 0,
             mime=extract_mime(flow),
             http_title=extract_http_title(flow),
             cookie=extract_cookies(flow),
             duration_ms=calculate_response_time_ms(flow),
-            timestamp=datetime.timestamp(datetime.now()),
+            timestamp=flow.response.timestamp_start if flow.response else time.time(),
         )
 
     def to_orm(self) -> ResponseSummaryORM:
         return ResponseSummaryORM(**self.model_dump())
+
+
+FlowEvent = RequestSummary | ResponseSummary | CaptureErrorEvent
 
 
 # for querying the full summaries from db
@@ -269,6 +280,7 @@ class RawResponse(BaseModel):
     def to_orm(self) -> RawResponseORM:
         return RawResponseORM(**self.model_dump())
 
+
 class Scope(BaseModel):
     """
     Scope with allow and deny endpoints.
@@ -289,7 +301,7 @@ class Scope(BaseModel):
         )
 
     @classmethod
-    def from_orm(cls, orm: ScopeORM) -> "Scope":
+    def from_orm(cls, orm: ScopeORM) -> Scope:
         raw = json.loads(orm.definitions) if orm.definitions else {}
         return cls(
             id=orm.id,

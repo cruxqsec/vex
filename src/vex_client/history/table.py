@@ -1,28 +1,24 @@
-from uuid import UUID
-from datetime import datetime
 import logging
-
-from typing import TYPE_CHECKING, cast, Any, Callable
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Callable, cast
+from uuid import UUID
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 
-from rich.text import Text
-from rich.style import Style
 from rich.color import Color
-
-from textual.widgets import Static, Input
+from rich.style import Style
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.widgets import Input, Static
 from textual.widgets.data_table import CellDoesNotExist
 from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
-
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
-from vex_client.widgets.table import VexDataTable, IconColumnCell, SortDirection
+from vex_cli.models.pydantic import FlowSummary, RequestSummary, ResponseSummary
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
-
+from vex_client.widgets.table import IconColumnCell, SortDirection, VexDataTable
 
 logger = logging.getLogger(__name__)
 
@@ -172,8 +168,10 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         "Time(ms)": lambda f: f.duration_ms or -1,
         "Sent at": lambda f: f.timestamp or 0.0,
         "Cookie": lambda f: bool(f.cookie),
-        "Extension": lambda f: (f.file_extension or "").lower(),
+        "Ext": lambda f: (f.file_extension or "").lower(),
     }
+
+    RESPONSE_SORT_KEYS = {"Status", "Size", "Title", "Time(ms)", "Sent at", "Cookie"}
 
     def sorted_summaries(self, summaries: list[FlowSummary]) -> list[FlowSummary]:
         if self._sort_column_key is None:
@@ -250,6 +248,9 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def insert_request_summary(self, request_summary: RequestSummary) -> None:
         try:
+            app: VexApp = cast("VexApp", self.app)
+            if self.row_exists(str(request_summary.flow_id)):
+                return
             self.add_row(
                 request_summary.id,
                 request_summary.host,
@@ -267,11 +268,14 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             )
             self.post_message(VexDataTable.RowAdded())
         except ValueError:
-            self.app.log_vex("Error inserting request into table. Check logs.", "error")  # type: ignore
+            app.log_vex("Error inserting request into table. Check logs.", "error")
             logger.exception("Error inserting request summary into table")
 
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:
         flow_id = str(response_summary.flow_id)
+        if not self.row_exists(flow_id):
+            # row is filtered out; cache holds the update for the next rebuild
+            return
         try:
             self.update_cell(
                 flow_id, "Status", self.render_status(response_summary.status_code)
@@ -360,6 +364,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 return None
             case "Cookie":
                 return flow.cookie
-            case "Extension":
+            case "Ext":
                 return flow.file_extension
         return None

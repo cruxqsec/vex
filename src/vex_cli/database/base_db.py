@@ -1,20 +1,26 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import ClassVar, TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import Table, delete as sa_delete, func, select, text
+from sqlalchemy import CursorResult, Table, func, select, text
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from vex_cli.errors import DatabaseError, NotFoundError, ValidationError
+from vex_cli.errors import (
+    ConflictError,
+    DatabaseError,
+    NotFoundError,
+)
 from vex_cli.models.orm import (
     Base,
 )
@@ -31,8 +37,9 @@ class BaseDatabase:
     """
 
     # where we declare which models will be used for which database
-    _orm_models: list[type[Base]] = []
-    _wal_mode: bool = False
+    _orm_models: ClassVar[list[type[Base]]] = []
+    # and if WAL will be used
+    _wal_mode: ClassVar[bool] = False
 
     def __init__(self, db_path: Path):
         self.db_path: Path = db_path
@@ -44,75 +51,71 @@ class BaseDatabase:
     async def initialize(self) -> None:
         """Connect to database and create tables"""
         async with self._lock:
+            if self._engine:
+                return
+
+            engine: AsyncEngine | None = None
             try:
-                if self._engine:
-                    return
-
-                self._engine = create_async_engine(
-                    f"sqlite+aiosqlite:///{self.db_path}"
+                engine = create_async_engine(
+                    f"sqlite+aiosqlite:///{self.db_path}",
+                    connect_args={"timeout": 10},
                 )
 
-                self._session_maker = async_sessionmaker(
-                    bind=self._engine,
-                    class_=AsyncSession,
-                    expire_on_commit=False,
-                )
-
-                await self._create_tables()
+                await self._create_tables(engine)
 
                 if self._wal_mode:
-                    await self._enable_wal()
+                    await self._enable_wal(engine)
 
             except SQLAlchemyError as e:
-                logger.error(f"Database error: {e}")
-                raise DatabaseError("Error initializing database")
+                if engine is not None:
+                    try:
+                        await engine.dispose()
+                    except SQLAlchemyError:
+                        pass
+                raise DatabaseError("Error initializing database") from e
 
-    async def _create_tables(self) -> None:
+            self._engine = engine
+            self._session_maker = async_sessionmaker(
+                bind=engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+            )
+
+    async def _create_tables(self, engine: AsyncEngine) -> None:
         """Creates specific table based on ORM modles specified in subclass."""
-        if not self._engine:
-            raise DatabaseError("Engine not initialized")
-
         tables = [cast(Table, model.__table__) for model in self._orm_models]
 
-        async with self._engine.begin() as conn:
+        async with engine.begin() as conn:
             await conn.run_sync(
                 lambda sync_conn: Base.metadata.create_all(sync_conn, tables=tables)
             )
 
-    async def _enable_wal(self) -> None:
-        if not self._engine:
-            raise DatabaseError("Engine not initialized")
-
-        async with self._engine.begin() as conn:
+    async def _enable_wal(self, engine: AsyncEngine) -> None:
+        async with engine.begin() as conn:
             await conn.execute(text("PRAGMA journal_mode=WAL;"))
 
     @asynccontextmanager
-    async def session(self):
-        """Get a database session"""
+    async def session(self, *, commit: bool = True) -> AsyncGenerator[AsyncSession]:
+        """Get a database session."""
 
         if not self._session_maker:
             raise DatabaseError("Session not initialized")
         async with self._session_maker() as s:
             try:
                 yield s
-                await s.commit()
+                if commit:
+                    await s.commit()
             except IntegrityError as e:
                 await s.rollback()
-                logger.error(f"Integrity error: {e}")
-                error_msg = str(e.orig).lower()
-                if "unique" in error_msg or "duplicate" in error_msg:
-                    raise ValidationError("Record already exists")
-                elif "foreign key" in error_msg:
-                    raise ValidationError("Invalid reference")
-                else:
-                    raise ValidationError("Constraint violation")
+                if "unique" in str(e.orig).lower():
+                    raise ConflictError("Record already exists") from e
+                raise ConflictError("Database constraint violated") from e
             except SQLAlchemyError as e:
                 await s.rollback()
-                logger.error(f"Database error: {e}")
-                raise DatabaseError("Database operation failed")
+                raise DatabaseError("Database operation failed") from e
 
     async def create(self, obj: T) -> T:
-        async with self.session() as s:
+        async with self.session(commit=True) as s:
             s.add(obj)
             await s.flush()
             await s.refresh(obj)
@@ -120,37 +123,40 @@ class BaseDatabase:
 
     # accepts both because some models have int and others UUID as PK!
     async def get(self, model: type[T], id: UUID | int) -> T:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             obj = await s.get(model, id)
             if not obj:
-                raise NotFoundError("Object not found")
+                raise NotFoundError(f"{model.__name__} with id {id} not found")
             return obj
 
     async def get_all(self, model: type[T], skip: int, size: int) -> list[T]:
-        async with self.session() as s:
-            result = await s.execute(select(model).offset(skip).limit(size))
+        async with self.session(commit=False) as s:
+            result = await s.execute(
+                select(model).order_by(model.id).offset(skip).limit(size)  # type: ignore
+            )
             return list(result.scalars().all())
 
     async def update(self, model: type[T], obj: T) -> None:
-        async with self.session() as s:
+        async with self.session(commit=True) as s:
             existing_obj = await s.get(model, obj.id)  # type: ignore (all vex models have id)
             if not existing_obj:
-                raise NotFoundError("Object could not be updated")
+                raise NotFoundError(
+                    f"{model.__name__} with id {obj.id} could not be updated"  # type: ignore
+                )
             await s.merge(obj)
 
     async def delete(self, model: type[T], id: UUID | int) -> None:
-        async with self.session() as s:
-            obj = await s.get(model, id)
-            if not obj:
-                raise NotFoundError("Object could not be deleted")
-            await s.delete(obj)
+        async with self.session(commit=True) as s:
+            result = cast(CursorResult, await s.execute( sa_delete(model).where(model.id == id))) # type: ignore
+            if result.rowcount == 0:
+                raise NotFoundError(f"{model.__name__} with id {id} could not be deleted")
 
     async def delete_all(self, model: type[T]) -> None:
-        async with self.session() as s:
+        async with self.session(commit=True) as s:
             await s.execute(sa_delete(model))
 
     async def count(self, model: type[T]) -> int:
-        async with self.session() as s:
+        async with self.session(commit=False) as s:
             result = await s.execute(select(func.count()).select_from(model))
             return result.scalar() or 0
 
@@ -162,5 +168,4 @@ class BaseDatabase:
                     self._engine = None
                     self._session_maker = None
                 except SQLAlchemyError as e:
-                    logger.error(f"Database error: {e}")
-                    raise DatabaseError("Database failed to close")
+                    raise DatabaseError("Database failed to close") from e

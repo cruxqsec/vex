@@ -1,6 +1,7 @@
+from typing import TYPE_CHECKING, cast
+
 import httpx
 from pydantic import ValidationError
-from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
@@ -10,25 +11,19 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Input, Static, ListView
+from textual.widgets import Button, Input, ListView, Static
 
 from vex_cli.models.pydantic import Scope, ScopeCreate, endpoint_adapter
-
-from vex_client.api.scope_api import (
-    create_scope,
-    delete_scope,
-    update_scope,
-)
-from vex_client.widgets.navigation_bar import VexNavigationBar
-from vex_client.widgets.footer import VexFooter
-from vex_client.widgets.button import VexButton
-from vex_client.widgets.logs_panel import VexLogsPanel
-from vex_client.widgets.text_area import VexTextArea, VexTextAreaWidget
 from vex_client.scope.list import (
     ScopeList,
     ScopeListItem,
     ScopeListWidget,
 )
+from vex_client.widgets.button import VexButton
+from vex_client.widgets.footer import VexFooter
+from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.text_area import VexTextArea, VexTextAreaWidget
 
 
 class VexScopeScreen(Screen):
@@ -118,6 +113,7 @@ class VexScopeScreen(Screen):
 
     def reset(self) -> None:
         self.scope_list.clear()
+        self.inserted_scopes_ids.clear()
         self.selected_scope_item = None
         self.name_input.value = ""
         self.in_scope_area.text = ""
@@ -169,13 +165,13 @@ class VexScopeScreen(Screen):
             )
 
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
+        api = app.api_client
 
-        if host is None or port is None:
+        if api is None:
             return
 
         try:
-            created_scope = await create_scope(scope_to_create, host, port)
+            created_scope = await api.scope.create_scope(scope_to_create)
         except httpx.HTTPError:
             self.notify("Network error creating scope. Check logs.", severity="error")
             return
@@ -209,14 +205,14 @@ class VexScopeScreen(Screen):
             return
 
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
+        api = app.api_client
 
-        if host is None or port is None:
+        if api is None:
             return
 
         try:
-            successfully_deleted = await delete_scope(
-                self.selected_scope_item.scope.id, host, port
+            successfully_deleted = await api.scope.delete_scope(
+                self.selected_scope_item.scope.id
             )
         except httpx.HTTPError:
             app.log_vex("Network error creating scope. Check logs.", severity="error")
@@ -230,7 +226,7 @@ class VexScopeScreen(Screen):
         app.scope_cache.pop(self.selected_scope_item.scope.id, None)
         self.scope_list.pop_scope(self.selected_scope_item)
 
-        if app.active_scope and self.selected_scope_item.id == app.active_scope.id:
+        if app.active_scope and self.selected_scope_item.scope.id == app.active_scope.id:
             app.active_scope = None
 
         await self.unfill_scope_data()
@@ -268,13 +264,13 @@ class VexScopeScreen(Screen):
         )
 
         app = cast("VexApp", self.app)
-        host, port = app.get_api_info()
+        api = app.api_client
 
-        if host is None or port is None:
+        if api is None:
             return
 
         try:
-            successfully_updated = await update_scope(updated_scope, host, port)
+            successfully_updated = await api.scope.update_scope(updated_scope)
         except httpx.HTTPError:
             app.log_vex("Network error creating scope. Check logs.", severity="error")
             return

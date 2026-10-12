@@ -10,7 +10,6 @@ from textual.widget import Widget
 from textual.widgets import Button, Select
 
 from vex_cli.models.pydantic import Project, Scope
-from vex_client.api.scope_api import set_scope, unset_scope
 
 
 class NavigationButton(Button, can_focus=False):
@@ -56,14 +55,15 @@ class ScopeSelect(Select, can_focus=False):
         if still_no_value or no_change:
             return
 
-        host, port = app.get_api_info()
-        if host is None or port is None:
+        api = app.api_client
+        if api is None:
             return
         if value == Select.NULL:
             try:
-                successfuly_unset = await unset_scope(host, port)
+                successfuly_unset = await api.scope.unset_scope()
             except httpx.HTTPError:
                 app.log_vex("Failed to unset scope on server. Check logs", "error")
+                return
             if successfuly_unset:
                 app.active_scope = None
         else:
@@ -71,9 +71,10 @@ class ScopeSelect(Select, can_focus=False):
             if not scope:
                 return
             try:
-                successfuly_set = await set_scope(scope.id, host, port)
+                successfuly_set = await api.scope.set_scope(scope.id)
             except httpx.HTTPError:
                 app.log_vex("Failed to set scope on server. Check logs.", "error")
+                return
 
             if successfuly_set:
                 app.active_scope = scope

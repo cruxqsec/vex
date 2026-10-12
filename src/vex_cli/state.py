@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -9,11 +8,10 @@ if TYPE_CHECKING:
     from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
+from vex_cli.errors import AppException
 from vex_cli.flow_history import FlowHistory
 from vex_cli.flow_scope import FlowScope
-from vex_cli.locations import vex_log_directory
 from vex_cli.models.pydantic import Project, VexServerInfo
-from vex_cli.errors import AppException
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +23,8 @@ class VexState:
 
     def __init__(self, server_info: VexServerInfo):
         self.server_info = server_info
-        self._lock = asyncio.Lock()
         self._active_project: Project | None = None
+
         self._db_manager: DatabaseManager | None = None
 
         self._flow_history: FlowHistory = FlowHistory()
@@ -35,8 +33,6 @@ class VexState:
         # Server references for coordinated shutdown
         self.uvicorn_server: uvicorn.Server | None = None
         self.mitmproxy_master: DumpMaster | None = None
-
-        self._configure_logging()
 
     async def initialize_db_manager(self) -> None:
         self._db_manager = DatabaseManager()
@@ -57,8 +53,7 @@ class VexState:
         return self._active_project
 
     async def set_active_project(self, project: Project | None):
-        async with self._lock:
-            self._active_project = project
+        self._active_project = project
 
     def get_flow_history(self) -> FlowHistory:
         return self._flow_history
@@ -68,16 +63,8 @@ class VexState:
 
     def get_db_manager(self) -> DatabaseManager:
         if self._db_manager is None:
-            raise AppException("Database manager not initialized", 500)
+            raise AppException("Database manager not initialized")
         return self._db_manager
-
-    def _configure_logging(self):
-        """Configure logging"""
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[logging.FileHandler(vex_log_directory() / "vex-cli.log")],
-        )
 
     async def shutdown(self):
         if self._db_manager is not None:
