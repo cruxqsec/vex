@@ -10,9 +10,11 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable, Button
+from textual.widgets import DataTable, Button, Static
 
 from vex_cli.models.pydantic import ProjectCreate, Project
+from vex_client.api.summaries_api import count_flows
+from vex_client.api.scope_api import count_scopes
 from vex_cli.locations import vex_projects_directory
 from vex_client.api.project_api import (
     create_project,
@@ -42,7 +44,6 @@ class VexProjectsScreen(Screen):
         Binding("c", "create_project", "Create project", priority=True),
         Binding("d", "delete_project", "Delete project", priority=True),
         Binding("e", "update_project", "Update project", priority=True),
-        Binding("p", "copy_path", "Copy project path", priority=True),
     ]
 
     @property
@@ -111,7 +112,7 @@ class VexProjectsScreen(Screen):
             return
 
         if successfully_selected and project is not None:
-            self.active_project_card.set_project(project.name, "0", "0", "0")
+            self.active_project_card.set_project_name(project.name)
             app.active_project = project
         else:
             self.active_project_card.set_empty()
@@ -158,9 +159,7 @@ class VexProjectsScreen(Screen):
 
         host, port = app.get_api_info()
         if host is None or port is None:
-            app.log_vex(
-                "Cannot check active project: no server info available", "error"
-            )
+            app.log_vex("Cannot check active project: no server info available", "error")
             return
 
         try:
@@ -180,7 +179,9 @@ class VexProjectsScreen(Screen):
         if active_project and fetched_active_project.id == active_project.id:
             return
 
-        self.active_project_card.set_project(fetched_active_project.name, "0", "0", "0")
+        self.active_project_card.set_project_name(fetched_active_project.name)
+        self.fetch_flow_count()
+        self.fetch_scope_count()
         app.active_project = fetched_active_project
 
     @work(name="populate_projects", exclusive=True, group="populate_projects")
@@ -198,6 +199,38 @@ class VexProjectsScreen(Screen):
         self.projects_table.end_bulk_insert()
 
         self.projects_table.set_loading(False)
+
+    @work(name="flow_count", exclusive=True, group="flow_count")
+    async def fetch_flow_count(self) -> None:
+        app = cast("VexApp", self.app)
+
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            app.log_vex("Cannot check active project: no server info available", "error")
+            return
+
+        try:
+            fetched_flow_count: int = await count_flows(host,port)
+            self.active_project_card.query_one("#ap-flows", Static).update(str(fetched_flow_count))
+        except httpx.HTTPError:
+            app.log_vex("Failed to check active project. Check logs.", "error")
+            return
+
+    @work(name="scope_count", exclusive=True, group="scope_count")
+    async def fetch_scope_count(self) -> None:
+        app = cast("VexApp", self.app)
+
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            app.log_vex("Cannot check active project: no server info available", "error")
+            return
+
+        try:
+            fetched_scope_count: int = await count_scopes(host,port)
+            self.active_project_card.query_one("#ap-scopes", Static).update(str(fetched_scope_count))
+        except httpx.HTTPError:
+            app.log_vex("Failed to check active project. Check logs.", "error")
+            return
 
     @on(VexDataTable.SortChanged)
     def _on_sort_changed(self, event: VexDataTable.SortChanged) -> None:
@@ -315,25 +348,6 @@ class VexProjectsScreen(Screen):
 
         app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
 
-    def action_copy_path(self):
-        try:
-            import pyperclip
-
-            app = cast("VexApp", self.app)
-            project_id = (
-                str(app.active_project.id) if app.active_project is not None else ""
-            )
-            pyperclip.copy(str(vex_projects_directory() / project_id))
-        except pyperclip.PyperclipException as exc:
-            self.notify(
-                str(exc),
-                title="Clipboard error",
-                severity="error",
-                timeout=10,
-            )
-        else:
-            self.notify("Project directory path copied to clipboard")
-
     # ------------- BUTTON ACTIONS -----------------
 
     @on(Button.Pressed, "#btn-create")
@@ -353,6 +367,4 @@ class VexProjectsScreen(Screen):
         # TODO: implement project exporting and importing
         pass
 
-    @on(Button.Pressed, "#btn-copy-path")
-    async def on_copy_path(self, event: Button.Pressed) -> None:
-        self.action_copy_path()
+    

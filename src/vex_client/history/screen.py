@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
+    from vex_cli.models.pydantic import FlowSummary, Scope
 
 from textual import on, work
 from textual.binding import Binding
@@ -30,6 +31,18 @@ from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
 from vex_client.widgets.table import VexDataTable
+
+_SEARCH_FIELD_MAP: dict[str, str] = {
+    "host": "host",
+    "method": "method",
+    "path": "path",
+    "query": "query",
+    "status": "status_code",
+    "mime": "mime",
+    "title": "http_title",
+    "ext": "file_extension",
+    "cookie": "cookie",
+}
 
 
 class VexHTTPHistoryScreen(Screen):
@@ -106,10 +119,84 @@ class VexHTTPHistoryScreen(Screen):
 
         app: VexApp = cast("VexApp", self.app)
         app.history_screen = self
+        self.watch(app, "active_scope", self._on_scope_changed, init=False)
         self.populate_table()
 
     def on_unmount(self) -> None:
         cast("VexApp", self.app).history_screen = None
+
+    def _on_scope_changed(self, scope: "Scope | None") -> None:
+        self.populate_table()
+
+    @on(Input.Submitted, "#http-search-bar")
+    def _on_search_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.populate_table()
+
+    def _filter_by_scope(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
+        app = cast("VexApp", self.app)
+        scope = app.active_scope
+        if scope is None:
+            return summaries
+        if not scope.allow_endpoints and not scope.deny_endpoints:
+            return summaries
+        filtered = []
+        for summary in summaries:
+            if summary.host in scope.deny_endpoints:
+                continue
+            if scope.allow_endpoints and summary.host not in scope.allow_endpoints:
+                continue
+            filtered.append(summary)
+        return filtered
+
+    def _parse_query(self, query: str) -> list[tuple[str | None, str]]:
+        terms: list[tuple[str | None, str]] = []
+        for token in query.split():
+            if ":" in token:
+                prefix, _, value = token.partition(":")
+                prefix_lower = prefix.lower()
+                if prefix_lower in _SEARCH_FIELD_MAP and value:
+                    terms.append((prefix_lower, value.lower()))
+            else:
+                terms.append((None, token.lower()))
+        return terms
+
+    def _filter_by_search(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
+        query = self.search_bar.value.strip()
+        if not query:
+            return summaries
+        terms = self._parse_query(query)
+        if not terms:
+            return summaries
+        filtered = []
+        for summary in summaries:
+            match = True
+            for field_prefix, value in terms:
+                if field_prefix is not None:
+                    field_name = _SEARCH_FIELD_MAP[field_prefix]
+                    field_value = getattr(summary, field_name, None)
+                    if field_value is None:
+                        match = False
+                        break
+                    if value not in str(field_value).lower():
+                        match = False
+                        break
+                else:
+                    found = False
+                    for field_name in _SEARCH_FIELD_MAP.values():
+                        field_value = getattr(summary, field_name, None)
+                        if (
+                            field_value is not None
+                            and value in str(field_value).lower()
+                        ):
+                            found = True
+                            break
+                    if not found:
+                        match = False
+                        break
+            if match:
+                filtered.append(summary)
+        return filtered
 
     async def on_screen_resume(self) -> None:
         self.http_table.focus()
@@ -130,9 +217,11 @@ class VexHTTPHistoryScreen(Screen):
         self.request_area.clear()
         self.response_area.clear()
 
-        summaries = self.http_table.sorted_summaries(
+        summaries = self._filter_by_scope(
             list(cast("VexApp", self.app).history_summary_cache.values())
         )
+        summaries = self._filter_by_search(summaries)
+        summaries = self.http_table.sorted_summaries(summaries)
 
         BATCH_SIZE = 200
         try:
@@ -168,7 +257,6 @@ class VexHTTPHistoryScreen(Screen):
         self._selected_summary_uuid = summary_id
         self.fetch_raw_summaries(summary_id)
 
-        
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
     async def fetch_raw_summaries(self, summary_id: UUID) -> None:
         app = cast("VexApp", self.app)
@@ -284,6 +372,11 @@ class VexHTTPHistoryScreen(Screen):
         app.push_screen(ConfirmModal("Delete ALL entries?"), do_delete_all)  # type: ignore
 
     # ----------------- Focus logic ------------------------
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action == "focus_search" and self.search_bar.has_focus:
+            return False
+        return True
 
     def action_focus_next_skip_search(self) -> None:
         max_attempts = len(self.screen.focus_chain)

@@ -16,6 +16,7 @@ from textual.widgets import Static, Input
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets.data_table import CellDoesNotExist
+from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary, FlowSummary
@@ -25,25 +26,60 @@ from vex_client.widgets.empty_message_widget import EmptyMessageWidget
 
 logger = logging.getLogger(__name__)
 
-EXT_TO_ICON = {
-    ".js": "",
-    ".ts": "",
-    ".css": "",
-    ".html": "",
-    ".json": "",
-    ".php": "",
-    ".png": "󰸭",
-    ".jpg": "󰈥",
-    ".svg": "󰜡",
-    ".pdf": "󰈦",
-}
+
+_SEARCH_PREFIXES = [
+    "host:",
+    "method:",
+    "path:",
+    "query:",
+    "status:",
+    "mime:",
+    "title:",
+    "ext:",
+    "cookie:",
+]
+
+
+class SearchFieldAutoComplete(AutoComplete):
+    def get_search_string(self, target_state: TargetState) -> str:
+        text_before_cursor = target_state.text[: target_state.cursor_position]
+        last_space = text_before_cursor.rfind(" ")
+        if last_space == -1:
+            return text_before_cursor
+        return text_before_cursor[last_space + 1 :]
+
+    def apply_completion(self, value: str, state: TargetState) -> None:
+        target = self.target
+        text = target.value
+        cursor_pos = state.cursor_position
+        text_before_cursor = text[:cursor_pos]
+        text_after_cursor = text[cursor_pos:]
+        last_space = text_before_cursor.rfind(" ")
+        if last_space == -1:
+            new_text = value + text_after_cursor
+            new_cursor = len(value)
+        else:
+            new_text = text_before_cursor[: last_space + 1] + value + text_after_cursor
+            new_cursor = last_space + 1 + len(value)
+        with self.prevent(Input.Changed):
+            target.value = new_text
+            target.cursor_position = new_cursor
+        new_target_state = self._get_target_state()
+        self._rebuild_options(
+            new_target_state, self.get_search_string(new_target_state)
+        )
 
 
 class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
             yield Static("\[/] Search", id="http-search-title")
-            yield Input(placeholder="Enter a query...", id="http-search-bar")
+            search_input = Input(placeholder="Enter a query... (host:example.com method:post status:200 string-to-match)", id="http-search-bar")
+            yield search_input
+        yield SearchFieldAutoComplete(
+            search_input,
+            candidates=[DropdownItem(main=prefix) for prefix in _SEARCH_PREFIXES],
+        )
         yield VexHTTPTableEmpty(id="http-table-empty")
 
 
@@ -52,26 +88,24 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
 
     def __init__(self, **kwargs):
         # custom icons for columns
-        brown_style = Style(color=Color.from_rgb(139, 69, 19))
+        # brown_style = Style(color=Color.from_rgb(139, 69, 19))
+        brown_style = Style(color=Color.from_rgb(181, 101, 29))
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
-        )
-        self.file_extension_column = IconColumnCell(
-            Text("󰈔", style="bold white", justify="right"), "Extension"
         )
         history_columns = (
             ("#", 3),
             ("Host", 18),
             ("Method", 5),
             ("Path", 18),
-            ("Query", 15),
+            ("Query", 10),
             ("Status", 5),
-            ("Size", 4),
+            ("Size", 7),
             ("Title", 8),
             ("Time(ms)", 8),
-            ("Sent at", 10),
+            ("Sent at", 12),
             (self.has_cookie_column, 2),
-            (self.file_extension_column, 2),
+            ("Ext", 3),
         )
 
         self.table = VexHTTPTable(
@@ -171,9 +205,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             row: FlowSummary = app.history_summary_cache[flow_id]
 
             self.update_cell(str(flow_id), "Method", self.render_method(row.method))
-            self.update_cell(
-                str(flow_id), "Extension", self.render_extension(row.file_extension)
-            )
 
             if row.status_code:
                 self.update_cell(
@@ -193,8 +224,8 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def render_method(self, method: str) -> Text:
         component = f"method-{method.lower()}"
         if f"vex-datatable--{component}" not in self.COMPONENT_CLASSES:
-            return Text(method, justify="left")
-        return Text(method, style=self._style_for(component), justify="left")
+            return Text(method, justify="right")
+        return Text(method, style=self._style_for(component), justify="right")
 
     def render_status(self, status: int | None) -> Text:
         if status is None:
@@ -207,20 +238,10 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             component = "status-error"
         return Text(str(status), style=self._style_for(component), justify="right")
 
-    def render_extension(self, ext: str | None) -> Text:
-        if not ext:
-            return Text("󰡯", justify="right")
-        component = f"ext-{ext.lower().lstrip('.')}"
-        if ext in EXT_TO_ICON:
-            return Text(
-                EXT_TO_ICON[ext], style=self._style_for(component), justify="right"
-            )
-        return Text("󰡯", justify="right")
-
     def render_cookie(self, has_cookie: bool) -> Text:
         if has_cookie:
-            return Text("", style=self._style_for("cookie-yes"), justify="right")
-        return Text("󰅙", style=self._style_for("cookie-no"), justify="right")
+            return Text("󰸞", style=self._style_for("cookie-yes"), justify="right")
+        return Text("", style=self._style_for("cookie-no"), justify="right")
 
     def time_display(self, timestamp: float) -> Text:
         dt_object = datetime.fromtimestamp(timestamp)
@@ -241,7 +262,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 None,
                 None,
                 None,  # ResponseSummmary field are empty
-                self.render_extension(request_summary.file_extension),
+                request_summary.file_extension,
                 key=str(request_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())
@@ -291,10 +312,54 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 full_summary.duration_ms,
                 self.time_display(full_summary.timestamp),
                 self.render_cookie(bool(full_summary.cookie)),
-                self.render_extension(full_summary.file_extension),
+                full_summary.file_extension,
                 key=str(full_summary.flow_id),
             )
             self.post_message(VexDataTable.RowAdded())
         except ValueError:
             self.app.log_vex("Error inserting summary into table. Check logs.", "error")  # type: ignore
             logger.exception("Error inserting full summary into table")
+
+    def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
+        from uuid import UUID
+
+        app = cast("VexApp", self.app)
+        try:
+            flow_id = UUID(row_key)
+        except ValueError:
+            return None
+        if flow_id not in app.history_summary_cache:
+            return None
+        flow = app.history_summary_cache[flow_id]
+
+        match column_key:
+            case "#":
+                return str(flow.id)
+            case "Host":
+                return flow.host
+            case "Method":
+                return flow.method
+            case "Path":
+                return flow.path
+            case "Query":
+                return flow.query
+            case "Status":
+                return str(flow.status_code) if flow.status_code is not None else None
+            case "Size":
+                return (
+                    str(flow.response_size) if flow.response_size is not None else None
+                )
+            case "Title":
+                return flow.http_title
+            case "Time(ms)":
+                return str(flow.duration_ms) if flow.duration_ms is not None else None
+            case "Sent at":
+                if flow.timestamp:
+                    dt = datetime.fromtimestamp(flow.timestamp)
+                    return dt.strftime("%H:%M:%S %d/%m")
+                return None
+            case "Cookie":
+                return flow.cookie
+            case "Extension":
+                return flow.file_extension
+        return None

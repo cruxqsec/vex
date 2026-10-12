@@ -17,14 +17,21 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [x] Implement custom footer
 - [x] VexTextArea vim like status bar
 - [x] VexTextArea vim normal/visual mode (read only first)
-- [ ] VexTextArea vim insert/normal/visual modes
+- [ ] VexTextArea vim insert mode
+- [ ] VexTextArea search mode
+- [ ] VexTextArea hex editor
+- [ ] VexTextArea pretty mode
+- [ ] VexTextArea optimization (disable sytnax highlighting for bodies)
 - [ ] Add help screens (per screen and per widget)
 - [ ] Muted buttons for functionality that can't be used at the moment
+- [ ] Browser support
 
 ### History screen
 
 - [x] Add a search bar
-- [ ] Add copy helper (command palette like)
+- [x] Add copy helper (command palette like)
+- [ ] Search bar with basic query capabilities + custom filed queries
+- [x] When scope set we apply scope rules
 - [x] Sorting for all columns of History table
 - [x] Syntax highlighting for History table
 - [x] Implement some sort of caching

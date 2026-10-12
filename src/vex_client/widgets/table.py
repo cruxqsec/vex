@@ -92,6 +92,7 @@ class VexDataTable(DataTable, can_focus=True):
         Binding("0", "sort_column(9)", show=False),
         Binding("-", "sort_column(10)", show=False),
         Binding("=", "sort_column(11)", show=False),
+        Binding("y", "yank()", "Copy field", show=True),
     ]
 
     def __init__(
@@ -241,3 +242,30 @@ class VexDataTable(DataTable, can_focus=True):
                 self._clear_caches()
                 self.refresh()
                 return
+
+    def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
+        """Override in subclasses to return the raw value for a column in a row."""
+        return None
+
+    def action_yank(self) -> None:
+        row_key = self.get_highlighted_row_key()
+        if row_key is None:
+            self.app.notify("No row selected", title="Vex")
+            return
+
+        column_values: list[tuple[str, str]] = []
+        for col in self.ordered_columns:
+            col_key = col.key.value
+            if col_key is None:
+                continue
+            raw_value = self.get_cell_raw_value(col_key, row_key)
+            display_value = str(raw_value) if raw_value is not None else ""
+            column_values.append((col_key, display_value))
+
+        if not column_values:
+            self.app.notify("No data to copy", title="Vex")
+            return
+
+        from vex_client.modals.copy_palette import CopyPalette
+
+        self.app.push_screen(CopyPalette(column_values))

@@ -20,7 +20,7 @@ from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_pid_file
 from vex_cli.models.pydantic import VexServerInfo
 from vex_cli.pid_func import is_process_running, read_pid_file
-from vex_client.api.health_check import check_health_pid
+from vex_client.api.health_check import check_health_pid, check_health_retries
 from vex_client.modals.proxy_modal import CreateUpdateProxyScreen
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
@@ -225,6 +225,15 @@ class VexProxyScreen(Screen):
         app = cast("VexApp", self.app)
         if not app.server_online:
             app.server_monitor_worker = app._server_monitor()
+
+        host, port = app.get_api_info()
+        if host is None or port is None:
+            app.log_vex("Cannot enter: no server info available", "error")
+            return
+        
+        server_ready = await check_health_retries(5, host, port)
+        if not server_ready:
+            app.log_vex("Server not reachable. Check if vex-cli is running.", "error")
         app.switch_screen("projects-screen")
 
     async def _stop_vex(self, selected_instance: ProxyListItem):
