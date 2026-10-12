@@ -14,29 +14,22 @@ class FlowHistory:
 
     def __init__(self):
         self._subscribers: set[asyncio.Queue[FlowEvent]] = set()
-        self._lock = asyncio.Lock()
 
-    async def subscribe(self) -> asyncio.Queue:
-        queue: asyncio.Queue[FlowEvent] = asyncio.Queue(maxsize=200)
-        async with self._lock:
-            self._subscribers.add(queue)
+    @property
+    def subscribers_count(self) -> int:
+        return len(self._subscribers)
+
+    def subscribe(self) -> asyncio.Queue:
+        queue: asyncio.Queue[FlowEvent] = asyncio.Queue(maxsize=1000)
+        self._subscribers.add(queue)
         return queue
 
-    async def unsubscribe(self, dead_queue: asyncio.Queue[FlowEvent]):
-        async with self._lock:
-            self._subscribers.discard(dead_queue)
+    def unsubscribe(self, dead_queue: asyncio.Queue[FlowEvent]):
+        self._subscribers.discard(dead_queue)
 
-    async def broadcast(self, event: FlowEvent):
+    def broadcast(self, event: FlowEvent):
         """Broadcast flow summary to all subscribers."""
-        async with self._lock:
-            for queue in self._subscribers:
-                while True:
-                    try:
-                        queue.put_nowait(event)
-                        break
-                    except asyncio.QueueFull:
-                        try:
-                            queue.get_nowait()  # drop oldest, retry
-                        except asyncio.QueueEmpty:
-                            # queue drained concurrently, retry the put
-                            pass
+        for queue in tuple(self._subscribers):
+            if queue.full():
+                queue.get_nowait()  # drop oldest
+            queue.put_nowait(event)

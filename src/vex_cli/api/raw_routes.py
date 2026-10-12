@@ -8,6 +8,18 @@ from vex_cli.dependencies import get_raw_db
 from vex_cli.models.orm import RawRequestORM, RawResponseORM
 from vex_cli.models.pydantic import RawRequest, RawResponse
 
+"""
+Endpoints:
+
+    RawRequest endpoints:
+    GET /raw/request/        - get all raw requests
+    GET /raw/request/{id}    - get raw request by id
+
+    RawResponse endpoints:
+    GET /raw/response/       - get all raw responses
+    GET /raw/response/{id}   - get raw response by id
+"""
+
 raw_request_router = APIRouter(tags=["Raw requests"])
 raw_response_router = APIRouter(tags=["Raw responses"])
 

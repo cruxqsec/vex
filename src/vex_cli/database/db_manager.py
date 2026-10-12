@@ -19,8 +19,8 @@ class DatabaseManager:
     - projects.db : Lives in the root directories and stores projects
 
     Per project:
-    - summaries.db: Request and response summaries (separate tables)
-    - raw_flows.db: Full request/response data (WAL mode)
+    - main.db: Request and response summaries (separate tables)
+    - raw.db: Full request/response data (WAL mode)
     """
 
     def __init__(self):
@@ -68,7 +68,6 @@ class DatabaseManager:
                 self._raw_db = None
 
     def active_databases(self) -> tuple[SummariesDatabase, RawDatabase] | None:
-        """Both project databases as one atomic snapshot, or None if no project is active."""
         summaries, raw = self._summaries_db, self._raw_db
         if summaries is None or raw is None:
             return None
@@ -118,4 +117,4 @@ class DatabaseManager:
             self._raw_db = None
             for result in results:
                 if isinstance(result, Exception):
-                    logger.error(f"Failed to close database: {result}")
+                    raise DatabaseError("Database failed to close") from result

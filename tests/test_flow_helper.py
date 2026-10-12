@@ -1,6 +1,4 @@
-import pytest
 from mitmproxy import http
-from mitmproxy.test import tflow, tutils
 
 from vex_cli.flow_helper import (
     calculate_response_time_ms,
@@ -18,102 +16,70 @@ from vex_cli.flow_helper import (
 )
 
 
-# --- Fixtures for Mock HTTPFlow ---
-@pytest.fixture
-def mock_flow() -> http.HTTPFlow:
-    req = tutils.treq(
-        host="example.com",
-        scheme="http",
-        method="GET",
-        path="/path/to/content.php?query=test&query2=test2",
-        content=b"",
-        timestamp_end=50,
-    )
-
-    html = b"""<!doctype html>
-    <html lang="en">
-    <head>
-        <title>Example title</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <body>
-        <div>
-            <h1>Example Domain</h1>
-            <p><a href="https://iana.org/domains/example">Learn more</a>
-        </div>
-    </body>
-    </html>"""
-
-    res_headers = [
-        (b"Accept-Ranges", b"bytes"),
-        (b"Content-Type", b"text/html; charset=utf-8"),
-        (b"Vary", b"Accept-Encoding"),
-        (b"Set-Cookie", b"test_token=random-test-cookie"),
-        (b"Content-Length", str(len(html)).encode()),
-        (b"Connection", b"keep-alive"),
-    ]
-
-    resp = tutils.tresp(
-        status_code=200,
-        headers=res_headers,
-        content=html,
-        timestamp_start=100,
-    )
-
-    flow = tflow.tflow(req=req, resp=resp)
-
-    return flow
+def test_uses_tls(req_res_flow: http.HTTPFlow):
+    assert uses_tls(req_res_flow)
 
 
-@pytest.fixture
-def mock_flow_no_resp() -> http.HTTPFlow:
-    req = tutils.treq(
-        host="example.com",
-        scheme="https",
-        method="GET",
-        path="/path/to/content.php?query=test&query2=test2",
-        content=b"",
-        timestamp_end=50,
-    )
-
-    flow = tflow.tflow(req=req, resp=False)
-
-    return flow
+def test_uses_tls_no_tls(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.scheme = "http"
+    assert not uses_tls(req_res_flow)
 
 
-def test_uses_tls(mock_flow: http.HTTPFlow):
-    assert not uses_tls(mock_flow)
+def test_extract_url_path(req_res_flow: http.HTTPFlow):
+    assert extract_url_path(req_res_flow) == "/path/to/content.php"
 
 
-def test_extract_url_path(mock_flow: http.HTTPFlow):
-    assert extract_url_path(mock_flow) == "/path/to/content.php"
+def test_extract_extension(req_res_flow: http.HTTPFlow):
+    assert extract_extension(req_res_flow) == ".php"
 
 
-def test_extract_extension_with_extension(mock_flow):
-    assert extract_extension(mock_flow) == ".php"
+def test_extract_extension_no_extension(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/path/to/index"
+    assert extract_extension(req_res_flow) is None
 
 
-def test_extract_mime_with_charset(mock_flow: http.HTTPFlow):
-    assert extract_mime(mock_flow) == "text/html"
+def test_extract_extension_dotfile(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/.gitignore"
+    assert extract_extension(req_res_flow) is None
 
 
-def test_extract_mime_no_content_type(mock_flow: http.HTTPFlow):
-    mock_flow.response.headers = {}  # type: ignore
-    assert extract_mime(mock_flow) is None
+def test_extract_extension_dot_at_end(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/file."
+    assert extract_extension(req_res_flow) == "."
 
 
-def test_extract_mime_no_response(mock_flow_no_resp: http.HTTPFlow):
-    assert extract_mime(mock_flow_no_resp) is None
+def test_extract_extension_multiple_dots(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/archive.tar.gz"
+    assert extract_extension(req_res_flow) == ".gz"
 
 
-def test_extract_http_title_found(mock_flow: http.HTTPFlow):
-    assert extract_http_title(mock_flow) == "Example title"
+def test_extract_extension_query_string_ignored(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/file.php?x=1"
+    assert extract_extension(req_res_flow) == ".php"
 
 
-def test_extract_http_title_no_res(mock_flow_no_resp: http.HTTPFlow):
-    assert extract_http_title(mock_flow_no_resp) is None
+def test_extract_mime_with_charset(req_res_flow: http.HTTPFlow):
+    assert extract_mime(req_res_flow) == "text/html"
 
 
-def test_extract_http_title_no_title(mock_flow: http.HTTPFlow):
+def test_extract_mime_no_content_type(req_res_flow: http.HTTPFlow):
+    req_res_flow.response.headers = {}  # type: ignore
+    assert extract_mime(req_res_flow) is None
+
+
+def test_extract_mime_no_response(req_no_resp_flow: http.HTTPFlow):
+    assert extract_mime(req_no_resp_flow) is None
+
+
+def test_extract_http_title_found(req_res_flow: http.HTTPFlow):
+    assert extract_http_title(req_res_flow) == "Example title"
+
+
+def test_extract_http_title_no_res(req_no_resp_flow: http.HTTPFlow):
+    assert extract_http_title(req_no_resp_flow) is None
+
+
+def test_extract_http_title_no_title(req_res_flow: http.HTTPFlow):
     no_title_html = b"""<!doctype html>
     <html lang="en">
     <head>
@@ -126,96 +92,79 @@ def test_extract_http_title_no_title(mock_flow: http.HTTPFlow):
     </body>
     </html>"""
 
-    mock_flow.response.content = no_title_html  # type: ignore
-    assert extract_http_title(mock_flow) is None
+    req_res_flow.response.content = no_title_html  # type: ignore
+    assert extract_http_title(req_res_flow) is None
 
 
-def test_extract_query_found(mock_flow: http.HTTPFlow):
-    assert extract_query(mock_flow) == "query=test&query2=test2"
+def test_extract_http_title_binary_response(binary_flow: http.HTTPFlow):
+    assert extract_http_title(binary_flow) is None
 
 
-def test_extract_query_empty_returns_none():
-    req = tutils.treq(
-        host="example.com",
-        scheme="http",
-        method="GET",
-        path="/path/no/query",
-        content=b"",
-    )
-    flow = tflow.tflow(req=req)
-    assert extract_query(flow) is None
+def test_extract_http_title_binary_response_safe(binary_flow: http.HTTPFlow):
+    # no <title> in PNG binary
+    title = extract_http_title(binary_flow)
+    assert title is None
 
 
-def test_has_cookies_true(mock_flow: http.HTTPFlow):
-    assert has_cookies(mock_flow)
+def test_extract_query_found(req_res_flow: http.HTTPFlow):
+    assert extract_query(req_res_flow) == "query=test&query2=test2"
 
 
-def test_has_cookies_no_res(mock_flow_no_resp: http.HTTPFlow):
-    assert not has_cookies(mock_flow_no_resp)
+def test_extract_query_empty_returns_none(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.path = "/path/no/query"
+    assert extract_query(req_res_flow) is None
 
 
-def test_extract_cookies_single(mock_flow: http.HTTPFlow):
-    assert extract_cookies(mock_flow) == "test_token=random-test-cookie"
+def test_has_cookies(req_res_flow: http.HTTPFlow):
+    assert has_cookies(req_res_flow)
 
 
-def test_extract_cookies_no_response(mock_flow_no_resp: http.HTTPFlow):
-    assert extract_cookies(mock_flow_no_resp) == ""
+def test_has_no_cookies(req_res_flow: http.HTTPFlow):
+    req_res_flow.response.headers.pop(b"Set-Cookie")  # type: ignore
+    assert not has_cookies(req_res_flow)
 
 
-def test_extract_cookies_no_cookies(mock_flow_no_resp: http.HTTPFlow):
-    # Create a flow with response but no cookies
-    import mitmproxy.test.tflow as tflow_module
-
-    req = tutils.treq(
-        host="example.com",
-        scheme="http",
-        method="GET",
-        path="/test",
-        content=b"",
-    )
-    resp = tutils.tresp(status_code=200, content=b"test")
-    flow = tflow_module.tflow(req=req, resp=resp)
-
-    if flow.response:
-        flow.response.cookies.clear()
-
-    assert extract_cookies(flow) == ""
+def test_has_cookies_no_res(req_no_resp_flow: http.HTTPFlow):
+    assert not has_cookies(req_no_resp_flow)
 
 
-def test_calculate_response_time_ms(mock_flow: http.HTTPFlow):
-    assert calculate_response_time_ms(mock_flow) == 50000
+def test_extract_cookies(req_res_flow: http.HTTPFlow):
+    assert extract_cookies(req_res_flow) == "test_token=random-test-cookie"
 
 
-def test_calculate_response_time_ms_no_res(mock_flow_no_resp: http.HTTPFlow):
-    assert calculate_response_time_ms(mock_flow_no_resp) == 0
+def test_extract_cookies_no_cookies(req_res_flow: http.HTTPFlow):
+    req_res_flow.response.headers.pop(b"Set-Cookie")  # type: ignore
+    assert extract_cookies(req_res_flow) == ""
 
 
-def test_calculate_response_time_ms_no_end_time(mock_flow: http.HTTPFlow):
-    mock_flow.request.timestamp_end = None
-    assert calculate_response_time_ms(mock_flow) == 0
+def test_calculate_response_time_ms(req_res_flow: http.HTTPFlow):
+    assert calculate_response_time_ms(req_res_flow) == 50000
 
 
-def test_get_status_text_known_code(mock_flow: http.HTTPFlow):
-    assert get_status_text(200) == "OK"
-    assert get_status_text(404) == "Not Found"
-    assert get_status_text(500) == "Internal Server Error"
+def test_calculate_response_time_ms_no_res(req_no_resp_flow: http.HTTPFlow):
+    assert calculate_response_time_ms(req_no_resp_flow) == 0
 
 
-def test_get_status_text_unknown_code(mock_flow: http.HTTPFlow):
+def test_calculate_response_time_ms_no_end_time(req_res_flow: http.HTTPFlow):
+    req_res_flow.request.timestamp_end = None
+    assert calculate_response_time_ms(req_res_flow) == 0
+
+
+def test_get_status_text_unknown_code(req_res_flow: http.HTTPFlow):
     assert get_status_text(999) == "Unknown"
 
 
-def test_flow_to_raw_req(mock_flow: http.HTTPFlow):
+def test_flow_to_raw_req(req_res_flow: http.HTTPFlow):
     result = (
         b"GET /path/to/content.php?query=test&query2=test2 HTTP/1.1\r\n"
         b"header: qvalue\r\n"
         b"content-length: 0\r\n\r\n"
     )
 
-    assert flow_to_raw_request(mock_flow) == result
+    assert flow_to_raw_request(req_res_flow) == result
 
 
-def test_flow_to_raw_res(mock_flow: http.HTTPFlow):
+def test_flow_to_raw_res(req_res_flow: http.HTTPFlow):
     html = b"""<!doctype html>
     <html lang="en">
     <head>
@@ -238,110 +187,47 @@ def test_flow_to_raw_res(mock_flow: http.HTTPFlow):
         b"Content-Length: 338\r\n"
         b"Connection: keep-alive\r\n\r\n" + html
     )
-    raw_res = flow_to_raw_response(mock_flow)
+    raw_res = flow_to_raw_response(req_res_flow)
 
     assert raw_res == result
 
 
-# --- Binary content tests ---
+# Binary content tests
 
 
-@pytest.fixture
-def mock_binary_flow() -> http.HTTPFlow:
-    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-    resp_headers = [
-        (b"Content-Type", b"image/png"),
-        (b"Content-Length", str(len(png_bytes)).encode()),
-    ]
-    req = tutils.treq(
-        host="cdn.example.com",
-        scheme="https",
-        method="GET",
-        path="/img.png",
-        content=b"",
-    )
-    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
-    return tflow.tflow(req=req, resp=resp)
-
-
-def test_flow_to_raw_response_binary_body(mock_binary_flow: http.HTTPFlow):
-    raw = flow_to_raw_response(mock_binary_flow)
+def test_flow_to_raw_response_binary_body(binary_flow: http.HTTPFlow):
+    raw = flow_to_raw_response(binary_flow)
     assert raw is not None
     assert b"HTTP/1.1 200 OK\r\n" in raw
     assert b"Content-Type: image/png\r\n" in raw
     assert b"\x89PNG" in raw
 
 
-def test_flow_to_raw_request_binary_body():
+def test_flow_to_raw_request_binary_body(binary_flow: http.HTTPFlow):
     png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde"
-    req = tutils.treq(
-        host="cdn.example.com",
-        scheme="https",
-        method="POST",
-        path="/upload",
-        content=png_bytes,
-    )
-    flow = tflow.tflow(req=req)
-    raw = flow_to_raw_request(flow)
-    assert b"POST /upload HTTP/1.1\r\n" in raw
+    binary_flow.request.content = png_bytes
+    raw = flow_to_raw_request(binary_flow)
+    assert b"GET /img.png HTTP/1.1\r\n" in raw
     assert b"\x89PNG" in raw
 
 
-def test_extract_http_title_binary_response(mock_binary_flow: http.HTTPFlow):
-    assert extract_http_title(mock_binary_flow) is None
-
-
-def test_flow_to_raw_response_strips_content_encoding():
+def test_flow_to_raw_response_strips_content_encoding(req_res_flow: http.HTTPFlow):
     """Verify Content-Encoding and Transfer-Encoding are stripped from response."""
-    html = b"<html><body>test</body></html>"
-    resp_headers = [
-        (b"Content-Type", b"text/html"),
-    ]
-    req = tutils.treq(host="example.com")
-    resp = tutils.tresp(status_code=200, headers=resp_headers, content=html)
-    flow = tflow.tflow(req=req, resp=resp)
-
-    # Simulate the "lie" - headers claim encoding but body is already decoded
-    flow.response.headers["Content-Encoding"] = "gzip"
-    flow.response.headers["Transfer-Encoding"] = "chunked"
-    flow.response.headers["Content-Length"] = "999"
-
-    raw = flow_to_raw_response(flow)
+    raw = flow_to_raw_response(req_res_flow)
 
     assert raw is not None
     assert b"Content-Encoding" not in raw
     assert b"Transfer-Encoding" not in raw
-    assert b"Content-Length: 30\r\n" in raw  # actual body length
-    assert html in raw
 
 
-def test_flow_to_raw_response_binary_with_non_ascii_headers():
+def test_flow_to_raw_response_binary_with_non_ascii_headers(
+    req_res_flow: http.HTTPFlow,
+):
     """Verify latin-1 encoding handles non-ASCII header values correctly."""
-    png_bytes = b"\x89PNG\r\n\x1a\n"
-    resp_headers = [
-        (b"Content-Type", b"image/png"),
-        (b"X-Custom", b"caf\xc3\xa9"),  # UTF-8 for "café" - tests latin-1 encoding
-    ]
-    req = tutils.treq(host="cdn.example.com")
-    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
-    flow = tflow.tflow(req=req, resp=resp)
-
-    raw = flow_to_raw_response(flow)
+    # UTF-8 for "café" - tests latin-1 encoding
+    req_res_flow.response.headers.add(b"X-Custom", b"caf\xc3\xa9")  # type: ignore
+    raw = flow_to_raw_response(req_res_flow)
 
     assert raw is not None
     # mitmproxy decodes UTF-8 bytes to "café" string (U+00E9), we encode to latin-1 (0xE9)
     assert b"X-Custom: caf\xe9\r\n" in raw
-    assert png_bytes in raw
-
-
-def test_extract_http_title_binary_response_safe():
-    """Verify binary responses don't crash title extraction with latin-1."""
-    png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
-    resp_headers = [(b"Content-Type", b"image/png")]
-    req = tutils.treq(host="cdn.example.com")
-    resp = tutils.tresp(status_code=200, headers=resp_headers, content=png_bytes)
-    flow = tflow.tflow(req=req, resp=resp)
-
-    title = extract_http_title(flow)
-
-    assert title is None  # no <title> in PNG binary

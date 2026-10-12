@@ -8,10 +8,10 @@ if TYPE_CHECKING:
     from mitmproxy.tools.dump import DumpMaster
 
 from vex_cli.database.db_manager import DatabaseManager
+from vex_cli.errors import AppException
 from vex_cli.flow_history import FlowHistory
 from vex_cli.flow_scope import FlowScope
 from vex_cli.models.pydantic import Project, VexServerInfo
-from vex_cli.errors import AppException
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,8 @@ class VexState:
 
     def __init__(self, server_info: VexServerInfo):
         self.server_info = server_info
-        # Single-event-loop server: attribute assignment is atomic within the
-        # loop; consistency that must span an await lives in DatabaseManager.
         self._active_project: Project | None = None
+
         self._db_manager: DatabaseManager | None = None
 
         self._flow_history: FlowHistory = FlowHistory()
@@ -64,7 +63,7 @@ class VexState:
 
     def get_db_manager(self) -> DatabaseManager:
         if self._db_manager is None:
-            raise AppException("Database manager not initialized", 500)
+            raise AppException("Database manager not initialized")
         return self._db_manager
 
     async def shutdown(self):

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -16,7 +15,6 @@ from pydantic import (
     IPvAnyAddress,
     TypeAdapter,
     field_serializer,
-    field_validator,
 )
 
 from vex_cli.flow_helper import (
@@ -27,6 +25,8 @@ from vex_cli.flow_helper import (
     extract_mime,
     extract_query,
     extract_url_path,
+    flow_to_raw_request,
+    flow_to_raw_response,
     uses_tls,
 )
 from vex_cli.models.orm import (
@@ -40,11 +40,6 @@ from vex_cli.models.orm import (
 
 # For Pydantic->ORM conversion
 _orm_config = ConfigDict(from_attributes=True)
-
-
-def now_utc_timestamp() -> float:
-    """UTC wall-clock as a unix timestamp."""
-    return datetime.now(UTC).timestamp()
 
 _ip_adapter = TypeAdapter(IPvAnyAddress)
 _url_adapter = TypeAdapter(AnyUrl)
@@ -83,9 +78,7 @@ endpoint_adapter = TypeAdapter(list[ScopeEndpoint])
 
 
 class VexServerInfo(BaseModel):
-    """
-    Object with the vex-cli server information.
-    """
+    """Object with the vex-cli server information."""
 
     server_address: IPStr
     proxy_port: PortNumber
@@ -93,9 +86,7 @@ class VexServerInfo(BaseModel):
 
 
 class PIDData(BaseModel):
-    """
-    Data that will be saved to the vex.pid file.
-    """
+    """Data that will be saved to the vex.pid file."""
 
     pid: int = Field(ge=1)
     host: IPStr
@@ -104,12 +95,10 @@ class PIDData(BaseModel):
 
 
 class ResponseStatus(BaseModel):
-    """
-    We return this from endpoints where we don't return any other data.
-    """
+    """We return this from endpoints where we don't return any other data."""
 
     status: Literal["Success", "Failure"]
-    msg: str
+    message: str
 
 
 class CountResponse(BaseModel):
@@ -123,16 +112,8 @@ class Project(BaseModel):
 
     id: UUID
     name: str
-    created_at: datetime
-    updated_at: datetime
-
-    @field_validator("created_at", "updated_at", mode="after")
-    @classmethod
-    def _ensure_utc(cls, v: datetime) -> datetime:
-        """DB stores naive UTC; attach UTC at the API boundary so comparisons stay sane."""
-        if v.tzinfo is None:
-            return v.replace(tzinfo=UTC)
-        return v.astimezone(UTC)
+    created_at: float
+    updated_at: float
 
     def to_orm(self) -> ProjectORM:
         return ProjectORM(**self.model_dump())
@@ -148,7 +129,7 @@ CaptureErrorKind = Literal["parse", "database", "broadcast", "unknown"]
 
 
 class CaptureErrorEvent(BaseModel):
-    """Pushed over /ws/history when the capture path drops a flow."""
+    """Event sent over the websocket when there was a capture error in the proxy."""
 
     type: Literal["capture_error"] = "capture_error"
     kind: CaptureErrorKind = "unknown"
@@ -175,7 +156,6 @@ class RequestSummary(BaseModel):
 
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow, raw: bytes) -> RequestSummary:
-        """raw: pre-serialized request bytes (see flow_to_raw_request) — size is len(raw)."""
         return cls(
             flow_id=UUID(flow.id),
             host=flow.request.host,
@@ -185,7 +165,7 @@ class RequestSummary(BaseModel):
             is_tls=uses_tls(flow),
             query=extract_query(flow),
             file_extension=extract_extension(flow),
-            timestamp=now_utc_timestamp(),
+            timestamp=flow.request.timestamp_start,
         )
 
     def to_orm(self) -> RequestSummaryORM:
@@ -209,7 +189,6 @@ class ResponseSummary(BaseModel):
 
     @classmethod
     def from_flow(cls, flow: http.HTTPFlow, raw: bytes | None) -> ResponseSummary:
-        """raw: pre-serialized response bytes (see flow_to_raw_response) — size is len(raw)."""
         return cls(
             flow_id=UUID(flow.id),
             status_code=flow.response.status_code,  # type: ignore
@@ -218,7 +197,7 @@ class ResponseSummary(BaseModel):
             http_title=extract_http_title(flow),
             cookie=extract_cookies(flow),
             duration_ms=calculate_response_time_ms(flow),
-            timestamp=now_utc_timestamp(),
+            timestamp=flow.response.timestamp_start if flow.response else time.time(),
         )
 
     def to_orm(self) -> ResponseSummaryORM:
@@ -269,9 +248,8 @@ class RawRequest(BaseModel):
         return v.decode("latin-1")
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow, raw: bytes) -> RawRequest:
-        """raw: pre-serialized request bytes (see flow_to_raw_request)."""
-        return cls(id=UUID(flow.id), data=raw)
+    def from_flow(cls, flow: http.HTTPFlow) -> RawRequest:
+        return cls(id=UUID(flow.id), data=flow_to_raw_request(flow))
 
     def to_orm(self) -> RawRequestORM:
         return RawRequestORM(**self.model_dump())
@@ -293,11 +271,10 @@ class RawResponse(BaseModel):
         return v.decode("latin-1")
 
     @classmethod
-    def from_flow(cls, flow: http.HTTPFlow, raw: bytes | None) -> RawResponse:
-        """raw: pre-serialized response bytes (see flow_to_raw_response)."""
+    def from_flow(cls, flow: http.HTTPFlow) -> RawResponse:
         return cls(
             id=UUID(flow.id),
-            data=raw,
+            data=flow_to_raw_response(flow),
         )
 
     def to_orm(self) -> RawResponseORM:

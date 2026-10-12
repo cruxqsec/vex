@@ -19,8 +19,16 @@ dependencies = [
 
 requires-python = ">=3.11"
 
+[project.scripts]
+vex-cli = "vex_cli.__main__:cli"
+vex = "vex_client.__main__:main"
+
+[tool.uv]
+package = true
+
 [dependency-groups]
 test = [
+    "httpx-ws>=0.9.0",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.1.0",
@@ -28,9 +36,8 @@ test = [
     "textual-dev>=1.7.0",
 ]
 
-[project.scripts]
-vex-cli = "vex_cli.__main__:cli"
-vex = "vex_client.__main__:main"
-
-[tool.uv]
-package = true
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

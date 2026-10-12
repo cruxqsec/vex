@@ -5,6 +5,13 @@ from fastapi.responses import RedirectResponse
 
 from vex_client.version import VERSION
 
+"""
+Endpoints:
+
+    GET /          - redirect to swagger docs
+    GET /health    - health check (status, pid, version)
+"""
+
 health_router = APIRouter()
 
 @health_router.get("/")

@@ -1,18 +1,3 @@
-"""Process-level startup gate for vex-cli.
-
-The pid file doubles as an advisory lock: the first line of defense is an
-exclusive non-blocking file lock held for the lifetime of the server. The
-kernel releases the lock when the owning process dies (crash or clean exit
-alike), so a lock means "a live instance is running" and no lock means the
-file may be stale — the pid stored inside is never trusted for liveness.
-
-Locking primitives are platform-specific: fcntl.flock on POSIX, msvcrt
-region locks on Windows. Note that uvicorn/mitmproxy stack still has other
-POSIX-only dependencies (e.g. loop.add_signal_handler is gone now, but
-signal handling is owned by uvicorn which handles both platforms' SIGINT;
-SIGTERM delivery differs on Windows).
-"""
-
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -46,11 +31,7 @@ def write_pid_file(host: str, proxy_port: int, api_port: int, pid_file: Path) ->
 
 
 def read_pid_file(pid_file: Path) -> PIDData:
-    """Read server information from pid file.
-
-    Liveness is never inferred from the pid: the file serves as metadata for
-    clients (health adoption); the startup gate uses the file lock instead.
-    """
+    """Read server information from pid file."""
     data = PIDData.model_validate_json(pid_file.read_text())
     return data
 
@@ -68,8 +49,6 @@ async def pid_file_check(server_info: VexServerInfo):
     """
     pid_file = vex_pid_file()
 
-    # O_RDWR|O_CREAT; never O_TRUNC here — truncating before we own the lock
-    # would clobber a live instance's metadata.
     fd = os.open(pid_file, os.O_RDWR | os.O_CREAT, 0o644)
     try:
         try:
@@ -77,7 +56,6 @@ async def pid_file_check(server_info: VexServerInfo):
         except OSError as e:
             raise RuntimeError("vex-cli is already running.") from e
 
-        # We own the lock: any previous content is stale, rewrite it.
         data = PIDData(
             pid=os.getpid(),
             host=str(server_info.server_address),
@@ -90,10 +68,10 @@ async def pid_file_check(server_info: VexServerInfo):
 
         yield pid_file
     finally:
+        # we just close the file descriptor so we release the lock
+        # but we leave the file intentionally staleness is decided by holding the lock,
+        # not by inspecting the pid and the kernel has already released the lock.
         os.close(fd)
-        # Keep the file itself: clients use its metadata for adoption and
-        # health checks. Staleness is decided by holding the lock, not by
-        # inspecting the pid. The kernel has already released the lock.
 
 
 def delete_pid_file(pid_file: Path) -> None:

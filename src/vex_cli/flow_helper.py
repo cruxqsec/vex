@@ -30,8 +30,6 @@ def extract_http_title(flow: http.HTTPFlow) -> str | None:
     if flow.response is None:
         return None
 
-    # Search the raw bytes directly to avoid decoding the entire body;
-    # latin-1 on the (usually tiny) match avoids UTF-8 corruption on binary responses.
     match = re.search(
         rb"<title>(.*?)</title>",
         flow.response.content or b"",

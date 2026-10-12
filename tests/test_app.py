@@ -1,265 +1,126 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
+import logging
 
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from pydantic import BaseModel
 
-from vex_cli.app import create_app, start_fastapi
-from vex_cli.errors import AppException
+from vex_cli.app import status_for
+from vex_cli.errors import (
+    AppException,
+    ConflictError,
+    DatabaseError,
+    NoProjectActiveError,
+    NotFoundError,
+)
+
+PATH = "/_test/raise"
+
+
+class SpecialNotFound(NotFoundError):
+    pass
+
+
+class Out(BaseModel):
+    n: int
 
 
 @pytest.fixture
-def app():
-    return create_app()
+def raise_on_request(app):
+    def _register(exc):
+        async def endpoint():
+            raise exc
 
+        app.add_api_route(PATH, endpoint)
 
-@pytest.fixture
-def client(app):
-    return TestClient(app, raise_server_exceptions=False)
+    return _register
 
 
-@pytest.fixture
-def mock_app_state():
-    server_info = MagicMock()
-    server_info.server_address = "127.0.0.1"
-    server_info.api_port = 8081
-    state = MagicMock()
-    state.get_server_info.return_value = server_info
-    return state
+@pytest_asyncio.fixture
+async def lenient_client(app):
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
 
 
-def test_create_app_returns_fastapi_instance(app):
-    from fastapi import FastAPI
+def app_logs(caplog):
+    return [r for r in caplog.records if r.name == "vex_cli.app"]
 
-    assert isinstance(app, FastAPI)
 
+@pytest.mark.parametrize(
+    ("exc", "status"),
+    [
+        (NotFoundError("x"), 404),
+        (ConflictError("x"), 409),
+        (NoProjectActiveError(), 409),
+        (DatabaseError("x"), 500),
+        (AppException("x"), 500),
+        (SpecialNotFound("x"), 404),
+    ],
+)
+def test_status_for(exc, status):
+    assert status_for(exc) == status
 
-def test_health_router_registered(app):
-    routes = [r.path for r in app.routes]
-    assert any("health" in path for path in routes)
 
+async def test_app_exception_becomes_json_error(client, raise_on_request):
+    raise_on_request(NotFoundError("nope"))
 
-def test_projects_router_registered(app):
-    routes = [r.path for r in app.routes]
-    assert any("projects" in path for path in routes)
+    resp = await client.get(PATH)
 
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "NotFoundError", "message": "nope"}
 
-def test_summary_router_registered(app):
-    routes = [r.path for r in app.routes]
-    assert any("summar" in path for path in routes)
 
+async def test_client_errors_are_not_logged_as_errors(
+    client, raise_on_request, caplog
+):
+    raise_on_request(ConflictError("dup"))
 
-def test_raw_router_registered(app):
-    routes = [r.path for r in app.routes]
-    assert any("raw" in path for path in routes)
+    with caplog.at_level(logging.DEBUG):
+        await client.get(PATH)
 
+    assert app_logs(caplog) == []
 
-def test_websocket_router_registered(app):
-    routes = [r.path for r in app.routes]
-    assert any("ws" in path for path in routes)
 
+async def test_server_errors_are_logged_with_request_and_traceback(
+    client, raise_on_request, caplog
+):
+    raise_on_request(DatabaseError("db down"))
 
-def test_all_api_routes_have_correct_prefix(app):
-    routes = [r.path for r in app.routes]
-    assert any(r.startswith("/api") for r in routes)
+    with caplog.at_level(logging.DEBUG):
+        resp = await client.get(PATH)
 
+    (record,) = app_logs(caplog)
+    assert resp.status_code == 500
+    assert record.levelno == logging.ERROR
+    assert f"GET {PATH}" in record.getMessage()
+    assert record.exc_info is not None
 
-def test_app_exception_handler_returns_correct_status(client):
-    from fastapi import APIRouter
 
-    router = APIRouter()
+async def test_unexpected_exception_returns_generic_500(
+    lenient_client, raise_on_request, caplog
+):
+    raise_on_request(RuntimeError("secret detail"))
 
-    @router.get("/test-app-exception")
-    def raise_app_exception():
-        raise AppException(status_code=404, message="Not found")
+    with caplog.at_level(logging.DEBUG):
+        resp = await lenient_client.get(PATH)
 
-    client.app.include_router(router)
-    response = client.get("/test-app-exception")
+    assert resp.status_code == 500
+    assert resp.json() == {
+        "error": "InternalServerError",
+        "message": "Something went wrong",
+    }
+    assert "secret detail" not in resp.text
+    assert any(r.exc_info for r in app_logs(caplog))
 
-    assert response.status_code == 404
-    assert response.json()["error"] == "AppException"
-    assert response.json()["message"] == "Not found"
 
+async def test_response_serialization_bug_returns_500(app, lenient_client):
+    async def endpoint():
+        return {"n": "not-an-int"}
 
-def test_app_exception_handler_500_response(client):
-    from fastapi import APIRouter
+    app.add_api_route("/_test/bad", endpoint, response_model=Out)
 
-    router = APIRouter()
+    resp = await lenient_client.get("/_test/bad")
 
-    @router.get("/test-500-app-exception")
-    def raise_500():
-        raise AppException(status_code=500, message="Internal error")
-
-    client.app.include_router(router)
-    response = client.get("/test-500-app-exception")
-
-    assert response.status_code == 500
-    assert response.json()["message"] == "Internal error"
-
-
-def test_catch_all_handler_returns_500(client):
-    from fastapi import APIRouter
-
-    router = APIRouter()
-
-    @router.get("/test-unexpected")
-    def raise_unexpected():
-        raise Exception("something broke")
-
-    client.app.include_router(router)
-    response = client.get("/test-unexpected")
-
-    assert response.status_code == 500
-    assert response.json()["error"] == "InternalServerError"
-    assert response.json()["message"] == "Something went wrong"
-
-
-@pytest.mark.asyncio
-async def test_start_fastapi_stores_server_on_cancel(mock_app_state, mocker):
-    mock_server = MagicMock()
-    mock_server.serve = AsyncMock(side_effect=asyncio.CancelledError)
-    mocker.patch("vex_cli.app.uvicorn.Server", return_value=mock_server)
-    mocker.patch("vex_cli.app.uvicorn.Config", return_value=MagicMock())
-
-    await start_fastapi(mock_app_state)
-
-    assert mock_app_state.uvicorn_server is mock_server
-
-
-@pytest.mark.asyncio
-async def test_start_fastapi_stores_server_on_success(mock_app_state, mocker):
-    mock_server = MagicMock()
-    mock_server.serve = AsyncMock()
-    mocker.patch("vex_cli.app.uvicorn.Server", return_value=mock_server)
-    mocker.patch("vex_cli.app.uvicorn.Config", return_value=MagicMock())
-
-    await start_fastapi(mock_app_state)
-
-    assert mock_app_state.uvicorn_server is mock_server
-
-
-# ------------ VexApp API client ownership tests ------------
-
-
-def _make_vex_app(mocker) -> "VexApp":
-    from vex_client.app import VexApp
-
-    mocker.patch.object(VexApp, "on_mount", AsyncMock())
-    app = VexApp()
-    app.vex_controller = MagicMock()
-    app.vex_controller.server_info = None
-    app._api_client = None
-    app._api_info = None
-    return app
-
-
-def _mock_api_client(mocker) -> MagicMock:
-    client = MagicMock()
-    client.aclose = AsyncMock()
-    client.is_closed = False
-    return client
-
-
-@pytest.mark.asyncio
-async def test_close_api_closes_client_and_forgets(mocker):
-    app = _make_vex_app(mocker)
-    client = _mock_api_client(mocker)
-    app._api_client = client
-    app._api_info = ("127.0.0.1", 8081)
-
-    await app.close_api()
-
-    client.aclose.assert_awaited_once()
-    assert app._api_client is None
-    assert app._api_info is None
-
-
-@pytest.mark.asyncio
-async def test_close_api_no_client_is_noop(mocker):
-    app = _make_vex_app(mocker)
-    app._api_info = ("127.0.0.1", 8081)
-
-    await app.close_api()
-
-    assert app._api_client is None
-    assert app._api_info is None
-
-
-@pytest.mark.asyncio
-async def test_adopt_api_sets_ownership(mocker):
-    app = _make_vex_app(mocker)
-    client = _mock_api_client(mocker)
-
-    await app.adopt_api(client, ("127.0.0.1", 8081))
-
-    assert app._api_client is client
-    assert app._api_info == ("127.0.0.1", 8081)
-    client.aclose.assert_not_awaited()
-    await app.close_api()  # cleanup for the test-created client object
-
-
-@pytest.mark.asyncio
-async def test_adopt_api_closes_previous_client(mocker):
-    app = _make_vex_app(mocker)
-    old_client = _mock_api_client(mocker)
-    new_client = _mock_api_client(mocker)
-    app._api_client = old_client
-    app._api_info = ("127.0.0.1", 8081)
-
-    await app.adopt_api(new_client, ("127.0.0.2", 9090))
-
-    old_client.aclose.assert_awaited_once()
-    assert app._api_client is new_client
-    assert app._api_info == ("127.0.0.2", 9090)
-    new_client.aclose.assert_not_awaited()
-    await app.close_api()  # cleanup for the test-created client object
-
-
-@pytest.mark.asyncio
-async def test_api_client_property_none_without_server_info():
-    from vex_client.app import VexApp
-
-    app = VexApp()
-    app.vex_controller = MagicMock()
-    app.vex_controller.server_info = None
-    app._api_client = None
-    app._api_info = None
-
-    assert app.api_client is None
-    assert app._api_client is None
-
-
-@pytest.mark.asyncio
-async def test_api_client_property_rebuild_closes_stale_client(mocker):
-    app = _make_vex_app(mocker)
-
-    def _fake_api_client(host: str, port: int, client=None):
-        mock = _mock_api_client(mocker)
-        mock._constructed_with = (host, port)
-        return mock
-
-    mocker.patch("vex_client.app.ApiClient", side_effect=_fake_api_client)
-
-    server_info = MagicMock()
-    server_info.server_address = "127.0.0.1"
-    server_info.api_port = 8081
-    app.vex_controller.server_info = server_info
-
-    old_client = _mock_api_client(mocker)
-    app._api_client = old_client
-    app._api_info = ("127.0.0.1", 9999)
-
-    client = app.api_client
-    assert client is not None
-    assert client is not old_client
-    assert client._constructed_with == ("127.0.0.1", 8081)
-    assert app._api_info == ("127.0.0.1", 8081)
-
-    # stale close is fire-and-forget (property rebuild path, option A)
-    await asyncio.sleep(0)
-    old_client.aclose.assert_awaited_once()
-
-    # teardown: nothing real leaked; every client is a mock
-    await app.close_api()
-    client.aclose.assert_awaited_once()
-    old_client.aclose.assert_awaited_once()
+    assert resp.status_code == 500
+    assert resp.json()["error"] == "InternalServerError"

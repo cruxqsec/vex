@@ -19,7 +19,13 @@ from vex_cli.api.summary_routes import (
     summary_router,
 )
 from vex_cli.api.websockets import websocket_router
-from vex_cli.errors import AppException
+from vex_cli.errors import (
+    AppException,
+    ConflictError,
+    DatabaseError,
+    NoProjectActiveError,
+    NotFoundError,
+)
 from vex_cli.state import VexState
 
 logger = logging.getLogger(__name__)
@@ -51,14 +57,15 @@ async def start_fastapi(app_state: VexState):
         logger.info("FastAPI server shutdown requested.")
 
 
-# we don't use the context manager 
-# it's here just for when a user does CTRL+C so there is no traceback thrown at him
+# we don't use the context manager
+# it's here just so CTRL+C doesn't throw a traceback at us
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         yield
     except asyncio.CancelledError:
         pass  # normal shutdown
+
 
 def create_app() -> FastAPI:
     """Creates app object, registers exception handlers and adds all routes."""
@@ -70,18 +77,26 @@ def create_app() -> FastAPI:
         Handler for our custom AppException.
         We log only internal errors not if they occur from client sending bad data.
         """
-        if exc.status_code >= 500:
-            logger.error(f"{exc.__class__.__name__}: {exc.message}")
+        status: int = status_for(exc)
+        if status>= 500:
+            logger.error(
+                    "%s on %s %s: %s",
+                    exc.__class__.__name__,
+                    request.method,
+                    request.url.path,
+                    exc.message,
+                    exc_info=exc,
+                )
 
         return JSONResponse(
-            status_code=exc.status_code,
+            status_code=status,
             content={"error": exc.__class__.__name__, "message": exc.message},
         )
 
     @app.exception_handler(Exception)
     async def catch_all_handler(request: Request, exc: Exception):
         """Logs all unexpected exceptions."""
-        logger.exception("Unexpected error")  # Logs full traceback
+        logger.exception("Unexpected error on %s %s", request.method, request.url.path)
         return JSONResponse(
             status_code=500,
             content={"error": "InternalServerError", "message": "Something went wrong"},
@@ -98,3 +113,17 @@ def create_app() -> FastAPI:
     app.include_router(scope_router, prefix="/api")
 
     return app
+
+
+def status_for(exc: AppException) -> int:
+    for cls in type(exc).__mro__:  # walks subclasses up to parents
+        if cls in STATUS_BY_TYPE:
+            return STATUS_BY_TYPE[cls]
+    return 500
+
+STATUS_BY_TYPE: dict[type[AppException], int] = {
+    NotFoundError: 404,
+    ConflictError: 409,
+    NoProjectActiveError: 409,
+    DatabaseError: 500,
+}

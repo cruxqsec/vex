@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import time
 import uuid
-from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Float, Index, Integer, LargeBinary, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -16,13 +16,12 @@ class ProjectORM(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        nullable=False, default=lambda: datetime.now(UTC)
-    )
-    updated_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[float] = mapped_column(Float, nullable=False, default=time.time)
+    updated_at: Mapped[float] = mapped_column(
+        Float,
         nullable=False,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        default=time.time,
+        onupdate=time.time,
     )
 
 

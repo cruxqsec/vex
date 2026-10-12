@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from datetime import datetime
 
 from textual import on
 from textual.app import ComposeResult
@@ -86,15 +87,18 @@ class VexProjectTable(VexDataTable, can_focus=True):
         )
 
     def insert(self, project: Project):
-        """Insert the row with a placeholder size; the real size is filled in
-        by the threaded size worker (stat-walk must not run on the UI thread).
+        """
+        Insert the row with a placeholder size;
+        the real size is filled in by the threaded size worker
         """
         try:
+            created_at_formated = datetime.fromtimestamp(project.created_at)
+            updated_at_formated = datetime.fromtimestamp(project.updated_at)
             self.add_row(
                 project.name,
                 "…",
-                project.created_at.strftime("%H:%M %d %B %Y"),
-                project.updated_at.strftime("%H:%M %d %B %Y"),
+                created_at_formated,
+                updated_at_formated,
                 key=str(project.id),
             )
             self.post_message(VexDataTable.RowAdded())

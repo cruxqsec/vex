@@ -1,7 +1,8 @@
 from pathlib import Path
+from typing import ClassVar, cast
 from uuid import UUID
 
-from sqlalchemy import RowMapping, delete, select
+from sqlalchemy import CursorResult, RowMapping, delete, select
 
 from vex_cli.database.base_db import BaseDatabase, T
 from vex_cli.errors import NotFoundError
@@ -10,8 +11,8 @@ from vex_cli.models.pydantic import FlowSummary
 
 
 class SummariesDatabase(BaseDatabase):
-    _orm_models = [RequestSummaryORM, ResponseSummaryORM, ScopeORM]
-    _wal_mode = True
+    _orm_models: ClassVar[list] = [RequestSummaryORM, ResponseSummaryORM, ScopeORM]
+    _wal_mode: ClassVar[bool] = True
 
     def __init__(self, db_path: Path):
         super().__init__(db_path)
@@ -35,18 +36,14 @@ class SummariesDatabase(BaseDatabase):
             )
             obj = result.scalars().first()
             if obj is None:
-                raise NotFoundError(
-                    f"{model.__name__} for flow {flow_id} not found"
-                )
+                raise NotFoundError(f"{model.__name__} for flow {flow_id} not found")
             return obj
 
     async def delete_by_flow_id(self, model: type[T], flow_id: UUID) -> None:
         async with self.session() as s:
-            result = await s.execute(delete(model).where(model.flow_id == flow_id))  # type: ignore
+            result = cast(CursorResult, await s.execute(delete(model).where(model.flow_id == flow_id)))  # type: ignore
             if result.rowcount == 0:
-                raise NotFoundError(
-                    f"{model.__name__} for flow {flow_id} not found"
-                )
+                raise NotFoundError(f"{model.__name__} for flow {flow_id} not found")
 
     async def get_full_summaries(self, skip: int, size: int) -> list[FlowSummary]:
         """List of full summaries (Request/ResponseSummary)"""
@@ -80,5 +77,5 @@ class SummariesDatabase(BaseDatabase):
             result = await s.execute(statement)
             row: RowMapping | None = result.mappings().first()
             if row is None:
-                raise NotFoundError(f"Flow summary for flow {flow_id} not found")
+                raise NotFoundError("Flow summary not found")
             return FlowSummary.model_validate(dict(row))
