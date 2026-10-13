@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, cast
-from uuid import UUID
 import asyncio
+from typing import TYPE_CHECKING, ClassVar, cast
+from uuid import UUID
+
 import httpx
 
 if TYPE_CHECKING:
@@ -9,30 +10,29 @@ if TYPE_CHECKING:
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable, Button, Static
+from textual.widgets import Button, DataTable
 
-from vex_cli.models.pydantic import ProjectCreate, Project
 from vex_cli.locations import vex_projects_directory
+from vex_cli.models.pydantic import Project, ProjectCreate
 from vex_client.get_size import get_directory_size, human_readable
-from vex_client.modals.project_modal import CreateUpdateProjectScreen
 from vex_client.modals.confirm import ConfirmModal
-from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.modals.project_modal import CreateUpdateProjectScreen
+from vex_client.projects.active_project import ActiveProjectWidget
 from vex_client.projects.table import (
-    VexProjectTableContainer,
     VexProjectTable,
+    VexProjectTableContainer,
 )
-from vex_client.projects.active_project import ActiveProjectWidget, ActiveProjectCard
-from vex_client.widgets.table import VexDataTable
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.table import VexDataTable
 
 
 class VexProjectsScreen(Screen):
     CSS_PATH = "projects.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("c", "create_project", "Create project", priority=True),
         Binding("d", "delete_project", "Delete project", priority=True),
         Binding("e", "update_project", "Update project", priority=True),
@@ -43,12 +43,12 @@ class VexProjectsScreen(Screen):
         return self.query_one("#navigation-bar", VexNavigationBar)
 
     @property
-    def projects_table(self) -> VexProjectTable:
-        return self.query_one("#project-table", VexProjectTable)
+    def active_project_widget(self) -> ActiveProjectWidget:
+        return self.query_one("#active-project-widget", ActiveProjectWidget)
 
     @property
-    def active_project_card(self) -> ActiveProjectCard:
-        return self.query_one("#active-project-card", ActiveProjectCard)
+    def projects_table(self) -> VexProjectTable:
+        return self.query_one("#project-table", VexProjectTable)
 
     def __init__(self, **kwargs):
         self._projects_cache: dict[UUID, Project] = {}
@@ -58,25 +58,20 @@ class VexProjectsScreen(Screen):
     def get_cached_project(self, project_id: str | UUID) -> Project | None:
         """Look up a project in the cache. Table rows alone are display-only."""
         try:
-            cache_id = (
-                project_id if isinstance(project_id, UUID) else UUID(project_id)
-            )
+            cache_id = project_id if isinstance(project_id, UUID) else UUID(project_id)
         except ValueError:
             return None
         return self._projects_cache.get(cache_id)
 
     def compose(self) -> ComposeResult:
         yield VexNavigationBar(id="navigation-bar")
-        with Horizontal(id="projects-main-container"):
-            yield VexProjectTableContainer(id="project-table-container")
-            yield ActiveProjectWidget(id="active-project-container")
+        yield VexProjectTableContainer(id="project-table-container")
         yield VexLogsPanel()
         yield VexFooter()
 
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
         self.projects_table.set_columns(self.size)
-        self.active_project_card.set_empty()
 
     async def on_screen_resume(self):
         # self.projects_table.set_loading(True)
@@ -107,17 +102,17 @@ class VexProjectsScreen(Screen):
         try:
             successfully_selected: bool = await api.projects.select_project(project_id)
         except httpx.HTTPError:
-            self.active_project_card.set_empty()
+            self.active_project_widget.unset_active_project()
             self.notify(
                 "Network error selecting project. Check logs.", severity="error"
             )
             return
 
         if successfully_selected and project is not None:
-            self.active_project_card.set_project_name(project.name)
+            self.active_project_widget.set_active_project(project.name)
             app.active_project = project
         else:
-            self.active_project_card.set_empty()
+            self.active_project_widget.unset_active_project()
             self.notify("Project couldn't be selected", severity="error")
 
     @work(name="fetch_projects", group="fetch_projects", exclusive=True)
@@ -166,17 +161,21 @@ class VexProjectsScreen(Screen):
         app = cast("VexApp", self.app)
         api = app.api_client
         if api is None:
-            app.log_vex("Cannot check active project: no server info available", "error")
+            app.log_vex(
+                "Cannot check active project: no server info available", "error"
+            )
             return
 
         try:
-            fetched_active_project: Project | None = await api.projects.get_active_project()
+            fetched_active_project: (
+                Project | None
+            ) = await api.projects.get_active_project()
         except httpx.HTTPError:
             app.log_vex("Failed to check active project. Check logs.", "error")
             return
 
         if fetched_active_project is None:
-            self.active_project_card.set_empty()
+            self.active_project_widget.unset_active_project()
             return
 
         # check if already set so we don't do startup/cleanup if it's the same
@@ -184,9 +183,7 @@ class VexProjectsScreen(Screen):
         if active_project and fetched_active_project.id == active_project.id:
             return
 
-        self.active_project_card.set_project_name(fetched_active_project.name)
-        self.fetch_flow_count()
-        self.fetch_scope_count()
+        self.active_project_widget.set_active_project(fetched_active_project.name)
         app.active_project = fetched_active_project
 
     @work(name="populate_projects", exclusive=True, group="populate_projects")
@@ -222,36 +219,6 @@ class VexProjectsScreen(Screen):
         for project_id, size in sizes.items():
             self.projects_table.update_size(str(project_id), human_readable(size))
 
-    @work(name="flow_count", exclusive=True, group="flow_count")
-    async def fetch_flow_count(self) -> None:
-        app = cast("VexApp", self.app)
-        api = app.api_client
-        if api is None:
-            app.log_vex("Cannot check active project: no server info available", "error")
-            return
-
-        try:
-            fetched_flow_count: int = await api.summaries.count_flows()
-            self.active_project_card.query_one("#ap-flows", Static).update(str(fetched_flow_count))
-        except httpx.HTTPError:
-            app.log_vex("Failed to check active project. Check logs.", "error")
-            return
-
-    @work(name="scope_count", exclusive=True, group="scope_count")
-    async def fetch_scope_count(self) -> None:
-        app = cast("VexApp", self.app)
-        api = app.api_client
-        if api is None:
-            app.log_vex("Cannot check active project: no server info available", "error")
-            return
-
-        try:
-            fetched_scope_count: int = await api.scope.count_scopes()
-            self.active_project_card.query_one("#ap-scopes", Static).update(str(fetched_scope_count))
-        except httpx.HTTPError:
-            app.log_vex("Failed to check active project. Check logs.", "error")
-            return
-
     @on(VexDataTable.SortChanged)
     def _on_sort_changed(self, event: VexDataTable.SortChanged) -> None:
         event.stop()
@@ -264,13 +231,14 @@ class VexProjectsScreen(Screen):
         Create a new project by calling vex-cli API.
         If successful add it to the table.
         """
+        app = cast("VexApp", self.app)
 
         # callback
         async def create(project_name: str):
             new_project = ProjectCreate(name=project_name)
             api = self.app.api_client  # type: ignore
             if api is None:
-                self.log_vex("Cannot create project: no server info available", "error")
+                app.log_vex("Cannot create project: no server info available", "error")
                 return
             try:
                 created_project = await api.projects.create_project(new_project)
@@ -293,6 +261,7 @@ class VexProjectsScreen(Screen):
         Update a project by calling vex-cli API.
         If successful update highlighted in the table.
         """
+        app = cast("VexApp", self.app)
         selected_project_row_key = self.projects_table.get_highlighted_row_key()
 
         if selected_project_row_key is None:
@@ -309,9 +278,9 @@ class VexProjectsScreen(Screen):
 
             project.name = updated_name
 
-            api = self.app.api_client  # type: ignore
+            api = app.api_client
             if api is None:
-                self.log_vex("Cannot update project: no server info available", "error")
+                app.log_vex("Cannot update project: no server info available", "error")
                 return
             try:
                 successfully_updated = await api.projects.update_project(project)
@@ -326,6 +295,11 @@ class VexProjectsScreen(Screen):
                 self.populate_table()
             else:
                 self.notify("Error updating project.", severity="error")
+
+            active_project = app.active_project
+            if active_project and str(active_project.id) == project.id:
+                self.active_project_widget.set_active_project(project.name)
+
 
         self.app.push_screen(CreateUpdateProjectScreen(project_name), update)  # type: ignore
 
@@ -356,14 +330,13 @@ class VexProjectsScreen(Screen):
             active_project = app.active_project
 
             if is_deleted:
-                project_uuid = UUID(project_id)
-                self._projects_cache.pop(project_uuid, None)
+                self._projects_cache.pop(UUID(project_id), None)
                 self.populate_table()
             else:
                 self.notify("Project couldn't be deleted", severity="error")
                 return
             if active_project and str(active_project.id) == project_id:
-                self.active_project_card.set_empty()
+                self.active_project_widget.unset_active_project()
                 app.active_project = None
 
         app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
@@ -382,9 +355,13 @@ class VexProjectsScreen(Screen):
     async def on_delete(self, event: Button.Pressed) -> None:
         await self.action_delete_project()
 
-    @on(Button.Pressed, "#btn-export")
-    async def on_export(self, event: Button.Pressed) -> None:
-        # TODO: implement project exporting and importing
+
+    @on(Button.Pressed, "#btn-import")
+    async def on_import(self, event: Button.Pressed) -> None:
+        # TODO: implement project importing
         pass
 
-    
+    @on(Button.Pressed, "#btn-export")
+    async def on_export(self, event: Button.Pressed) -> None:
+        # TODO: implement project exporting
+        pass

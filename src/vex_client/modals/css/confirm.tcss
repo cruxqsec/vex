@@ -1,19 +1,19 @@
 
 ConfirmModal {
     align: center middle;
-    background: $background 60%;
+    background: $surface 80%;
 
     #confirm-window {
         width: 50;
         height: 8;
-        background: $background;
+        background: $background 80%;
     }
 
     #title {
         width: 1fr;
         height: 1;
         content-align: left middle;
-        background: $background-lighten-2;
+        background: $primary-darken-3 20%;
         padding-left: 1;
         margin-bottom: 1;
     }
@@ -21,6 +21,7 @@ ConfirmModal {
     #question-label {
         width: 1fr;
         height: 1;
+        color: $text-muted;
         text-style: b;
         margin: 0 1;
         content-align: center middle;
@@ -34,14 +35,14 @@ ConfirmModal {
     }
 
     #confirm-yes {
-        color: $success;
-        background: $success-muted 50%;
+        color: $success !important;
+        background: $success-muted;
         margin-right: 1;
     }
 
     #confirm-no {
-        background: $error-muted 50%;
-        color: $text-error;
+        background: $error-muted !important;
+        color: $text-error !important;
         margin-left: 1;
     }
 }

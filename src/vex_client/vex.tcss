@@ -110,11 +110,12 @@ VexDataTable {
     margin: 0;
 
     & > .datatable--cursor {
-        background: $primary 30%;
+        background: $primary-darken-3 20%;
         color: $text;
     }
     & > .datatable--header {
-        background: $secondary-darken-2 30%;
+        background: $surface;
+        background-tint: 0%;
     }
 
     & > .datatable--header-hover {

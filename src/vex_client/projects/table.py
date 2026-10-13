@@ -1,30 +1,39 @@
-from typing import Any, Callable
 from datetime import datetime
+from typing import Any, Callable
 
 from textual import on
 from textual.app import ComposeResult
-from textual.widgets.data_table import CellDoesNotExist, RowDoesNotExist
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Static
+from textual.widgets.data_table import CellDoesNotExist, RowDoesNotExist
 
-from vex_cli.locations import vex_projects_directory
 from vex_cli.models.pydantic import Project
-from vex_client.get_size import get_directory_size, human_readable
-from vex_client.widgets.table import VexDataTable, SortDirection
+from vex_client.projects.active_project import ActiveProjectWidget
+from vex_client.widgets.button import VexButton
 from vex_client.widgets.empty_message_widget import (
     EmptyMessageWidget,
     EmptyStateChanged,
 )
-from vex_client.widgets.button import VexButton
+from vex_client.widgets.table import SortDirection, VexDataTable
+
+
+class VexProjectTableHeader(Horizontal):
+    def compose(self) -> ComposeResult:
+        yield Static("── PROJECTS ──", id="project-table-title")
+        yield ActiveProjectWidget(id="active-project-widget")
+        with Vertical(id="button-rows"):
+            with Horizontal(id="first-button-row"):
+                yield VexButton("\[c] Create", id="btn-create", classes="btn")
+                yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+                yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
+            with Horizontal(id="second-button-row"):
+                yield VexButton("\[i] Import", id="btn-import", classes="btn")
+                yield VexButton("\[x] Export", id="btn-export", classes="btn")
 
 
 class VexProjectTableContainer(Vertical):
     def compose(self) -> ComposeResult:
-        with Horizontal(id="project-table-header"):
-            yield Static("── Projects ───", id="project-table-title")
-            yield VexButton("\[c] Create", id="btn-create", classes="btn")
-            yield VexButton("\[i] Import", id="btn-import", classes="btn")
-            yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
+        yield VexProjectTableHeader(id="project-table-header")
         yield VexProjectTableEmpty(id="project-table-empty")
         yield Static("↵ enter to select a project", id="project-table-helper")
 
@@ -92,8 +101,14 @@ class VexProjectTable(VexDataTable, can_focus=True):
         the real size is filled in by the threaded size worker
         """
         try:
-            created_at_formated = datetime.fromtimestamp(project.created_at)
-            updated_at_formated = datetime.fromtimestamp(project.updated_at)
+            created_at_formated = datetime.fromtimestamp(
+                project.created_at
+            ).strftime("%H:%M %d %B %Y")
+
+            updated_at_formated = datetime.fromtimestamp(
+                project.updated_at
+            ).strftime("%H:%M %d %B %Y")
+
             self.add_row(
                 project.name,
                 "…",
