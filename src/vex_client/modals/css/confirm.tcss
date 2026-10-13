@@ -1,4 +1,3 @@
-$border-divider: $secondary-darken-3;
 
 ConfirmModal {
     align: center middle;
@@ -7,7 +6,6 @@ ConfirmModal {
     #confirm-window {
         width: 50;
         height: 8;
-        border: thick $border-divider;
         background: $background;
     }
 

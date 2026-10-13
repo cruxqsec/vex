@@ -1,4 +1,5 @@
-from vex_client.themes.models import VexTheme, MethodStyles, FileStyle, VexTextAreaTheme
+from vex_client.themes.models import FileStyle, MethodStyles, VexTextAreaTheme, VexTheme
+
 # ---------------------------------------------------------------------------
 # Built-in themes as VexTheme instances
 # ---------------------------------------------------------------------------
@@ -432,7 +433,7 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
         success="#3fb950",
         accent="#8b5cf6",
         background="#0d1117",
-        surface="#21262d",       
+        surface="#21262d",
         panel="#161b22",
         dark=True,
         method=MethodStyles(
@@ -462,6 +463,47 @@ BUILTIN_THEMES: dict[str, VexTheme] = {
             status="#3fb950",
             header="#e05c7a",
             value="#cdd9e5",
+        ),
+    ),
+    "vex": VexTheme(
+        name="vex",
+        primary="#6ea8ff",
+        secondary="#9a86ff",
+        warning="#d9a441",
+        error="#e05a7a",
+        success="#5fc77a",
+        accent="#e05a7a",
+        background="#0d1019",
+        surface="#1a2030",
+        panel="#141926",
+        dark=True,
+        method=MethodStyles(
+            get="#6ea8ff",
+            post="#5fc77a",
+            put="#d9a441",
+            delete="#e05a7a",
+            patch="#9a86ff",
+            options="#4fc1c1",
+            head="#c58af9",
+        ),
+        file_extension=FileStyle(
+            html="#5fc77a",
+            css="#6ea8ff",
+            js="#d9a441",
+            ts="#6ea8ff",
+            php="#9a86ff",
+            json_ext="#d9a441",
+            pdf="#e05a7a",
+            png="#4fc1c1",
+            jpg="#6ea8ff",
+            svg="#e05a7a",
+        ),
+        text_area=VexTextAreaTheme(
+            method="#6ea8ff",
+            version="#9a86ff",
+            status="#5fc77a",
+            header="#e05a7a",
+            value="#c9d1e3",
         ),
     ),
 }

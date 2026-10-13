@@ -1,4 +1,6 @@
-$border-divider: $secondary-darken-3;
+VexProxyScreen {
+    background: $background;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    Banner
@@ -34,7 +36,10 @@ $border-divider: $secondary-darken-3;
 #proxy-main {
     width: 1fr;
     height: 1fr;
-    margin: 1;
+    margin-top: 1;
+    margin-bottom: 1;
+    margin-left: 4;
+    margin-right: 4;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -45,8 +50,6 @@ $border-divider: $secondary-darken-3;
     width: 1fr;
     height: 1fr;
     border: none $error-muted;
-    border-left: tall $border-divider;
-    border-right: tall $border-divider;
 }
 
 /* Header row */
@@ -56,16 +59,15 @@ $border-divider: $secondary-darken-3;
     height: 3;
     background: $panel;
     align: left middle;
-    border-top: tall $border-divider;
-    border-bottom: tall $border-divider;
 }
 
 #proxy-list-title {
     width: 1fr;
     height: 1;
-    color: $error;
+    color: $text-muted 50%;
+    text-style: bold;
     content-align: left middle;
-    margin: 0 1;
+    margin: 0 2;
 }
 
 #btn-create {
@@ -90,27 +92,32 @@ $border-divider: $secondary-darken-3;
 #proxy-listview {
     width: 1fr;
     height: 1fr;
-    background: $background;
+    background: $panel !important;
     padding: 0;
-    border-bottom: tall $border-divider;
     scrollbar-size: 0 0;
+}
+
+#proxy-listview:focus {
+    background: $panel  !important;
+    background-tint: transparent;
 }
 
 #proxy-listview > ListItem {
     height: 3;
     padding: 1 0;
 }
+
 #proxy-listview > ListItem.-highlight {
     color: $text;
     background: $primary 30%;
-    border-left: wide $primary;
+    border-left: thick $error;
 }
 
 /* ══════════ Proxy row ═════════════════*/
 
 ProxyListItem {
     width: 1fr;
-    border-left: wide $surface;
+    border-left: thick $surface;
 }
 
 ProxyListItem.row-running {
@@ -127,8 +134,9 @@ ProxyListItem.row-running {
 #instance-dot {
     width: 2;
     height: 1;
-    color: $text-muted;
+    color: $text-muted 30%;
     content-align: left middle;
+    margin-left: 1;
 
     &.running {color: $success;}
 }
@@ -142,6 +150,7 @@ ProxyListItem.row-running {
     width: auto;
     height: 1;
     color: $text;
+    margin-left: 1;
 }
 
 .name-running {
@@ -195,28 +204,40 @@ ProxyListItem.row-running {
 
 #proxy-status-card {
     width: 1fr;
-    height: auto;
-    margin-bottom: 1;
-    border: tall $error-muted;
-    background: $error-muted 30%;
+    height: 1fr;
+    margin-left: 2;
+    padding: 0 2;
+    background: $error-muted 40%;
 
     &.active {
-        background: $success 10%;
-        border: tall $success-muted;
+        background: $success 30%;
     }
 }
 
-#status-name {
-    height: 1;
-    padding: 0 1;
-    color: $error;
+.status-row {
+    height: 2;
+    width: 1fr;
+    margin-top: 1;
+}
 
+#status-dot {
+    height: 1;
+    width: 2;
+    color: $error;
     &.active { color: $success; }
 }
 
+#status-name {
+    width: 1fr;
+    height: 1;
+    color: $text;
+    text-style: bold;
+}
+
 #status-meta {
-    padding: 0 1;
-    color: $text-muted;
+    width: 1fr;
+    height: 1;
+    color: $text-muted 50%;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -225,20 +246,29 @@ ProxyListItem.row-running {
 
 #proxy-info-card {
     width: 1fr;
-    height: auto;
-    border: tall $surface;
+    height: 2fr;
     background: $panel;
-    padding: 0 1;
+
+    border: none $surface;
+    margin-left: 2;
+    padding-left: 2;
+    padding-right: 2;
+    padding-bottom: 1;
 }
 
 #info-divider {
     color: $text-muted 30%;
-    margin: 0;
+    margin: 0 1;
+    display: none;
 }
 
 #info-title {
-    height: 1;
-    color: $error;
+    height: auto;
+    margin-top: 1;
+    margin-bottom: 1;
+    color: $text-muted 30%;
+    text-style: bold;
+
 }
 
 #info-status {
@@ -247,14 +277,14 @@ ProxyListItem.row-running {
 }
 
 .info-row {
-    height: 1;
     width: 1fr;
     align: left middle;
 }
 
 .info-label {
+    height: auto;
     width: 10;
-    color: $text-muted;
+    color: $text-muted 30%;
 }
 
 .info-value {

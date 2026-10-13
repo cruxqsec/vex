@@ -1,4 +1,3 @@
-$border-divider: $secondary-darken-3;
 
 /* ═══════════════════════════════════════════════════════════════════
    Screen
@@ -26,10 +25,6 @@ $border-divider: $secondary-darken-3;
     width: 1fr;
     height: 1fr;
     background: $background;
-    
-    border-left: tall $border-divider;
-    border-right: tall $border-divider;
-    border-bottom: tall $border-divider;
 }
 
 /* Header row */
@@ -40,9 +35,6 @@ $border-divider: $secondary-darken-3;
 
     text-style: bold;
     align: left middle;
-
-    border-top: tall $border-divider;
-    border-bottom: tall $border-divider;
 }
 
 #scope-list-title {
@@ -147,20 +139,16 @@ ScopeListItem {
     content-align: left middle;
 
     padding-left: 1;
-    border: tall $border-divider;
-
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   In/Out input container 
+   In/Out input container
 ═══════════════════════════════════════════════════════════════════ */
 
 #name-input-container {
     width: 1fr;
     height: 3;
     padding: 1 1;
-    border-right: tall $border-divider;
-    border-left: tall $border-divider;
 }
 
 #scope-name-label {
@@ -181,15 +169,10 @@ ScopeListItem {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   In/Out text areas container 
+   In/Out text areas container
 ═══════════════════════════════════════════════════════════════════ */
 
 #text-areas-container {
-    border-right: tall $border-divider;
-    border-left: tall $border-divider;
-    border-bottom: tall $border-divider;
-    border-top: tall $border-divider;
-
     padding: 0 1;
 }
 

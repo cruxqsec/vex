@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from pydantic import ValidationError
 
@@ -40,19 +40,19 @@ logger = logging.getLogger(__name__)
 BANNER_3 = """\
  ██╗   ██╗███████╗██╗  ██╗
  ██║   ██║██╔════╝╚██╗██╔╝
- ██║   ██║█████╗   ╚███╔╝ 
- ╚██╗ ██╔╝██╔══╝   ██╔██╗ 
+██║   ██║█████╗   ╚███╔╝
+╚██╗ ██╔╝██╔══╝   ██╔██╗
   ╚████╔╝ ███████╗██╔╝ ██╗
    ╚═══╝  ╚══════╝╚═╝  ╚═╝"""
 
-TAGLINE = "SECURITY TOOLKIT IN THE TERMINAL"
+TAGLINE = "TERMINAL SECURITY TOOLKIT"
 NOT_STARTED = -1
 
 
 class VexProxyScreen(Screen):
     CSS_PATH = "proxy.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("c", "create_instance", "Add instance"),
         Binding("e", "edit_instance", "Update instance"),
         Binding("s", "stop_instance", "Stop instance"),
@@ -96,7 +96,9 @@ class VexProxyScreen(Screen):
         yield VexFooter()
 
     async def on_mount(self):
-        self.footer.query_one("#exit-cmd-key").query_one(".description", Label).update("Exit the app")
+        self.footer.query_one("#exit-cmd-key").query_one(".description", Label).update(
+            "Exit the app"
+        )
         await self.check_for_running_instance()
 
     def on_screen_resume(self) -> None:

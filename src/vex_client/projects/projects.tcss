@@ -1,4 +1,3 @@
-$border-divider: $secondary-darken-3;
 
 #projects-main-container {
     margin-top: 3;
@@ -10,9 +9,6 @@ $border-divider: $secondary-darken-3;
     background: transparent;
     width: 1.5fr;
     height: 0.8fr;
-    border-right: tall $border-divider;
-    border-left: tall $border-divider;
-    border-bottom: tall $border-divider;
 }
 
 #project-table-empty {
@@ -37,8 +33,6 @@ $border-divider: $secondary-darken-3;
     height: 3;
     background: $panel;
     align: left middle;
-    border-bottom: tall $border-divider;
-    border-top: tall $border-divider;
 }
 
 #project-table-title {
@@ -91,7 +85,6 @@ ActiveProjectWidget {
 
 #ap-section-title {
     height: 3;
-    border: tall $border-divider;
     padding: 0 1;
     margin: 0 1;
 
@@ -129,9 +122,6 @@ ActiveProjectCard {
     background: $success 10%;
     padding: 1;
     margin: 0 1;
-    border-left: tall $border-divider;
-    border-right: tall $border-divider;
-    border-bottom: tall $border-divider;
 
     &.not-active {
         background: $error 10%;

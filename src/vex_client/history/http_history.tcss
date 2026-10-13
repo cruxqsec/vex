@@ -1,4 +1,3 @@
-$border-divider: $secondary-darken-3;
 
 VexHTTPHistoryScreen {
     background: $panel;
@@ -53,7 +52,6 @@ VexHTTPHistoryScreen {
     display: block;
     &.hidden { display: none; }
     background: $background;
-    border-top: wide $border-divider;
 }
 
 #request-area-container {
@@ -113,6 +111,6 @@ AutoComplete {
     & .option-list--option-highlighted {
         color: $text-success;
         background: $error 50%;  /* 50% opacity, blending into background */
-        text-style: italic;  
+        text-style: italic;
     }
 }

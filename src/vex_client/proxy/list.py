@@ -1,7 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
 
-from typing import cast
+from dataclasses import dataclass
+from typing import ClassVar, cast
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -28,7 +28,7 @@ class VexProxyListWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="proxy-list-header"):
-            yield Static("── Instances ───", id="proxy-list-title")
+            yield Static("── INSTANCES ──", id="proxy-list-title")
             yield VexButton("\[c] Create", id="btn-create")
             yield VexButton("\[e] Edit", id="btn-edit")
             yield VexButton("\[d] Delete", id="btn-delete")
@@ -43,7 +43,7 @@ class ProxyList(ListView, can_focus=True):
     Vex proxy list for adding and selecting a vex-cli instance to run.
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("enter", "select_cursor", "Start/Enter instance", show=True),
         Binding("k", "cursor_up", "🡅", show=False),
         Binding("j", "cursor_down", "🡇", show=False),
@@ -106,9 +106,9 @@ class ProxyListItem(ListItem):
         self.query_one("#btn-start", VexButton).set_class(running, "running")
 
         if running:
-            instance_dot.update("●") 
+            instance_dot.update("●")
         else:
-            instance_dot.update("○") 
+            instance_dot.update("○")
 
     def update_instance(self, instance_data: ProxyInstance):
         self.instance.name = instance_data.name
