@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import httpx
 from pydantic import ValidationError
@@ -29,7 +29,7 @@ from vex_client.widgets.text_area import VexTextArea, VexTextAreaWidget
 class VexScopeScreen(Screen):
     CSS_PATH = "scope.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("c", "create_scope", "Create scope", priority=True),
         Binding("s", "save_scope", "Save scope", priority=True),
         Binding("y", "duplicate_scope", "Duplicate scope", priority=True),
@@ -61,12 +61,11 @@ class VexScopeScreen(Screen):
         with Horizontal(id="scope-main-container"):
             yield ScopeListWidget(id="scope-list-widget")
             with Vertical(id="in-out-container"):
-                yield Static("+ Add a new scope", id="in-out-header")
-                with Horizontal(id="name-input-container"):
-                    yield Static("Name*", id="scope-name-label")
-                    yield Input(placeholder="Enter scope name", id="scope-name-input")
+                with Horizontal(id="in-out-header"):
+                    yield Static("Add new scope", id="in-out-title")
+                    yield Input(placeholder="Enter scope name *", id="scope-name-input")
                 with Horizontal(id="text-areas-container"):
-                    with Vertical():
+                    with Vertical(id="in-container"):
                         yield Static("● In scope", id="in-scope-label")
                         yield VexTextAreaWidget(
                             VexTextArea(
@@ -75,7 +74,7 @@ class VexScopeScreen(Screen):
                             ),
                             id="in-scope-widget",
                         )
-                    with Vertical():
+                    with Vertical(id="out-container"):
                         yield Static("● Out of scope", id="out-of-scope-label")
                         yield VexTextAreaWidget(
                             VexTextArea(
@@ -102,7 +101,7 @@ class VexScopeScreen(Screen):
         self.scope_list.focus()
 
         if len(self.scope_list) == 0:
-            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+            self.query_one("#in-out-title", Static).update("Add new scope")
 
     def add_new_scopes_to_list(self) -> None:
         app = cast("VexApp", self.app)
@@ -118,7 +117,7 @@ class VexScopeScreen(Screen):
         self.name_input.value = ""
         self.in_scope_area.text = ""
         self.out_of_scope_area.text = ""
-        self.query_one("#in-out-header", Static).update("+ Add a new scope")
+        self.query_one("#in-out-title", Static).update("Add new scope")
 
     # ------------------- Action logic ------------------------
 
@@ -136,14 +135,14 @@ class VexScopeScreen(Screen):
         await self.fill_scope_data(selected_item)
 
     async def fill_scope_data(self, list_item: ScopeListItem) -> None:
-        self.query_one("#in-out-header", Static).update("Edit scope")
+        self.query_one("#in-out-title", Static).update("Edit scope")
         self.name_input.value = list_item.scope.name
         self.in_scope_area.text = "\n".join(list_item.scope.allow_endpoints)
         self.out_of_scope_area.text = "\n".join(list_item.scope.deny_endpoints)
 
     async def unfill_scope_data(self) -> None:
         if len(self.scope_list) == 0:
-            self.query_one("#in-out-header", Static).update("+ Add a new scope")
+            self.query_one("#in-out-title", Static).update("Add new scope")
 
         self.name_input.value = ""
         self.in_scope_area.text = ""
@@ -222,11 +221,14 @@ class VexScopeScreen(Screen):
             app.log_vex("Error deleting. Check logs.", severity="error")
             return
 
-        self.query_one("#in-out-header", Static).update("+ Add a new scope")
+        self.query_one("#in-out-title", Static).update("Add new scope")
         app.scope_cache.pop(self.selected_scope_item.scope.id, None)
         self.scope_list.pop_scope(self.selected_scope_item)
 
-        if app.active_scope and self.selected_scope_item.scope.id == app.active_scope.id:
+        if (
+            app.active_scope
+            and self.selected_scope_item.scope.id == app.active_scope.id
+        ):
             app.active_scope = None
 
         await self.unfill_scope_data()

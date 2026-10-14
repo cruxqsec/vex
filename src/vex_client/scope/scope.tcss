@@ -14,7 +14,7 @@
 #scope-main-container {
     width: 1fr;
     height: 1fr;
-    margin-bottom: 1;
+    margin: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -25,13 +25,14 @@
     width: 1fr;
     height: 1fr;
     background: $background;
+    margin-right: 1;
 }
 
 /* Header row */
 #scope-list-header {
     width: 1fr;
     height: 3;
-    background: $panel;
+    background: $surface 80%;
 
     text-style: bold;
     align: left middle;
@@ -39,11 +40,11 @@
 
 #scope-list-title {
     width: 1fr;
-    height: 1;
+    height: auto;
 
-    color: $error;
+    color: $text-muted 40%;
     text-style: b;
-    content-align: left middle;
+    content-align: center middle;
     margin: 0 1;
 }
 
@@ -54,11 +55,16 @@
     padding: 0;
 }
 
+#btn-create {
+    width: 1fr;
+}
+
 /* ListView */
 #scope-list {
     width: 1fr;
     height: 1fr;
-    background: $background;
+    background: $panel;
+    background-tint: 0%;
     padding: 0;
     scrollbar-size: 0 0;
 }
@@ -66,7 +72,7 @@
 #scope-list-helper {
     width: 1fr;
     height: auto;
-    border: round $secondary-muted;
+    border: round $surface;
     display: block;
 
     color: $text-muted;
@@ -79,21 +85,19 @@
     padding: 1 0;
 
     &.selected {
-        color: $accent;
-        background: $accent 20%;
-        border-left: wide $accent;
+        border-left: thick $success-muted;
     }
 }
 
 #scope-list > ListItem.-highlight {
     background: $primary 20%;
-    border-left: wide $primary;
+    border-left: thick $accent;
 }
 
 /* Row items */
 ScopeListItem {
     width: 1fr;
-    border-left: wide $surface;
+    border-left: thick $surface;
 }
 
 .row-inner {
@@ -107,6 +111,7 @@ ScopeListItem {
     height: 1;
     color: $text-muted;
     content-align: left middle;
+    margin-left: 1;
 }
 
 #scope-name {
@@ -125,23 +130,6 @@ ScopeListItem {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   In/Out container header
-═══════════════════════════════════════════════════════════════════ */
-
-
-#in-out-header {
-    width: 1fr;
-    height: 3;
-
-    background: $panel;
-    color: $error;
-    text-style: bold;
-    content-align: left middle;
-
-    padding-left: 1;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
    In/Out input container
 ═══════════════════════════════════════════════════════════════════ */
 
@@ -151,21 +139,37 @@ ScopeListItem {
     padding: 1 1;
 }
 
-#scope-name-label {
+/* ═══════════════════════════════════════════════════════════════════
+   In/Out container header
+═══════════════════════════════════════════════════════════════════ */
+
+#in-out-header {
+    height: 3;
+    background: $panel;
+    margin-bottom: 1;
+}
+
+#in-out-title {
     width: auto;
     height: 1;
-    color: $text-muted;
+
+    background: $panel;
+    color: $text-muted 40%;
     text-style: bold;
     content-align: left middle;
-    margin: 0 1 0 0;
+
+    padding-left: 1;
+    padding-right: 1;
+    margin-top: 1;
 }
 
 #scope-name-input {
     width: 1fr;
     height: 1;
     border: none;
-    margin: 0 0 1 0;
     padding: 0 1;
+    margin-top: 1;
+    margin-right: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -174,6 +178,12 @@ ScopeListItem {
 
 #text-areas-container {
     padding: 0 1;
+}
+
+#in-container {
+}
+
+#out-container {
 }
 
 #in-scope-label {

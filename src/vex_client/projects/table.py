@@ -19,7 +19,7 @@ from vex_client.widgets.table import SortDirection, VexDataTable
 
 class VexProjectTableHeader(Horizontal):
     def compose(self) -> ComposeResult:
-        yield Static("── PROJECTS ──", id="project-table-title")
+        yield Static(" PROJECTS ", id="project-table-title")
         yield ActiveProjectWidget(id="active-project-widget")
         with Vertical(id="button-rows"):
             with Horizontal(id="first-button-row"):

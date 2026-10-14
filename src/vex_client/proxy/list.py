@@ -28,7 +28,7 @@ class VexProxyListWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="proxy-list-header"):
-            yield Static("── INSTANCES ──", id="proxy-list-title")
+            yield Static(" INSTANCES ", id="proxy-list-title")
             yield VexButton("\[c] Create", id="btn-create")
             yield VexButton("\[e] Edit", id="btn-edit")
             yield VexButton("\[d] Delete", id="btn-delete")

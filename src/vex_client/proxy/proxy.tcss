@@ -64,7 +64,7 @@ VexProxyScreen {
 #proxy-list-title {
     width: 1fr;
     height: 1;
-    color: $text-muted 50%;
+    color: $text-muted 40%;
     text-style: bold;
     content-align: left middle;
     margin: 0 2;
@@ -204,7 +204,7 @@ ProxyListItem.row-running {
 
 #proxy-status-card {
     width: 1fr;
-    height: 1.2fr;
+    height: 1fr;
     margin-left: 2;
     padding-left: 2;
     background: $error-muted 40%;
@@ -217,12 +217,13 @@ ProxyListItem.row-running {
 .status-row {
     height: 2;
     width: 1fr;
-    margin-top: 1;
+    margin: 0;
+    padding-top: 1;
 }
 
 #status-dot {
-    height: auto;
     width: 2;
+    height: auto;
     color: $error;
     &.active { color: $success; }
 }
@@ -237,7 +238,6 @@ ProxyListItem.row-running {
 #status-meta {
     width: 1fr;
     height: auto;
-    margin-bottom: 1;
     color: $text-muted 50%;
 }
 
@@ -254,19 +254,16 @@ ProxyListItem.row-running {
     margin-left: 2;
     padding-left: 2;
     padding-right: 2;
-    padding-bottom: 1;
 }
 
 #info-divider {
     color: $text-muted 30%;
-    margin: 0 1;
     display: none;
 }
 
 #info-title {
     height: auto;
     margin-top: 1;
-    margin-bottom: 1;
     color: $text-muted 30%;
     text-style: bold;
 

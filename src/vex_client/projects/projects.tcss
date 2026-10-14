@@ -22,7 +22,7 @@
 #project-table-title {
     width: 0.5fr;
     height: 5;
-    color: $text-muted 50%;
+    color: $text-muted 40%;
     text-style: bold;
     content-align: left middle;
     margin-left: 2;
