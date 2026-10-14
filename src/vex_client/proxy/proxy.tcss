@@ -57,7 +57,7 @@ VexProxyScreen {
     text-style: bold;
     width: 1fr;
     height: 3;
-    background: $panel;
+    background: $surface;
     align: left middle;
 }
 

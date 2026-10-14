@@ -15,13 +15,13 @@
 
 #project-table-header {
     width: 1fr;
-    height: 5;
-    background: $panel;
+    height: 3;
+    background: $surface;
 }
 
 #project-table-title {
-    width: 0.5fr;
-    height: 5;
+    width: 3fr;
+    height: 3;
     color: $text-muted 40%;
     text-style: bold;
     content-align: left middle;
@@ -36,10 +36,11 @@
 
 #active-project-widget {
     width: 1fr;
-    height: 5;
-    margin-top: 2;
-    margin-left: 5;
-
+    height: 3;
+    margin-left: 2;
+    margin-right: 2;
+    margin-top: 1;
+    content-align: right middle;
 }
 
 #active-project-dot {
@@ -65,22 +66,10 @@
 ═══════════════════════════════════════════════════════════════════ */
 
 
-#button-rows {
-    width: 2fr;
+#button-row {
+    width: 1fr;
     margin-top: 1;
     padding-right: 1;
-}
-
-#first-button-row {
-    height: 1fr;
-    align: right middle;
-}
-
-#second-button-row {
-    height: 1fr;
-    margin-top: 1;
-    padding-right: 8;
-    align: right middle;
 }
 
 #btn-create {
@@ -98,7 +87,7 @@
 #btn-delete {
     background: $error-muted;
     color: $error;
-    margin-left: 1;
+    margin: 0 1;
 }
 
 #btn-import {

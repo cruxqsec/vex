@@ -114,7 +114,7 @@ VexDataTable {
         color: $text;
     }
     & > .datatable--header {
-        background: $surface;
+        background: $panel;
         background-tint: 0%;
     }
 
@@ -123,6 +123,13 @@ VexDataTable {
     }
 
     & > .datatable--odd-row {
+        background: $surface;
+        background-tint: 0%;
+    }
+
+    & > .datatable--even-row {
+        background: $background;
+        background-tint: 0%;
     }
 
     & .vex-datatable--method-get    { color: $method-get; }

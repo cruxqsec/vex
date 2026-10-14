@@ -70,7 +70,10 @@ class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
             yield Static("\[/] Search", id="http-search-title")
-            search_input = Input(placeholder="Enter a query... (host:example.com method:post status:200 string-to-match)", id="http-search-bar")
+            search_input = Input(
+                placeholder="Enter a query... (host:example.com method:post status:200 string-to-match)",
+                id="http-search-bar",
+            )
             yield search_input
         yield SearchFieldAutoComplete(
             search_input,

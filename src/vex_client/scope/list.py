@@ -27,7 +27,7 @@ class ScopeListWidget(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="scope-list-header"):
             yield Static(" SCOPES ", id="scope-list-title")
-            yield VexButton("\[c] Create scope", id="btn-create", classes="btn")
+            yield VexButton("\[c] Create", id="btn-create", classes="btn")
         yield ScopeListEmpty(id="empty-scope-list")
         yield Static("↵ to select a scope", id="scope-list-helper")
 

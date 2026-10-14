@@ -17,18 +17,31 @@ from vex_client.widgets.empty_message_widget import (
 from vex_client.widgets.table import SortDirection, VexDataTable
 
 
+class ProjectButtonRow(Horizontal):
+    def compose(self) -> ComposeResult:
+        with Horizontal(id="first-button-row"):
+            yield VexButton("\[c] Create", id="btn-create", classes="btn")
+            yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+            yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
+            yield VexButton("\[i] Import", id="btn-import", classes="btn")
+            yield VexButton("\[x] Export", id="btn-export", classes="btn")
+
+
 class VexProjectTableHeader(Horizontal):
     def compose(self) -> ComposeResult:
         yield Static(" PROJECTS ", id="project-table-title")
         yield ActiveProjectWidget(id="active-project-widget")
-        with Vertical(id="button-rows"):
-            with Horizontal(id="first-button-row"):
-                yield VexButton("\[c] Create", id="btn-create", classes="btn")
-                yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
-                yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
-            with Horizontal(id="second-button-row"):
-                yield VexButton("\[i] Import", id="btn-import", classes="btn")
-                yield VexButton("\[x] Export", id="btn-export", classes="btn")
+
+
+#         with Vertical(id="button-rows"):
+#             with Horizontal(id="first-button-row"):
+#                 yield VexButton("\[c] Create", id="btn-create", classes="btn")
+#                 yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
+#                 yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
+#             with Horizontal(id="second-button-row"):
+#                 yield VexButton("\[i] Import", id="btn-import", classes="btn")
+#                 yield VexButton("\[x] Export", id="btn-export", classes="btn")
+#
 
 
 class VexProjectTableContainer(Vertical):
@@ -36,6 +49,7 @@ class VexProjectTableContainer(Vertical):
         yield VexProjectTableHeader(id="project-table-header")
         yield VexProjectTableEmpty(id="project-table-empty")
         yield Static("↵ enter to select a project", id="project-table-helper")
+        yield ProjectButtonRow(id="button-row")
 
     def on_mount(self) -> None:
         self.query_one("#project-table-helper", Static).add_class("empty")
@@ -101,13 +115,13 @@ class VexProjectTable(VexDataTable, can_focus=True):
         the real size is filled in by the threaded size worker
         """
         try:
-            created_at_formated = datetime.fromtimestamp(
-                project.created_at
-            ).strftime("%H:%M %d %B %Y")
+            created_at_formated = datetime.fromtimestamp(project.created_at).strftime(
+                "%H:%M %d %B %Y"
+            )
 
-            updated_at_formated = datetime.fromtimestamp(
-                project.updated_at
-            ).strftime("%H:%M %d %B %Y")
+            updated_at_formated = datetime.fromtimestamp(project.updated_at).strftime(
+                "%H:%M %d %B %Y"
+            )
 
             self.add_row(
                 project.name,
