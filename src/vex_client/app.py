@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 from collections import deque
+from typing import ClassVar
 from uuid import UUID
 
 import httpx
@@ -55,13 +56,10 @@ _SEVERITY_TO_LEVEL = {
     "error": logging.ERROR,
 }
 
-MAX_SUMMARY_PAGES = 100
-
-
 class VexApp(App[str]):
     CSS_PATH = "vex.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding(
             "ctrl+q",
             "switch('history-screen')",
@@ -103,7 +101,7 @@ class VexApp(App[str]):
         Binding("ctrl+g", "test()", "test", priority=True),
     ]
 
-    SCREENS = {
+    SCREENS: ClassVar = {
         "proxy-screen": VexProxyScreen,
         "scope-screen": VexScopeScreen,
         "history-screen": VexHTTPHistoryScreen,
@@ -122,6 +120,9 @@ class VexApp(App[str]):
 
     async def on_mount(self) -> None:
         self.vex_controller: VexController = VexController()
+        self._api_client: ApiClient | None = None
+        self._api_info: tuple[str, int] | None = None
+
         self.settings: Settings = Settings()
 
         self._log_history: deque[LogMessage] = deque(maxlen=MAX_LOG_HISTORY)
@@ -130,10 +131,6 @@ class VexApp(App[str]):
 
         # reference to the history screen so we don't have to query it each time
         self.history_screen: VexHTTPHistoryScreen | None = None
-
-        # app-owned API client for the currently connected server (lazy)
-        self._api_client: ApiClient | None = None
-        self._api_info: tuple[str, int] | None = None
 
         # worker references easier management
         self.server_monitor_worker: Worker | None = None
@@ -152,8 +149,6 @@ class VexApp(App[str]):
     async def action_quit(self) -> None:
         """Prompt to stop a still-running server before quitting.
 
-        On a hard crash nothing can prompt; the pid file remains for adoption
-        on the next launch.
         """
         if not self.vex_controller.is_cli_running:
             self.exit()
@@ -173,8 +168,7 @@ class VexApp(App[str]):
 
         self.push_screen(
             ConfirmModal("Server still running. Stop it before quitting?"),
-            on_confirm,
-        )
+            on_confirm) # type: ignore
 
     def get_api_info(self) -> tuple[str, int] | tuple[None, None]:
         """Return the API info so we can call vex-cli API."""
@@ -188,9 +182,6 @@ class VexApp(App[str]):
     @property
     def api_client(self) -> ApiClient | None:
         """The API client for the currently connected server, or None.
-
-        Built lazily from server_info; rebuilt (with the stale client closed)
-        when the (host, port) pair changes; None while no server is known.
         """
         server_info = self.vex_controller.server_info
 
@@ -430,10 +421,7 @@ class VexApp(App[str]):
             self.history_screen.response_area.clear()
 
         skip = 0
-        # bounded pagination: live traffic never terminates an empty-page
-        # break, so cap the pages defensively (a running capture keeps
-        # appending rows; each page can be non-empty forever)
-        for _ in range(MAX_SUMMARY_PAGES):
+        while True:
             try:
                 summaries = await api.summaries.get_all_summaries(skip, 50)
             except httpx.HTTPError:
@@ -446,12 +434,6 @@ class VexApp(App[str]):
             if len(summaries) < 50:
                 break
             skip += 50
-        else:
-            self.log_vex(
-                "Stopped loading summaries: too many pages. "
-                "Showing the first 5000 flows.",
-                "warning",
-            )
 
         # only populate table after full fetch is done
         if self.history_screen is not None:
@@ -472,9 +454,9 @@ class VexApp(App[str]):
         if api is None:
             return
 
+        all_scopes: list[Scope] = []
+        skip = 0
         try:
-            all_scopes: list[Scope] = []
-            skip = 0
             while True:
                 batch = await api.scope.get_all_scopes(skip=skip, size=50)
                 if not batch:
@@ -606,5 +588,5 @@ class VexApp(App[str]):
         for theme in TEXTUAL_BUILTIN_THEMES.values():
             self.unregister_theme(theme.name)
 
-        for name, vex_theme in BUILTIN_THEMES.items():
+        for vex_theme in BUILTIN_THEMES.values():
             self.register_theme(vex_theme.to_textual_theme())

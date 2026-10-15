@@ -10,10 +10,6 @@ from vex_client.api.summaries_api import SummariesApi
 class ApiClient:
     """Owns the pooled httpx client for one vex-cli server (host, port).
 
-    Constructed lazily by the app when server info becomes available;
-    rebuilt and the old instance closed when the server address changes;
-    closed on stop, detected server death, and app exit.
-
     Exposes the section APIs (health, projects, raw, scope, summaries),
     which all share the single underlying httpx.AsyncClient.
     """
