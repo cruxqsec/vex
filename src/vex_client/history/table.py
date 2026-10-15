@@ -1,6 +1,7 @@
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ class VexHTTPTableContainer(Vertical):
         with Horizontal(id="http-table-header"):
             yield Static("\[/] Search", id="http-search-title")
             search_input = Input(
-                placeholder="Enter a query... (host:example.com method:post status:200 string-to-match)",
+                placeholder="Enter a query...",
                 id="http-search-bar",
             )
             yield search_input
@@ -92,19 +93,20 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
         )
+        # COLUMN DEFINITIONS
         history_columns = (
             ("#", 3),
-            ("Host", 18),
+            ("Host", 20),
             ("Method", 5),
-            ("Path", 18),
-            ("Query", 10),
+            ("Path", 20),
+            ("Query", 12),
             ("Status", 5),
-            ("Size", 7),
-            ("Title", 8),
+            ("Size", 8),
+            #("Title", 8),
             ("Time(ms)", 8),
             ("Sent at", 12),
             (self.has_cookie_column, 2),
-            ("Ext", 3),
+            ("Ext", 4),
         )
 
         self.table = VexHTTPTable(
@@ -126,7 +128,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     Table containing HTTP information for the corresponding request and response pair.
     """
 
-    COMPONENT_CLASSES = {
+    COMPONENT_CLASSES: ClassVar = {
         # HTTP methods
         "vex-datatable--method-get",
         "vex-datatable--method-post",
@@ -159,7 +161,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         # parent constructor
         super().__init__(percent_columns=columns, **kwargs)
 
-    SORT_KEYS: dict[str, Callable[[FlowSummary], Any]] = {
+    SORT_KEYS: ClassVar[dict[str, Callable[[FlowSummary], Any]]] = {
         "#": lambda f: f.id,
         "Host": lambda f: (f.host or "").lower(),
         "Method": lambda f: f.method or "",
@@ -167,14 +169,14 @@ class VexHTTPTable(VexDataTable, can_focus=True):
         "Query": lambda f: (f.query or "").lower(),
         "Status": lambda f: f.status_code or -1,
         "Size": lambda f: f.response_size or -1,
-        "Title": lambda f: (f.http_title or "").lower(),
+        #"Title": lambda f: (f.http_title or "").lower(),
         "Time(ms)": lambda f: f.duration_ms or -1,
         "Sent at": lambda f: f.timestamp or 0.0,
         "Cookie": lambda f: bool(f.cookie),
         "Ext": lambda f: (f.file_extension or "").lower(),
     }
 
-    RESPONSE_SORT_KEYS = {"Status", "Size", "Title", "Time(ms)", "Sent at", "Cookie"}
+    RESPONSE_SORT_KEYS = {"Status", "Size", "Time(ms)", "Sent at", "Cookie"}
 
     def sorted_summaries(self, summaries: list[FlowSummary]) -> list[FlowSummary]:
         if self._sort_column_key is None:
@@ -225,7 +227,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def render_method(self, method: str) -> Text:
         component = f"method-{method.lower()}"
         if f"vex-datatable--{component}" not in self.COMPONENT_CLASSES:
-            return Text(method, justify="right")
+            return Text(method, justify="left")
         return Text(method, style=self._style_for(component), justify="right")
 
     def render_status(self, status: int | None) -> Text:
@@ -277,7 +279,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     def insert_response_summary(self, response_summary: ResponseSummary) -> None:
         flow_id = str(response_summary.flow_id)
         if not self.row_exists(flow_id):
-            # row is filtered out; cache holds the update for the next rebuild
             return
         try:
             self.update_cell(
@@ -288,7 +289,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 "Size",
                 Text(str(response_summary.response_size), justify="right"),
             )
-            self.update_cell(flow_id, "Title", response_summary.http_title)
+            #self.update_cell(flow_id, "Title", response_summary.http_title)
             self.update_cell(flow_id, "Time(ms)", response_summary.duration_ms)
             self.update_cell(
                 flow_id, "Sent at", self.time_display(response_summary.timestamp)
@@ -315,7 +316,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
                 full_summary.query,
                 self.render_status(full_summary.status_code),
                 full_summary.response_size,
-                full_summary.http_title,
+                #full_summary.http_title,
                 full_summary.duration_ms,
                 self.time_display(full_summary.timestamp),
                 self.render_cookie(bool(full_summary.cookie)),
@@ -328,7 +329,6 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             logger.exception("Error inserting full summary into table")
 
     def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
-        from uuid import UUID
 
         app = cast("VexApp", self.app)
         try:

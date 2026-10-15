@@ -55,8 +55,6 @@ VexScopeScreen {
     padding: 0;
 }
 
-#btn-create {
-}
 
 /* ListView */
 #scope-list {
@@ -70,13 +68,12 @@ VexScopeScreen {
 
 #scope-list-helper {
     width: 1fr;
-    height: auto;
+    height: 3;
     border: round $surface;
     display: block;
 
     color: $text-muted;
     padding: 0 1;
-    margin: 0 1;
 }
 
 #scope-list > ListItem {
@@ -175,30 +172,18 @@ ScopeListItem {
    In/Out text areas container
 ═══════════════════════════════════════════════════════════════════ */
 
-#text-areas-container {
-    padding: 0 1;
-}
-
-#in-container {
-}
-
-#out-container {
-}
-
 #in-scope-label {
-    background: $panel;
+    background: $surface;
     color: $success;
     text-style: bold;
-    margin-bottom: 1;
     margin-right: 1;
     padding: 0 1;
 }
 
 #out-of-scope-label {
-    background: $panel;
+    background: $surface;
     color: $error;
     text-style: bold;
-    margin-bottom: 1;
     padding: 0 1;
 }
 

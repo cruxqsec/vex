@@ -104,6 +104,8 @@ ScopeSelect > SelectCurrent {
 ═══════════════════════════════════════════════════════════════════ */
 
 VexDataTable {
+    background: $background;
+    background-tint: 0%;
     overflow-x: hidden;
     scrollbar-size-vertical: 0;
     scrollbar-gutter: auto;

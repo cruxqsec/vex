@@ -204,9 +204,10 @@ ProxyListItem.row-running {
 
 #proxy-status-card {
     width: 1fr;
-    height: 1fr;
+    height: auto;
     margin-left: 2;
     padding-left: 2;
+    padding-bottom: 1;
     background: $error-muted 40%;
 
     &.active {

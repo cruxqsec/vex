@@ -32,18 +32,6 @@ class VexProjectTableHeader(Horizontal):
         yield Static(" PROJECTS ", id="project-table-title")
         yield ActiveProjectWidget(id="active-project-widget")
 
-
-#         with Vertical(id="button-rows"):
-#             with Horizontal(id="first-button-row"):
-#                 yield VexButton("\[c] Create", id="btn-create", classes="btn")
-#                 yield VexButton("\[e] Edit", id="btn-edit", classes="btn")
-#                 yield VexButton("\[d] Delete", id="btn-delete", classes="btn")
-#             with Horizontal(id="second-button-row"):
-#                 yield VexButton("\[i] Import", id="btn-import", classes="btn")
-#                 yield VexButton("\[x] Export", id="btn-export", classes="btn")
-#
-
-
 class VexProjectTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         yield VexProjectTableHeader(id="project-table-header")
