@@ -1,5 +1,4 @@
 $empty-hatch: right $surface-lighten-1 70%;
-$border-divider: $secondary-darken-3;
 
 Screen {
     scrollbar-size: 0 0;
@@ -18,7 +17,7 @@ Screen {
     &:hover {
         background-tint: $text-accent 10%;
     }
-    
+
     &:focus {
         background-tint: $text-accent 30%;
     }
@@ -33,7 +32,6 @@ VexNavigationBar {
     height: 1;
     layout: horizontal;
     dock: top;
-    border-bottom: wide $border-divider;
     box-sizing: content-box;
 
     &.bottom {
@@ -56,8 +54,7 @@ InterceptButton {
     width: auto;
     height: 1;
     dock: right;
-    border-left: wide $border-divider;
-    
+
     background: $success 20%;
     color: $success !important;
 
@@ -69,9 +66,9 @@ InterceptButton {
     &.intercepting {
         background: $error 20%;
         color: $error !important;
-        
+
         &:hover {
-            background: $error 50%; 
+            background: $error 50%;
         }
     }
 }
@@ -79,7 +76,6 @@ InterceptButton {
 NavigationButton {
     width: 1fr;
     height: auto;
-    border-left: wide $border-divider;
 
     text-align: left;
     background: $surface 50%;
@@ -92,7 +88,7 @@ NavigationButton {
         background: $primary 30%;
         &:hover { background: $primary 50%; }
     }
-}    
+}
 
 ScopeSelect > SelectCurrent {
     height: 1;
@@ -108,17 +104,20 @@ ScopeSelect > SelectCurrent {
 ═══════════════════════════════════════════════════════════════════ */
 
 VexDataTable {
+    background: $background;
+    background-tint: 0%;
     overflow-x: hidden;
     scrollbar-size-vertical: 0;
     scrollbar-gutter: auto;
     margin: 0;
 
     & > .datatable--cursor {
-        background: $primary 30%;
+        background: $primary-darken-3 20%;
         color: $text;
     }
     & > .datatable--header {
-        background: $secondary-darken-2 30%;
+        background: $panel;
+        background-tint: 0%;
     }
 
     & > .datatable--header-hover {
@@ -126,6 +125,13 @@ VexDataTable {
     }
 
     & > .datatable--odd-row {
+        background: $surface;
+        background-tint: 0%;
+    }
+
+    & > .datatable--even-row {
+        background: $background;
+        background-tint: 0%;
     }
 
     & .vex-datatable--method-get    { color: $method-get; }
@@ -154,11 +160,11 @@ VexDataTable {
     & .vex-datatable--cookie-yes { color: $success; }
     & .vex-datatable--cookie-no  { color: $error; }
 
-    & .vex-datatable--sort-asc  { 
-        color: $success; 
+    & .vex-datatable--sort-asc  {
+        color: $success;
     }
-    & .vex-datatable--sort-desc { 
-        color: $error; 
+    & .vex-datatable--sort-desc {
+        color: $error;
     }
 
 }
@@ -169,7 +175,7 @@ VexDataTable {
 
 VexTextArea {
     background: $background;
-    
+
     scrollbar-size-vertical: 0;
     scrollbar-gutter: auto;
 
@@ -181,7 +187,7 @@ VexTextArea {
         border-subtitle-background: $accent;
         border-subtitle-style: bold;
     }
-    
+
     &.text-area--selection {
             background: $accent 60%;
     }
@@ -223,7 +229,7 @@ VexTextAreaWidget {
         background: $accent-muted;
     }
 
-    
+
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -231,13 +237,15 @@ VexTextAreaWidget {
 ═══════════════════════════════════════════════════════════════════ */
 
 CommandPalette {
-    background: black 33%;
+    background: $surface 80%;
     align: center middle;
 
     & > Vertical {
         margin-top: 2;
         width: 65vw;
         max-height: 65vh;
+        background: $panel;
+        background-tint: 0%;
     }
 
     & #--input {
@@ -389,4 +397,3 @@ EmptyMessageWidget {
         }
     }
 }
-

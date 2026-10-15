@@ -25,12 +25,13 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [ ] Add help screens (per screen and per widget)
 - [ ] Muted buttons for functionality that can't be used at the moment
 - [ ] Browser support
+- [ ] Download certificate
 
 ### History screen
 
 - [x] Add a search bar
 - [x] Add copy helper (command palette like)
-- [ ] Search bar with basic query capabilities + custom filed queries
+- [x] Search bar with basic query capabilities + custom filed queries
 - [x] When scope set we apply scope rules
 - [x] Sorting for all columns of History table
 - [x] Syntax highlighting for History table
@@ -38,6 +39,9 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [x] Improve responsivness
 - [x] Add resizable columns
 - [x] Delete one and all summaries
+- [ ] Delete all summaries deletes only the shown summaries
+- [ ] Make RequestArea and ResponseArea take the screen if table is smaller (on search, etc)
+- [ ] Improve fetching summaries and updating the table more continuesly
 
 ### Projects screen
 
@@ -45,7 +49,7 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 - [x] Sorting for all columns of Projects table
 - [ ] Update project time when selected
 - [ ] Delete all projects
-- [ ] Importing/backuping projects
+- [ ] Importing/exporting projects
 
 ### Intercept screen
 
@@ -94,5 +98,3 @@ Vex is a security toolkit like Burp, Caido or Zap proxy that integrates all the 
 ### improve API
 - [x] improve naming API scheme
 - [x] add functionality (delete all, count for statistic...)
-
-

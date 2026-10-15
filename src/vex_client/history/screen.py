@@ -1,35 +1,35 @@
-import httpx
 import asyncio
+from typing import TYPE_CHECKING, ClassVar, cast
 from uuid import UUID
 
-from typing import TYPE_CHECKING, cast
+import httpx
 
 if TYPE_CHECKING:
-    from vex_client.app import VexApp
     from vex_cli.models.pydantic import FlowSummary, Scope
+    from vex_client.app import VexApp
 
 from textual import on, work
-from textual.binding import Binding
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import DataTable, Input
 from textual.widget import Widget
+from textual.widgets import DataTable, Input
 
 from vex_cli.models.pydantic import RequestSummary, ResponseSummary
-from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.history.table import (
     VexHTTPTable,
     VexHTTPTableContainer,
     VexHTTPTableEmpty,
 )
-from vex_client.widgets.text_area import VexTextArea
-from vex_client.widgets.request_area import RequestAreaContainer
-from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.modals.confirm import ConfirmModal
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.request_area import RequestAreaContainer
+from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.widgets.table import VexDataTable
+from vex_client.widgets.text_area import VexTextArea
 
 _SEARCH_FIELD_MAP: dict[str, str] = {
     "host": "host",
@@ -47,7 +47,7 @@ _SEARCH_FIELD_MAP: dict[str, str] = {
 class VexHTTPHistoryScreen(Screen):
     CSS_PATH = "http_history.tcss"
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding(
             "ctrl+x",
             "hide_show_req_res_areas",
@@ -282,7 +282,8 @@ class VexHTTPHistoryScreen(Screen):
         else:
             sorted_by_response = (
                 self.http_table.has_active_sort
-                and self.http_table._sort_column_key in self.http_table.RESPONSE_SORT_KEYS
+                and self.http_table._sort_column_key
+                in self.http_table.RESPONSE_SORT_KEYS
             )
             if sorted_by_response:
                 self._rebuild_preserving_selection()
@@ -302,12 +303,8 @@ class VexHTTPHistoryScreen(Screen):
         await self.populate_table()
 
         if previous_key is not None and self.http_table.row_exists(previous_key):
-            self.http_table.move_cursor(
-                row=self.http_table.get_row_index(previous_key)
-            )
-        if selected_uuid is not None and self.http_table.row_exists(
-            str(selected_uuid)
-        ):
+            self.http_table.move_cursor(row=self.http_table.get_row_index(previous_key))
+        if selected_uuid is not None and self.http_table.row_exists(str(selected_uuid)):
             self.fetch_raw_summaries(selected_uuid)
 
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")

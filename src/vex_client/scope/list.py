@@ -1,34 +1,36 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar
+
 if TYPE_CHECKING:
     from vex_client.app import VexApp
 
 from textual.app import ComposeResult
-from textual.widget import Widget
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.widget import Widget
 from textual.widgets import (
-    Static,
     ListItem,
     ListView,
+    Static,
 )
 
 from vex_cli.models.pydantic import Scope
 from vex_client.widgets.button import VexButton
-from vex_client.widgets.empty_message_widget import EmptyMessageWidget, EmptyStateChanged
+from vex_client.widgets.empty_message_widget import (
+    EmptyMessageWidget,
+    EmptyStateChanged,
+)
 
-test_scope = Scope(id=1, name="Test Scope", allow_endpoints=["test.com"], deny_endpoints=["google.com"])
 
 class ScopeListWidget(Vertical):
-
     def compose(self) -> ComposeResult:
         with Horizontal(id="scope-list-header"):
-            yield Static("── Scopes ───", id="scope-list-title")
-            yield VexButton("\[c] Create scope", id="btn-create", classes="btn")
+            yield Static(" SCOPES ", id="scope-list-title")
+            yield VexButton("\[c] Create", id="btn-create", classes="btn")
         yield ScopeListEmpty(id="empty-scope-list")
         yield Static("↵ to select a scope", id="scope-list-helper")
-        
+
 
 class ScopeListEmpty(EmptyMessageWidget):
     """
@@ -43,12 +45,13 @@ class ScopeListEmpty(EmptyMessageWidget):
             **kwargs,
         )
 
+
 class ScopeList(ListView, can_focus=True):
     """
     ListView for displaying the scopes
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("enter", "select_cursor", "Start/Enter instance"),
         Binding("k", "cursor_up", "up"),
         Binding("j", "cursor_down", "down"),
@@ -61,7 +64,7 @@ class ScopeList(ListView, can_focus=True):
         for scope in scopes:
             self.append(ScopeListItem(scope))
         self.post_message(EmptyStateChanged(is_empty=self._is_empty()))
-    
+
     def append_scope(self, scope_item: ScopeListItem) -> None:
         self.append(scope_item)
         self.post_message(EmptyStateChanged(is_empty=self._is_empty()))
@@ -72,7 +75,7 @@ class ScopeList(ListView, can_focus=True):
         self.index = index
 
     def pop_scope(self, selected_item) -> None:
-        try: 
+        try:
             index = self._nodes.index(selected_item)
         except ValueError:
             return
@@ -92,10 +95,10 @@ class ScopeList(ListView, can_focus=True):
             elif "selected" in list_item.classes:
                 list_item.toggle_selected_off()
 
-
     def _is_empty(self) -> bool:
         return sum(1 for c in self.children if isinstance(c, ScopeListItem)) == 0
-    
+
+
 class ScopeListItem(ListItem):
     """
     Proxy list item with a status_dot.
