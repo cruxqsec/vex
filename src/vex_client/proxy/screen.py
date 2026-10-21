@@ -196,8 +196,6 @@ class VexProxyScreen(Screen):
             else:
                 await client.aclose()
 
-        except (OSError, ValidationError, httpx.HTTPError):
-            app.log_vex(
                 "Error reading vex.pid file or checking health!", severity="error"
             )
 

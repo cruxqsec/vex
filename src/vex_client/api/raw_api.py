@@ -8,6 +8,17 @@ from vex_cli.models.pydantic import RawRequest, RawResponse
 logger = logging.getLogger(__name__)
 
 
+def _request_failure_reason(exc: httpx.RequestError) -> str:
+    # Exception messages can include URLs (and credentials), so use safe descriptions.
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connection timed out"
+    if isinstance(exc, httpx.TimeoutException):
+        return "request timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "could not connect to server"
+    return "HTTP request failed"
+
+
 # ==================== RawRequest ====================
 
 
@@ -29,18 +40,20 @@ class RawApi:
                 return [RawRequest.model_validate(r) for r in response.json()]
             else:
                 logger.warning(
-                    "GET /api/raw/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /api/raw/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/raw/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/raw/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/raw/request/ failed to decode or validate response"
+            )
         return []
 
     async def get_raw_request(self, id: UUID) -> RawRequest | None:
@@ -50,19 +63,20 @@ class RawApi:
                 return RawRequest.model_validate(response.json())
             else:
                 logger.warning(
-                    "GET /api/raw/request/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "GET /api/raw/request/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/raw/request/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/raw/request/%s failed: %s", id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/raw/request/%s failed to decode or validate response", id
+            )
         return None
 
     async def create_raw_request(self, raw_req: RawRequest) -> RawRequest | None:
@@ -75,18 +89,18 @@ class RawApi:
                 return RawRequest.model_validate(response.json())
             else:
                 logger.warning(
-                    "POST /api/raw/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "POST /api/raw/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("POST /api/raw/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "POST /api/raw/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/raw/request/ failed to process data")
         return None
 
     async def update_raw_request(self, raw_req: RawRequest) -> bool:
@@ -99,18 +113,18 @@ class RawApi:
                 return True
             else:
                 logger.warning(
-                    "PUT /api/raw/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "PUT /api/raw/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("PUT /api/raw/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "PUT /api/raw/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/raw/request/ failed to process data")
         return False
 
     async def delete_raw_request(self, id: UUID) -> bool:
@@ -120,19 +134,18 @@ class RawApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/raw/request/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "DELETE /api/raw/request/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/raw/request/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/raw/request/%s failed: %s", id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("DELETE /api/raw/request/%s failed to process response", id)
         return False
 
     # ==================== RawResponse ====================
@@ -149,18 +162,20 @@ class RawApi:
                 return [RawResponse.model_validate(r) for r in response.json()]
             else:
                 logger.warning(
-                    "GET /api/raw/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /api/raw/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/raw/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/raw/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/raw/response/ failed to decode or validate response"
+            )
         return []
 
     async def get_raw_response(self, id: UUID) -> RawResponse | None:
@@ -170,19 +185,20 @@ class RawApi:
                 return RawResponse.model_validate(response.json())
             else:
                 logger.warning(
-                    "GET /api/raw/response/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "GET /api/raw/response/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/raw/response/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/raw/response/%s failed: %s", id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/raw/response/%s failed to decode or validate response", id
+            )
         return None
 
     async def create_raw_response(self, raw_res: RawResponse) -> RawResponse | None:
@@ -195,18 +211,18 @@ class RawApi:
                 return RawResponse.model_validate(response.json())
             else:
                 logger.warning(
-                    "POST /api/raw/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "POST /api/raw/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("POST /api/raw/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "POST /api/raw/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/raw/response/ failed to process data")
         return None
 
     async def update_raw_response(self, raw_res: RawResponse) -> bool:
@@ -219,18 +235,18 @@ class RawApi:
                 return True
             else:
                 logger.warning(
-                    "PUT /api/raw/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "PUT /api/raw/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("PUT /api/raw/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "PUT /api/raw/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/raw/response/ failed to process data")
         return False
 
     async def delete_raw_response(self, id: UUID) -> bool:
@@ -240,17 +256,16 @@ class RawApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/raw/response/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "DELETE /api/raw/response/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/raw/response/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/raw/response/%s failed: %s", id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("DELETE /api/raw/response/%s failed to process response", id)
         return False
