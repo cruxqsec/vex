@@ -22,25 +22,24 @@ class ProxyStatusCard(Widget):
     def compose(self) -> ComposeResult:
         with Horizontal(classes="status-row"):
             yield Static("●", id="status-dot")
-            yield Static(" No proxy running", id="status-name")
-        yield Static("Start a proxy to begin", id="status-meta")
+            yield Static(" Not connected to any instance", id="status-name")
+        yield Static("Connect to an instance to begin", id="status-meta")
 
     def set_active(
         self, instance: ProxyInstance | None = None, time_passed: str = ""
     ) -> None:
-        running = False
-        if instance:
-            running = instance.running
+        connected = instance is not None
+        if instance is not None:
             self.status_name.update(f" {instance.name}")
-            self.status_meta.update(f"Running · started {time_passed}")
+            self.status_meta.update(f"Connected · connected {time_passed}")
         else:
-            self.status_name.update("No proxy running")
-            self.status_meta.update("Start a proxy to begin")
+            self.status_name.update(" Not connected to any instance")
+            self.status_meta.update("Connect to an instance to begin")
 
-        self.set_class(running, "active")
-        self.status_name.set_class(running, "active")
-        self.status_dot.set_class(running, "active")
-        self.status_meta.set_class(running, "active")
+        self.set_class(connected, "active")
+        self.status_name.set_class(connected, "active")
+        self.status_dot.set_class(connected, "active")
+        self.status_meta.set_class(connected, "active")
 
 
 class ProxyInfoCard(Widget):
@@ -59,20 +58,11 @@ class ProxyInfoCard(Widget):
         with Horizontal(classes="info-row"):
             yield Static("API Port", classes="info-label")
             yield Static("", id="info-api-port", classes="info-value")
-        #with Horizontal(classes="info-row"):
-            #yield Static("Status", classes="info-label")
-            #yield Static("", id="info-status", classes="info-value")
 
     def update_instance(self, instance: ProxyInstance) -> None:
+        server_info = instance.server_info
         self.query_one("#info-name", Static).update(instance.name)
-        self.query_one("#info-address", Static).update(instance.server_address)
-        self.query_one("#info-proxy-port", Static).update(str(instance.proxy_port))
-        self.query_one("#info-api-port", Static).update(str(instance.api_port))
-
-        #status = self.query_one("#info-status", Static)
-        #status.set_class(instance.running, "running")
-
-        #if instance.running:
-        #    status.update("● running")
-        #else:
-        #    status.update("● stopped")
+        self.query_one("#info-address", Static).update(server_info.server_address)
+        self.query_one("#info-proxy-port", Static).update(str(server_info.proxy_port))
+        self.query_one("#info-api-port", Static).update(str(server_info.api_port))
+        

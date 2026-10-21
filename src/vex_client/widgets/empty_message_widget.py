@@ -6,6 +6,7 @@ from textual.widgets import Label
 
 from vex_client.widgets.center_middle import CenterMiddle
 
+
 class EmptyStateChanged(Message):
     def __init__(self, is_empty: bool):
         self.is_empty = is_empty
@@ -27,8 +28,8 @@ class EmptyMessageWidget(Widget, can_focus=False):
         yield CenterMiddle(Label(self.empty_message), id="empty-message")
 
     def on_mount(self) -> None:
-        self.set_class(True, "empty") 
-    
+        self.set_class(True, "empty")
+
     @on(EmptyStateChanged)
     def empty_state_changed(self, event: EmptyStateChanged):
         self.set_class(event.is_empty, "empty")

@@ -103,14 +103,15 @@ class VexScopeScreen(Screen):
         if len(self.scope_list) == 0:
             self.query_one("#in-out-title", Static).update("Add new scope")
 
-    def add_new_scopes_to_list(self) -> None:
-        app = cast("VexApp", self.app)
-        for scope_id, scope in app.scope_cache.items():
-            if scope_id not in self.inserted_scopes_ids:
-                self.scope_list.append_scope(ScopeListItem(scope))
-                self.inserted_scopes_ids.add(scope_id)
 
-    def reset(self) -> None:
+    def clear_screen(self) -> None:
+        """Clears the screen elements."""
+        if not self.is_mounted:
+            return
+
+        for group in ("fetch_raw_summaries", "populate_history", "rebuild_preserving_selection"):
+            self.workers.cancel_group(self, group)
+
         self.scope_list.clear()
         self.inserted_scopes_ids.clear()
         self.selected_scope_item = None
@@ -118,6 +119,13 @@ class VexScopeScreen(Screen):
         self.in_scope_area.text = ""
         self.out_of_scope_area.text = ""
         self.query_one("#in-out-title", Static).update("Add new scope")
+
+    def add_new_scopes_to_list(self) -> None:
+        app = cast("VexApp", self.app)
+        for scope_id, scope in app.scope_cache.items():
+            if scope_id not in self.inserted_scopes_ids:
+                self.scope_list.append_scope(ScopeListItem(scope))
+                self.inserted_scopes_ids.add(scope_id)
 
     # ------------------- Action logic ------------------------
 
@@ -164,7 +172,7 @@ class VexScopeScreen(Screen):
             )
 
         app = cast("VexApp", self.app)
-        api = app.api_client
+        api = app.connection_manager.api_client
 
         if api is None:
             return
@@ -172,18 +180,20 @@ class VexScopeScreen(Screen):
         try:
             created_scope = await api.scope.create_scope(scope_to_create)
         except httpx.HTTPError:
-            self.notify("Network error creating scope. Check logs.", severity="error")
+            self.notify("Could not create scope.", severity="warning")
             return
 
         if created_scope:
-            app.scope_cache[created_scope.id] = created_scope
+            app.scope_cache = {**app.scope_cache, created_scope.id: created_scope}
             self.inserted_scopes_ids.add(created_scope.id)
             created_scope_item = ScopeListItem(created_scope)
             self.scope_list.append_scope(created_scope_item)
             # we select it immediately after creation/duplication
             self.selected_scope_item = created_scope_item
         else:
-            app.log_vex("Couldn't create scope! Check logs.", severity="error")
+            app.log_vex(
+                "Could not create scope.", severity="warning", write_to_log=False
+            )
 
     async def action_create_scope(self) -> None:
         # Create, pass no new scope
@@ -204,7 +214,7 @@ class VexScopeScreen(Screen):
             return
 
         app = cast("VexApp", self.app)
-        api = app.api_client
+        api = app.connection_manager.api_client
 
         if api is None:
             return
@@ -214,15 +224,23 @@ class VexScopeScreen(Screen):
                 self.selected_scope_item.scope.id
             )
         except httpx.HTTPError:
-            app.log_vex("Network error creating scope. Check logs.", severity="error")
+            app.log_vex(
+                "Could not delete scope.", severity="warning", write_to_log=False
+            )
             return
 
         if not successfully_deleted:
-            app.log_vex("Error deleting. Check logs.", severity="error")
+            app.log_vex(
+                "Could not delete scope.", severity="warning", write_to_log=False
+            )
             return
 
         self.query_one("#in-out-title", Static).update("Add new scope")
-        app.scope_cache.pop(self.selected_scope_item.scope.id, None)
+        app.scope_cache = {
+            scope_id: scope
+            for scope_id, scope in app.scope_cache.items()
+            if scope_id != self.selected_scope_item.scope.id
+        }
         self.scope_list.pop_scope(self.selected_scope_item)
 
         if (
@@ -266,7 +284,7 @@ class VexScopeScreen(Screen):
         )
 
         app = cast("VexApp", self.app)
-        api = app.api_client
+        api = app.connection_manager.api_client
 
         if api is None:
             return
@@ -274,12 +292,14 @@ class VexScopeScreen(Screen):
         try:
             successfully_updated = await api.scope.update_scope(updated_scope)
         except httpx.HTTPError:
-            app.log_vex("Network error creating scope. Check logs.", severity="error")
+            app.log_vex(
+                "Could not update scope.", severity="warning", write_to_log=False
+            )
             return
 
         if successfully_updated:
             self.notify("Scope updated!")
-            app.scope_cache[updated_scope.id] = updated_scope
+            app.scope_cache = {**app.scope_cache, updated_scope.id: updated_scope}
             self.selected_scope_item.scope = updated_scope
             self.selected_scope_item.query_one("#scope-name", Static).update(
                 updated_scope.name
@@ -287,7 +307,9 @@ class VexScopeScreen(Screen):
             if app.active_scope and app.active_scope.id == updated_scope.id:
                 app.active_scope = updated_scope
         else:
-            app.log_vex("Error saving scope. Check logs.", severity="error")
+            app.log_vex(
+                "Could not update scope.", severity="warning", write_to_log=False
+            )
 
     # ------------------- Button logic ------------------------
 

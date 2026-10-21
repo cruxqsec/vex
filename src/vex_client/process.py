@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import sys
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import psutil
+
+from vex_cli.locations import vex_log_directory
 
 if TYPE_CHECKING:
     from subprocess import Popen
@@ -17,10 +17,30 @@ logger = logging.getLogger(__name__)
 # Constant
 INACTIVE_PROCESS: Literal[-1] = -1
 
-if sys.platform == "win32":
-    import msvcrt
-else:
-    import fcntl
+
+def find_local_process(pid: int, expected_create_time: float) -> psutil.Process | None:
+    """Find a local process matching the recorded identity.
+
+    This verifies process identity, not server readiness.
+    """
+    try:
+        process = psutil.Process(pid)
+
+        if process.create_time() != expected_create_time:
+            return None
+
+        if not process.is_running():
+            return None
+
+        if process.status() == psutil.STATUS_ZOMBIE:
+            return None
+
+        return process
+    except psutil.NoSuchProcess:
+        return None
+    except psutil.AccessDenied:
+        logger.warning("Cannot verify local process %s: access denied", pid)
+        return None
 
 
 def start_detached_process(cmd: list[str]) -> Popen | None:
@@ -28,152 +48,114 @@ def start_detached_process(cmd: list[str]) -> Popen | None:
     Spawns a completely new process (detached child)
     and return the Popen handle or None if failed.
     """
+    # Capture errors that occur before vex-cli can configure its own file logger.
     try:
-        if sys.platform == "win32":
-            # Windows-only kwargs
-            proc = subprocess.Popen(
-                cmd,
-                creationflags=(
-                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
-                ),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
-        else:
-            # POSIX-only kwargs
-            proc = subprocess.Popen(
-                cmd,
-                start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-            )
+        output = (vex_log_directory() / "vex-cli-bootstrap.log").open("ab")
+    except OSError:
+        logger.exception("Could not open the backend output log")
+        return None
+
+    try:
+        with output:
+            if sys.platform == "win32":
+                proc = subprocess.Popen(
+                    cmd,
+                    creationflags=(
+                        subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+                    ),
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                )
+            else:
+                proc = subprocess.Popen(
+                    cmd,
+                    start_new_session=True,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                )
 
         return proc
 
     except FileNotFoundError:
-        logger.exception("vex-cli could not be found in $PATH")
+        logger.exception(
+            "Could not launch the backend process: Python executable not found (%s)",
+            cmd[0],
+        )
         return None
     except PermissionError:
-        logger.exception("No permission to execute vex-cli")
+        logger.exception(
+            "Could not launch the backend process: no permission to execute %s",
+            cmd[0],
+        )
         return None
     except Exception:
-        logger.exception("Unexpected exception occurred trying to run vex-cli")
+        logger.exception("Could not launch the backend process")
         return None
 
 
-def _acquire_probe_lock(fd: int) -> None:
-    """Take a non-blocking probe lock on the pid file fd.
+def terminate_process(
+    process: Popen | psutil.Process,
+    timeout: float = 2.0,
+) -> bool:
+    """Request termination and wait.
 
-    On POSIX a shared lock is taken: two clients probing concurrently both
-    win when no server holds the file, and both are refused while a live
-    server holds its exclusive lock. Windows msvcrt has no shared mode, so
-    concurrent probes collide — an EACCES there means "somebody holds it",
-    which errs on the side of "alive" and is sealed by the health probe.
-    """
-    if sys.platform == "win32":
-        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-    else:
-        fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
-
-
-def is_vex_server_live(pid_file: Path) -> bool:
-    """True iff a live vex server holds the exclusive lock on the pid file.
-
-    The server takes an exclusive flock for its lifetime (pid_file_check);
-    the kernel releases it on process death, so lock == live instance and
-    the pid stored inside the file is never consulted for liveness — PID
-    reuse cannot fool this probe. Missing file == nothing was ever started.
+    Return True if the process exited or was already gone.
+    Return False if termination timed out or permission was denied.
     """
     try:
-        # O_RDWR mirrors the server's own open; never O_TRUNC: on an
-        # acquired probe we hold no ownership of the content, and if a
-        # server concurrently grabs the lock the file is its metadata.
-        fd = os.open(pid_file, os.O_RDWR | os.O_CREAT, 0o644)
-    except OSError:
-        return False
-    try:
-        try:
-            _acquire_probe_lock(fd)
-        except OSError:
-            return True  # contended: a live server holds the exclusive lock
-        # We won the lock: no live server exists. Release before closing.
-        if sys.platform == "win32":
-            try:
-                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-            except OSError:
-                pass
-        else:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-        return False
-    finally:
-        os.close(fd)
+        process.terminate()
+        process.wait(timeout=timeout)
+        return True
 
+    except (psutil.NoSuchProcess, ProcessLookupError):
+        return True
 
-def is_vex_process(pid: int) -> bool:
-    """True if the pid exists and its cmdline looks like a vex process.
-
-    Refuses to identify on psutil errors (AccessDenied etc.) — signal-side
-    callers must not touch unverified pids.
-    """
-    try:
-        process = psutil.Process(pid)
-        cmdline = process.cmdline()
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-        return False
-    return "vex" in " ".join(cmdline).lower()
-
-
-def terminate_process(pid: int, verify_vex: bool = True):
-    """Terminate the process with SIGTERM.
-
-    With verify_vex, a pid whose cmdline does not look like a vex process
-    is refused (PID reuse makes the stale pid point at an unrelated process).
-    """
-    if verify_vex and not is_vex_process(pid):
+    except (psutil.TimeoutExpired, subprocess.TimeoutExpired):
         logger.warning(
-            f"Refusing to terminate pid {pid}: cmdline is not a vex process"
+            "Process %s did not exit within %.1f seconds",
+            process.pid,
+            timeout,
         )
         return False
 
-    try:
-        process = psutil.Process(pid)
-        process.terminate()
-        process.wait(timeout=2.0)
-        return True
-
-    except psutil.NoSuchProcess:
-        logger.warning(f"No process with {pid} PID exists")
-        return True
-    except psutil.TimeoutExpired:
-        return False
-    except psutil.AccessDenied:
-        logger.exception(f"Could not terminate process with {pid} PID")
+    except (psutil.AccessDenied, PermissionError):
+        logger.exception(
+            "Permission denied terminating process %s",
+            process.pid,
+        )
         return False
 
 
-def kill_process(pid: int, verify_vex: bool = True):
-    """Kill the process with SIGKILL and reap it so no zombie remains.
+def kill_process(
+    process: Popen | psutil.Process,
+    timeout: float = 1.0,
+) -> bool:
+    """Force termination and wait, reaping a spawned child where applicable.
 
-    Same verify_vex contract as terminate_process.
+    Return True if the process exited or was already gone.
+    Return False if waiting timed out or permission was denied.
     """
-    if verify_vex and not is_vex_process(pid):
-        logger.warning(f"Refusing to kill pid {pid}: cmdline is not a vex process")
+    try:
+        process.kill()
+        process.wait(timeout=timeout)
+        return True
+
+    except (psutil.NoSuchProcess, ProcessLookupError):
+        return True
+
+    except (psutil.TimeoutExpired, subprocess.TimeoutExpired):
+        logger.warning(
+            "Process %s did not exit within %.1f seconds after kill",
+            process.pid,
+            timeout,
+        )
         return False
 
-    try:
-        process = psutil.Process(pid)
-        process.kill()
-        process.wait(timeout=1.0)
-        return True
-
-    except psutil.NoSuchProcess:
-        logger.warning(f"No process with {pid} PID exists")
-        return True
-    except psutil.TimeoutExpired:
-        logger.warning(f"Process with {pid} PID survived SIGKILL (dying unreaped)")
-        return True
-    except psutil.AccessDenied:
-        logger.exception(f"Could not kill process with {pid} PID")
+    except (psutil.AccessDenied, PermissionError):
+        logger.exception(
+            "Permission denied killing process %s",
+            process.pid,
+        )
         return False

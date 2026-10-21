@@ -1,5 +1,6 @@
-import httpx
 from typing import TYPE_CHECKING, cast
+
+import httpx
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
@@ -9,7 +10,7 @@ from textual.app import ComposeResult
 from textual.widget import Widget
 from textual.widgets import Button, Select
 
-from vex_cli.models.pydantic import Project, Scope
+from vex_cli.models.pydantic import Project
 
 
 class NavigationButton(Button, can_focus=False):
@@ -55,17 +56,19 @@ class ScopeSelect(Select, can_focus=False):
         if still_no_value or no_change:
             return
 
-        api = app.api_client
+        api = app.connection_manager.api_client
         if api is None:
             return
         if value == Select.NULL:
             try:
                 successfuly_unset = await api.scope.unset_scope()
             except httpx.HTTPError:
-                app.log_vex("Failed to unset scope on server. Check logs", "error")
+                app.log_vex("Could not unset scope.", "warning", write_to_log=False)
                 return
             if successfuly_unset:
                 app.active_scope = None
+            else:
+                app.log_vex("Could not unset scope.", "warning", write_to_log=False)
         else:
             scope = app.scope_cache.get(value)
             if not scope:
@@ -73,11 +76,13 @@ class ScopeSelect(Select, can_focus=False):
             try:
                 successfuly_set = await api.scope.set_scope(scope.id)
             except httpx.HTTPError:
-                app.log_vex("Failed to set scope on server. Check logs.", "error")
+                app.log_vex("Could not set scope.", "warning", write_to_log=False)
                 return
 
             if successfuly_set:
                 app.active_scope = scope
+            else:
+                app.log_vex("Could not set scope.", "warning", write_to_log=False)
 
 
 class VexNavigationBar(Widget):
@@ -150,12 +155,14 @@ class VexNavigationBar(Widget):
 
         # all buttons except the project one are disabled until a project is picked
         self.watch(app, "active_project", self.on_project_active)
+
         self.watch(app, "active_scope", self.update_scope_select, init=False)
+        self.watch(app, "scope_cache", self.update_scope_select, init=True)
         self.buttons_disabled(app.active_project is None)
-        self.update_scope_select()
 
     def on_project_active(self, project: Project | None) -> None:
         self.buttons_disabled(project is None)
+
 
     def update_scope_select(self, *_args) -> None:
         app = cast("VexApp", self.app)
@@ -170,11 +177,6 @@ class VexNavigationBar(Widget):
             else:
                 scope_select.value = Select.NULL
 
-    def clear_scope_select(self) -> None:
-        scope_select = self.query_one(ScopeSelect)
-        with scope_select.prevent(Select.Changed):
-            scope_select.set_options([])
-            scope_select.value = Select.NULL
 
     def buttons_disabled(self, enabled: bool) -> None:
         for button in self.query(Button):

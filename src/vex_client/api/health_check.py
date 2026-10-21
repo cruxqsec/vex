@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import httpx
@@ -8,26 +7,38 @@ from vex_client.process import INACTIVE_PROCESS
 logger = logging.getLogger(__name__)
 
 
+def _request_failure_reason(exc: httpx.RequestError) -> str:
+    # Exception messages can include URLs (and credentials), so use safe descriptions.
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connection timed out"
+    if isinstance(exc, httpx.TimeoutException):
+        return "request timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "could not connect to server"
+    return "HTTP request failed"
+
+
 class HealthApi:
     """Health-check methods sharing one pooled httpx client."""
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
-    async def check_health_retries(self, retries: int) -> bool:
-        """Calls the /health endpoint n times to check if vex-cli is running."""
-        while retries > 0:
-            try:
-                response = await self._client.get("/health")
-                if response.status_code == 200:
-                    return True
-            except httpx.TimeoutException:
-                logger.debug("Health check timeout, retrying")
-            except httpx.RequestError:
-                logger.debug("Health check request error, retrying")
-            retries -= 1
-            if retries > 0:
-                await asyncio.sleep(1)
+    async def health_check_handshake(self) -> bool:
+        try:
+            response = await self._client.get("/health")
+            if response.status_code == 200:
+                return True
+            else:
+                logger.warning(
+                    "GET /health handshake returned HTTP %d", response.status_code
+                )
+        except httpx.DecodingError:
+            logger.exception("GET /health handshake failed to decode response")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /health handshake failed: %s", _request_failure_reason(exc)
+            )
 
         return False
 
@@ -40,15 +51,17 @@ class HealthApi:
                 return json_response["pid"]
             else:
                 logger.warning(
-                    "GET /health returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /health PID lookup returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.debug("Health check PID request timed out")
-        except httpx.RequestError:
-            logger.debug("Health check PID request failed")
+        except httpx.DecodingError:
+            logger.exception("GET /health PID lookup failed to decode response")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /health PID lookup failed: %s", _request_failure_reason(exc)
+            )
         except (ValueError, KeyError):
-            logger.exception("Health check response was not valid vex /health output")
+            logger.exception(
+                "GET /health PID lookup failed to decode or validate response"
+            )
 
         return INACTIVE_PROCESS

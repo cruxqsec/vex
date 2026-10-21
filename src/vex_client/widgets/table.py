@@ -1,33 +1,24 @@
-from typing import Any, Tuple
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from enum import Enum
-from rich.text import Text
+from typing import Any, ClassVar, TypeVar
 
+from rich.text import Text
 from textual import events, on
-from textual.geometry import Size
 from textual.binding import Binding
+from textual.geometry import Size
+from textual.message import Message
 from textual.widgets import DataTable
 from textual.widgets.data_table import RowDoesNotExist
-from textual.message import Message
 
 from vex_client.widgets.empty_message_widget import EmptyStateChanged
 
+T = TypeVar("T")
 
-class SortDirection(Enum):
-    NONE = "none"
-    ASCENDING = "asc"
-    DESCENDING = "desc"
 
-    def cycle(self, same_column: bool) -> "SortDirection":
-        if not same_column:
-            return SortDirection.ASCENDING
-        match self:
-            case SortDirection.NONE:
-                return SortDirection.ASCENDING
-            case SortDirection.ASCENDING:
-                return SortDirection.DESCENDING
-            case SortDirection.DESCENDING:
-                return SortDirection.NONE
+@dataclass(frozen=True)
+class SortOrder:
+    column: str
+    descending: bool = False
 
 
 @dataclass
@@ -55,12 +46,13 @@ class VexDataTable(DataTable, can_focus=True):
         pass
 
     class SortChanged(Message):
-        def __init__(self, column_key: str | None, direction: SortDirection) -> None:
-            self.column_key = column_key
-            self.direction = direction
+        def __init__(self, active_sort: SortOrder | None) -> None:
+            self.active_sort = active_sort
             super().__init__()
 
-    COMPONENT_CLASSES = {
+    SORT_KEYS: ClassVar[dict[str, Callable[[Any], Any]]] = {}
+
+    COMPONENT_CLASSES: ClassVar = {
         "vex-datatable--sort-asc",
         "vex-datatable--sort-desc",
     }
@@ -71,7 +63,7 @@ class VexDataTable(DataTable, can_focus=True):
     def _on_blur(self, event: events.Blur) -> None:
         self.post_message(self.Blurred())
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("k", "cursor_up", "Cursor up", show=False),
         Binding("j", "cursor_down", "Cursor down", show=False),
         Binding("l", "cursor_right", "Cursor right", show=False),
@@ -96,14 +88,13 @@ class VexDataTable(DataTable, can_focus=True):
     ]
 
     def __init__(
-        self, percent_columns: Tuple[Tuple[str | IconColumnCell, int], ...], **kwargs
+        self, percent_columns: tuple[tuple[str | IconColumnCell, int], ...], **kwargs
     ):
         self.percent_columns = (
             percent_columns  # custom columns with (name, percent_ratio)
         )
         self._bulk_mode: bool = False
-        self._sort_column_key: str | None = None
-        self._sort_direction: SortDirection = SortDirection.NONE
+        self._active_sort: SortOrder | None = None
         self._original_labels: dict[str, Text | str] = {}
 
         super().__init__(**kwargs)
@@ -116,11 +107,42 @@ class VexDataTable(DataTable, can_focus=True):
             return False
 
     @property
+    def active_sort(self) -> SortOrder | None:
+        return self._active_sort
+
+    @property
     def has_active_sort(self) -> bool:
-        return (
-            self._sort_column_key is not None
-            and self._sort_direction != SortDirection.NONE
-        )
+        return self._active_sort is not None
+
+    def sort_items(self, items: Iterable[T]) -> list[T]:
+        """Return a stable sorted copy, with None keys last in either direction."""
+        order = self._active_sort
+        if order is None:
+            return list(items)
+
+        key_func = self.SORT_KEYS[order.column]
+        present: list[tuple[Any, T]] = []
+        missing: list[T] = []
+        for item in items:
+            value = key_func(item)
+            if value is None:
+                missing.append(item)
+            else:
+                present.append((value, item))
+        present.sort(key=lambda pair: pair[0], reverse=order.descending)
+        return [item for _, item in present] + missing
+
+    def reset_sort(self, *, notify: bool = False) -> None:
+        """Clear sorting and restore its label; optionally emit SortChanged(None).
+
+        An already unsorted table is a no-op. This does not reorder existing rows.
+        """
+        if self._active_sort is None:
+            return
+        self._restore_column_label(self._active_sort.column)
+        self._active_sort = None
+        if notify:
+            self.post_message(self.SortChanged(None))
 
     def get_highlighted_row(self) -> list[Any] | None:
         try:
@@ -196,7 +218,7 @@ class VexDataTable(DataTable, can_focus=True):
         self._toggle_sort(col_str)
 
     def action_sort_column(self, col_index: int) -> None:
-        if col_index >= len(self.ordered_columns):
+        if not 0 <= col_index < len(self.ordered_columns):
             return
         col_key = self.ordered_columns[col_index].key.value
         if col_key is None:
@@ -204,33 +226,36 @@ class VexDataTable(DataTable, can_focus=True):
         self._toggle_sort(col_key)
 
     def _toggle_sort(self, col_str: str) -> None:
-        new_direction = self._sort_direction.cycle(col_str == self._sort_column_key)
+        if col_str not in self.SORT_KEYS:
+            return
 
-        if self._sort_column_key:
-            self._restore_column_label(self._sort_column_key)
-
-        if new_direction == SortDirection.NONE:
-            self._sort_column_key = None
-            self._sort_direction = SortDirection.NONE
+        previous = self._active_sort
+        if previous is not None and previous.column == col_str:
+            if previous.descending:
+                self.reset_sort(notify=True)
+                return
+            order = SortOrder(col_str, descending=True)
         else:
-            self._sort_column_key = col_str
-            self._sort_direction = new_direction
-            self._apply_sort_label(col_str, new_direction)
+            order = SortOrder(col_str)
 
-        self.post_message(self.SortChanged(self._sort_column_key, self._sort_direction))
+        if previous is not None:
+            self._restore_column_label(previous.column)
+        self._active_sort = order
+        self._apply_sort_label(col_str, order.descending)
+        self.post_message(self.SortChanged(order))
 
     def _restore_column_label(self, col_str: str) -> None:
         original = self._original_labels.get(col_str)
         if original is not None:
             self._write_column_label(col_str, original)
 
-    def _apply_sort_label(self, col_str: str, direction: SortDirection) -> None:
+    def _apply_sort_label(self, col_str: str, descending: bool) -> None:
         original = self._original_labels.get(col_str)
         if original is None:
             return
         component = (
             "vex-datatable--sort-asc"
-            if direction == SortDirection.ASCENDING
+            if not descending
             else "vex-datatable--sort-desc"
         )
         try:
