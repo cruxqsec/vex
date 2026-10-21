@@ -10,7 +10,7 @@ from vex_cli.app import start_fastapi
 from vex_cli.bind import try_bind_ports
 from vex_cli.locations import vex_log_directory
 from vex_cli.models.pydantic import VexServerInfo
-from vex_cli.pid_func import pid_file_check
+from vex_cli.pid_func import lock_file_check
 from vex_cli.proxy import start_proxy
 from vex_cli.state import VexState
 
@@ -24,11 +24,12 @@ def cli() -> None:
 
 async def main(server_info: VexServerInfo) -> int:
     try:
-        async with pid_file_check(server_info):
+        async with lock_file_check(server_info):
             await _run_vex_tasks(server_info)
         print("Shutting down.")
         return 0
     except RuntimeError as e:
+        logger.error("Error starting Vex CLI: %s", e)
         print(f"Error: {e}")
         return 1
     except ExceptionGroup as e:
@@ -137,6 +138,7 @@ def start(address: str, proxy_port: int, api_port: int) -> int:
     can_bind, port = try_bind_ports(server_info)
 
     if not can_bind:
+        logger.error("Port %s is already in use!", port)
         print(f"Port {port} is already in use!")
         sys.exit(1)
 

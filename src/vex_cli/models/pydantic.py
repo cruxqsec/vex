@@ -85,10 +85,11 @@ class VexServerInfo(BaseModel):
     api_port: PortNumber
 
 
-class PIDData(BaseModel):
-    """Data that will be saved to the vex.pid file."""
+class ServerMetaData(BaseModel):
+    """Data that will be saved to the vex-server.json file."""
 
     pid: int = Field(ge=1)
+    create_time: float = Field(gt=0, allow_inf_nan=False)
     host: IPStr
     proxy_port: PortNumber
     api_port: PortNumber
