@@ -35,7 +35,6 @@ from vex_cli.models.orm import (
     ScopeORM,
 )
 from vex_cli.models.pydantic import (
-    PIDData,
     Project,
     ProjectCreate,
     RawRequest,
@@ -44,6 +43,7 @@ from vex_cli.models.pydantic import (
     ResponseSummary,
     Scope,
     ScopeCreate,
+    ServerMetaData,
     VexServerInfo,
 )
 from vex_cli.state import VexState
@@ -395,6 +395,7 @@ def flow_history():
 def flow_scope():
     return FlowScope()
 
+
 @pytest_asyncio.fixture
 async def bare_manager(tmp_path, mocker):
     mocker.patch(
@@ -418,6 +419,7 @@ def folder_b(tmp_path):
     path = tmp_path / "project-b"
     path.mkdir()
     return path
+
 
 @pytest.fixture
 def db_manager(monkeypatch, tmp_path, projects_db, summary_db, raw_db):

@@ -10,10 +10,6 @@ from vex_client.api.summaries_api import SummariesApi
 class ApiClient:
     """Owns the pooled httpx client for one vex-cli server (host, port).
 
-    Constructed lazily by the app when server info becomes available;
-    rebuilt and the old instance closed when the server address changes;
-    closed on stop, detected server death, and app exit.
-
     Exposes the section APIs (health, projects, raw, scope, summaries),
     which all share the single underlying httpx.AsyncClient.
     """
@@ -25,30 +21,13 @@ class ApiClient:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self.base_url = f"http://{host}:{port}"
-        self._client = client or httpx.AsyncClient(
-            base_url=self.base_url, timeout=5.0
-        )
+        self._client = client or httpx.AsyncClient(base_url=self.base_url, timeout=5.0)
         self.health = HealthApi(self._client)
         self.projects = ProjectsApi(self._client)
         self.raw = RawApi(self._client)
         self.scope = ScopeApi(self._client)
         self.summaries = SummariesApi(self._client)
 
-    @property
-    def client(self) -> httpx.AsyncClient:
-        """The shared underlying httpx client (used by the section APIs)."""
-        return self._client
-
-    @property
-    def is_closed(self) -> bool:
-        return self._client.is_closed
-
-    async def aclose(self) -> None:
+    async def close(self) -> None:
         if not self._client.is_closed:
             await self._client.aclose()
-
-    async def __aenter__(self) -> "ApiClient":
-        return self
-
-    async def __aexit__(self, *exc) -> None:
-        await self.aclose()

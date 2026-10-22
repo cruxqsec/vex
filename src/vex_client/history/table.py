@@ -1,40 +1,23 @@
-import logging
 from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 from uuid import UUID
-
-if TYPE_CHECKING:
-    from vex_client.app import VexApp
-
 
 from rich.color import Color
 from rich.style import Style
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.widgets import Input, Static
-from textual.widgets.data_table import CellDoesNotExist
+from textual.widgets import DataTable, Input, Static
 from textual_autocomplete import AutoComplete, DropdownItem, TargetState
 
-from vex_cli.models.pydantic import FlowSummary, RequestSummary, ResponseSummary
+from vex_cli.models.pydantic import FlowSummary
+from vex_client.history.query import SEARCH_FIELDS
 from vex_client.widgets.empty_message_widget import EmptyMessageWidget
-from vex_client.widgets.table import IconColumnCell, SortDirection, VexDataTable
+from vex_client.widgets.table import IconColumnCell, VexDataTable
 
-logger = logging.getLogger(__name__)
-
-
-_SEARCH_PREFIXES = [
-    "host:",
-    "method:",
-    "path:",
-    "query:",
-    "status:",
-    "mime:",
-    "title:",
-    "ext:",
-    "cookie:",
-]
+if TYPE_CHECKING:
+    from vex_client.app import VexApp
 
 
 class SearchFieldAutoComplete(AutoComplete):
@@ -70,7 +53,7 @@ class SearchFieldAutoComplete(AutoComplete):
 class VexHTTPTableContainer(Vertical):
     def compose(self) -> ComposeResult:
         with Horizontal(id="http-table-header"):
-            yield Static("\[/] Search", id="http-search-title")
+            yield Static(r"\[/] Search", id="http-search-title")
             search_input = Input(
                 placeholder="Enter a query...",
                 id="http-search-bar",
@@ -78,7 +61,7 @@ class VexHTTPTableContainer(Vertical):
             yield search_input
         yield SearchFieldAutoComplete(
             search_input,
-            candidates=[DropdownItem(main=prefix) for prefix in _SEARCH_PREFIXES],
+            candidates=[DropdownItem(main=f"{prefix}:") for prefix in SEARCH_FIELDS],
         )
         yield VexHTTPTableEmpty(id="http-table-empty")
 
@@ -87,26 +70,25 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
     """Container that holds VexHTTPTable plus an empty widget"""
 
     def __init__(self, **kwargs):
-        # custom icons for columns
-        # brown_style = Style(color=Color.from_rgb(139, 69, 19))
+
         brown_style = Style(color=Color.from_rgb(181, 101, 29))
         self.has_cookie_column = IconColumnCell(
             Text("󰆘", style=brown_style, justify="right"), "Cookie"
         )
-        # COLUMN DEFINITIONS
+
         history_columns = (
-            ("#", 3),
-            ("Host", 20),
+            ("#", 6),
+            ("Host", 18),
             ("Method", 5),
             ("Path", 20),
             ("Query", 12),
             ("Status", 5),
             ("Size", 8),
-            #("Title", 8),
+
             ("Time(ms)", 8),
             ("Sent at", 12),
             (self.has_cookie_column, 2),
-            ("Ext", 4),
+            ("Ext", 3),
         )
 
         self.table = VexHTTPTable(
@@ -158,66 +140,46 @@ class VexHTTPTable(VexDataTable, can_focus=True):
     }
 
     def __init__(self, columns: tuple, **kwargs):
-        # parent constructor
+
         super().__init__(percent_columns=columns, **kwargs)
+        self._summaries: dict[str, FlowSummary] = {}
 
     SORT_KEYS: ClassVar[dict[str, Callable[[FlowSummary], Any]]] = {
-        "#": lambda f: f.id,
-        "Host": lambda f: (f.host or "").lower(),
-        "Method": lambda f: f.method or "",
-        "Path": lambda f: (f.path or "").lower(),
-        "Query": lambda f: (f.query or "").lower(),
-        "Status": lambda f: f.status_code or -1,
-        "Size": lambda f: f.response_size or -1,
-        #"Title": lambda f: (f.http_title or "").lower(),
-        "Time(ms)": lambda f: f.duration_ms or -1,
-        "Sent at": lambda f: f.timestamp or 0.0,
-        "Cookie": lambda f: bool(f.cookie),
-        "Ext": lambda f: (f.file_extension or "").lower(),
+        "#": lambda summary: summary.id,
+        "Host": lambda summary: summary.host.lower(),
+        "Method": lambda summary: summary.method.lower(),
+        "Path": lambda summary: summary.path.lower(),
+        "Query": lambda summary: (
+            summary.query.lower() if summary.query is not None else None
+        ),
+        "Status": lambda summary: summary.status_code,
+        "Size": lambda summary: summary.response_size,
+        "Time(ms)": lambda summary: summary.duration_ms,
+        "Sent at": lambda summary: summary.timestamp,
+        "Cookie": lambda summary: bool(summary.cookie),
+        "Ext": lambda summary: (
+            summary.file_extension.lower() if summary.file_extension is not None else None
+        ),
     }
-
-    RESPONSE_SORT_KEYS = {"Status", "Size", "Time(ms)", "Sent at", "Cookie"}
-
-    def sorted_summaries(self, summaries: list[FlowSummary]) -> list[FlowSummary]:
-        if self._sort_column_key is None:
-            return summaries
-        key_func = self.SORT_KEYS.get(self._sort_column_key)
-        if key_func is None:
-            return summaries
-        return sorted(
-            summaries,
-            key=key_func,
-            reverse=self._sort_direction == SortDirection.DESCENDING,
-        )
 
     def on_mount(self) -> None:
         self.watch(self.app, "theme", self._on_app_theme_changed)
 
     def _on_app_theme_changed(self, theme: str) -> None:
-        self.set_loading(True)
         self._recolor_cells()
 
     def _recolor_cells(self) -> None:
-        """Recolor the custom cells on theme change which we display with theme colors."""
-        app: VexApp = cast("VexApp", self.app)
-        for row_key in self._data:
-            flow_id: UUID = UUID(row_key.value)
-            if flow_id not in app.history_summary_cache:
-                continue
-
-            row: FlowSummary = app.history_summary_cache[flow_id]
-
-            self.update_cell(str(flow_id), "Method", self.render_method(row.method))
-
-            if row.status_code:
-                self.update_cell(
-                    str(flow_id), "Status", self.render_status(row.status_code)
-                )
-            if row.cookie:
-                self.update_cell(
-                    str(flow_id), "Cookie", self.render_cookie(bool(row.cookie))
-                )
-        self.set_loading(False)
+        """Force invalidation rather than relying on Rich Text style equality."""
+        for row in self.ordered_rows:
+            summary = (
+                self._summaries.get(row.key.value)
+                if row.key.value is not None else None
+            )
+            if summary is not None:
+                for column, value in zip(
+                    self.ordered_columns, self.render_summary(summary)
+                ):
+                    self.update_cell(row.key, column.key, value)
 
     def _style_for(self, component: str) -> Style:
         return Style(
@@ -248,85 +210,74 @@ class VexHTTPTable(VexDataTable, can_focus=True):
 
     def time_display(self, timestamp: float) -> Text:
         dt_object = datetime.fromtimestamp(timestamp)
-        # Format: HH:MM:SS Day/Month
+
         return Text(dt_object.strftime("%H:%M:%S %d/%m"), style="italic")
 
-    def insert_request_summary(self, request_summary: RequestSummary) -> None:
-        try:
-            app: VexApp = cast("VexApp", self.app)
-            if self.row_exists(str(request_summary.flow_id)):
-                return
-            self.add_row(
-                request_summary.id,
-                request_summary.host,
-                self.render_method(request_summary.method),
-                request_summary.path,
-                request_summary.query,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,  # ResponseSummmary field are empty
-                request_summary.file_extension,
-                key=str(request_summary.flow_id),
-            )
-            self.post_message(VexDataTable.RowAdded())
-        except ValueError:
-            app.log_vex("Error inserting request into table. Check logs.", "error")
-            logger.exception("Error inserting request summary into table")
+    def render_summary(self, summary: FlowSummary) -> tuple[Any, ...]:
+        """Use one cell layout for request-only and completed flows."""
+        return (
+            summary.id,
+            summary.host,
+            self.render_method(summary.method),
+            summary.path,
+            summary.query or "",
+            self.render_status(summary.status_code),
+            Text(
+                "" if summary.response_size is None else str(summary.response_size),
+                justify="right",
+            ),
+            Text(
+                "" if summary.duration_ms is None else str(summary.duration_ms),
+                justify="right",
+            ),
+            self.time_display(summary.timestamp)
+            if summary.timestamp is not None else Text(""),
+            self.render_cookie(bool(summary.cookie)),
+            summary.file_extension or "",
+        )
 
-    def insert_response_summary(self, response_summary: ResponseSummary) -> None:
-        flow_id = str(response_summary.flow_id)
-        if not self.row_exists(flow_id):
-            return
-        try:
-            self.update_cell(
-                flow_id, "Status", self.render_status(response_summary.status_code)
-            )
-            self.update_cell(
-                flow_id,
-                "Size",
-                Text(str(response_summary.response_size), justify="right"),
-            )
-            #self.update_cell(flow_id, "Title", response_summary.http_title)
-            self.update_cell(flow_id, "Time(ms)", response_summary.duration_ms)
-            self.update_cell(
-                flow_id, "Sent at", self.time_display(response_summary.timestamp)
-            )
-            self.update_cell(
-                flow_id, "Cookie", self.render_cookie(bool(response_summary.cookie))
-            )
-        except CellDoesNotExist:
-            self.app.log_vex(  # type: ignore
-                "Error inserting response summary, could not find corresponding request summary!",
-                severity="error",
-            )
-        except Exception:
-            self.app.log_vex("Error updating response in table. Check logs.", "error")  # type: ignore
-            logger.exception("Error updating response summary in table")
+    def synchronize_summaries(self, summaries: list[FlowSummary]) -> None:
+        """Reconcile rows in supplied order without clearing or fetching details.
 
-    def insert_full_summary(self, full_summary: FlowSummary) -> None:
+        Callers apply filtering and ``sort_items`` before synchronization.
+        """
+        desired = {str(summary.flow_id): summary for summary in summaries}
+        previous_index = self.cursor_row
+        highlighted = self.get_highlighted_row_key()
+        existing = {row.key.value: row.key for row in self.ordered_rows}
+        self.begin_bulk_insert()
         try:
-            self.add_row(
-                full_summary.id,
-                full_summary.host,
-                self.render_method(full_summary.method),
-                full_summary.path,
-                full_summary.query,
-                self.render_status(full_summary.status_code),
-                full_summary.response_size,
-                #full_summary.http_title,
-                full_summary.duration_ms,
-                self.time_display(full_summary.timestamp),
-                self.render_cookie(bool(full_summary.cookie)),
-                full_summary.file_extension,
-                key=str(full_summary.flow_id),
-            )
-            self.post_message(VexDataTable.RowAdded())
-        except ValueError:
-            self.app.log_vex("Error inserting summary into table. Check logs.", "error")  # type: ignore
-            logger.exception("Error inserting full summary into table")
+            # Suppress transient highlights caused by removing and moving rows.
+            with self.prevent(DataTable.RowHighlighted):
+                for flow_id in existing.keys() - desired.keys():
+                    self.remove_row(existing[flow_id])
+                for flow_id, summary in desired.items():
+                    values = self.render_summary(summary)
+                    if flow_id not in existing:
+                        self.add_row(*values, key=flow_id)
+                    else:
+                        for column, old, value in zip(
+                            self.ordered_columns, self.get_row(flow_id), values
+                        ):
+                            if old != value:
+                                self.update_cell(flow_id, column.key, value)
+                self._summaries = desired
+                if [row.key.value for row in self.ordered_rows] != list(desired):
+                    # The # column contains the unique persisted request id.
+                    ranks = {
+                        summary.id: index
+                        for index, summary in enumerate(desired.values())
+                    }
+                    self.sort("#", key=ranks.__getitem__)
+                if desired:
+                    index = (
+                        self.get_row_index(highlighted)
+                        if highlighted is not None and highlighted in desired
+                        else min(previous_index, len(desired) - 1)
+                    )
+                    self.move_cursor(row=index, animate=False, scroll=False)
+        finally:
+            self.end_bulk_insert()
 
     def get_cell_raw_value(self, column_key: str, row_key: str) -> str | None:
 
@@ -335,9 +286,9 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             flow_id = UUID(row_key)
         except ValueError:
             return None
-        if flow_id not in app.history_summary_cache:
+        if flow_id not in app.history_manager.summaries:
             return None
-        flow = app.history_summary_cache[flow_id]
+        flow = app.history_manager.summaries[flow_id]
 
         match column_key:
             case "#":
@@ -361,7 +312,7 @@ class VexHTTPTable(VexDataTable, can_focus=True):
             case "Time(ms)":
                 return str(flow.duration_ms) if flow.duration_ms is not None else None
             case "Sent at":
-                if flow.timestamp:
+                if flow.timestamp is not None:
                     dt = datetime.fromtimestamp(flow.timestamp)
                     return dt.strftime("%H:%M:%S %d/%m")
                 return None

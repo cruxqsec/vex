@@ -8,12 +8,12 @@ from textual.containers import Vertical
 from textual.screen import Screen
 from textual.widgets import Footer
 
-from vex_client.widgets.navigation_bar import VexNavigationBar
 from vex_client.intercept.table import VexHTTPInterceptTable
-from vex_client.widgets.request_area import RequestAreaContainer
-from vex_client.widgets.text_area import VexTextArea
 from vex_client.widgets.footer import VexFooter
 from vex_client.widgets.logs_panel import VexLogsPanel
+from vex_client.widgets.navigation_bar import VexNavigationBar
+from vex_client.widgets.request_area import RequestAreaContainer
+from vex_client.widgets.text_area import VexTextArea
 
 
 class VexInterceptScreen(Screen):
@@ -47,3 +47,10 @@ class VexInterceptScreen(Screen):
 
         # app: VexApp = cast("VexApp", self.app)
         # app.populate_log_panel(self)
+
+    def clear_screen(self) -> None:
+        """Clears the screen elements."""
+        if not self.is_mounted:
+            return
+
+        # TODO

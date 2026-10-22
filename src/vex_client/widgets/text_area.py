@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, cast
+
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from vex_client.app import VexApp
@@ -7,17 +8,16 @@ if TYPE_CHECKING:
 from dataclasses import dataclass
 
 from textual import on
-from textual.widgets import Static
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widgets import TextArea
-from textual.containers import Vertical, Horizontal
+from textual.widgets import Static, TextArea
 from textual.widgets.text_area import Selection
 
-from vex_client.widgets.empty_message_widget import EmptyStateChanged
 from vex_client.get_syntax import get_highlight_query, get_http_lang
+from vex_client.widgets.empty_message_widget import EmptyStateChanged
 
 
 class VexTextArea(TextArea, can_focus=True):
@@ -25,7 +25,7 @@ class VexTextArea(TextArea, can_focus=True):
     Vex text area with VIM keybindings and custom syntax highlight.
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("up,k", "cursor_up", "Cursor Up", show=False),
         Binding("down,j", "cursor_down", "Cursor Down", show=False),
         Binding("right,l", "cursor_right", "Cursor Right", show=False),
@@ -98,6 +98,8 @@ class VexTextArea(TextArea, can_focus=True):
         self.register_theme(ta_theme)
         self.theme = ta_theme.name
 
+
+    """ ! IMPORTANT ! Visual mode for now works only if read_only=True! """
     @dataclass
     class VisualModeToggled(Message):
         value: bool

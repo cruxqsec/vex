@@ -9,7 +9,7 @@ from vex_cli.__main__ import _run_vex_tasks, cli, main
 
 
 @asynccontextmanager
-async def fake_pid_check(server_info):
+async def fake_lock_check(server_info):
     yield
 
 
@@ -17,7 +17,7 @@ async def fake_pid_check(server_info):
 def isolate(mocker, tmp_path):
     mocker.patch("vex_cli.__main__._configure_logging")
     mocker.patch("vex_cli.__main__.vex_log_directory", return_value=tmp_path)
-    mocker.patch("vex_cli.__main__.pid_file_check", fake_pid_check)
+    mocker.patch("vex_cli.__main__.lock_file_check", fake_lock_check)
     mocker.patch(
         "vex_cli.database.db_manager.vex_projects_db_path",
         return_value=tmp_path / "projects.db",

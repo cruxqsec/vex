@@ -120,9 +120,13 @@ ProxyListItem {
     border-left: thick $surface;
 }
 
-ProxyListItem.row-running {
+ProxyListItem.row-connected {
     border-left: thick $success;
     background: $success 5%;
+}
+
+ProxyListItem.row-busy {
+    border-left: thick $warning;
 }
 
 .row-inner {
@@ -138,7 +142,8 @@ ProxyListItem.row-running {
     content-align: left middle;
     margin-left: 1;
 
-    &.running {color: $success;}
+    &.connected { color: $success; }
+    &.busy { color: $warning; }
 }
 
 .row-info {
@@ -161,32 +166,38 @@ ProxyListItem.row-running {
     align: right middle;
 }
 
+.row-actions VexButton {
+    display: none;
+}
+
 #btn-stop {
     background: $error-muted;
     color: $error;
     margin: 0 1;
-    display: none;
-
-    &.running { display: block; }
 }
 
-
-#btn-connect {
+#btn-connect, #btn-enter {
     background: $primary-muted;
     color: $primary;
     margin: 0 1;
-    display: none;
-
-    &.running { display: block; }
 }
 
 #btn-start {
     background: $success-muted;
     color: $success;
     margin: 0 1;
-    display: block;
+}
 
-    &.running { display: none; }
+#btn-disconnect {
+    background: $warning-muted;
+    color: $warning;
+    margin: 0 1;
+}
+
+#btn-progress {
+    background: $surface;
+    color: $text-muted;
+    margin: 0 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

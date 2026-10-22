@@ -5,6 +5,9 @@ from vex_cli.models.pydantic import VexServerInfo
 
 def try_bind_ports(server_info: VexServerInfo) -> tuple[bool, int]:
     """Check if we can bind to both ports"""
+    if server_info.proxy_port == server_info.api_port and server_info.proxy_port != 0:
+        return False, server_info.api_port
+
     to_check = [
         (server_info.server_address, server_info.proxy_port),
         (server_info.server_address, server_info.api_port),

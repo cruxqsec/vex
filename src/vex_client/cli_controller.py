@@ -1,55 +1,83 @@
 import asyncio
+import logging
 import sys
 from subprocess import Popen
 
 import psutil
 
-from vex_cli.locations import vex_pid_file
 from vex_cli.models.pydantic import VexServerInfo
 from vex_client.process import (
     INACTIVE_PROCESS,
-    is_vex_server_live,
     kill_process,
     start_detached_process,
     terminate_process,
 )
 
+logger = logging.getLogger(__name__)
 
-class VexController:
-    """Controller for the vex-cli server."""
+
+
+class LocalServerController:
+    """
+    Local controller for the vex-cli server.
+
+    Controls the local vex-cli server that was spawned
+    or already running and adopted. Operates only on a local process
+    and has nothing to do with connecting to the server.
+    """
 
     def __init__(self):
         self.server_info: VexServerInfo | None = None
         self.cli_pid: int = INACTIVE_PROCESS
+        self._starting = False
+
+        # set if this process spawns a new vex-cli
         self._proc: Popen | None = None
 
-    def attach(self, pid: int, server_info: VexServerInfo) -> None:
-        """Adopt an already-running server (e.g. discovered via the pid file)."""
-        self.cli_pid = pid
-        self.server_info = server_info
-        self._proc = None
-
-    def clear(self) -> None:
-        """Reset to no-server state once the server is gone."""
-        self.cli_pid = INACTIVE_PROCESS
-        self.server_info = None
-        self._proc = None
+        # set if we attach to an already running vex-cli
+        self._adopted_proc: psutil.Process | None = None
 
     @property
-    def is_cli_running(self):
-        if self.cli_pid == INACTIVE_PROCESS:
-            return False
-
+    def is_cli_running(self) -> bool:
         if self._proc is not None:
-            # Own child: waitpid-based; correct across PID reuse and reaps
-            # the zombie.
             return self._proc.poll() is None
 
-        # Adopted (pid-file) server: liveness is the file lock, not the
-        # pid — same kernel-guarantee as the client adoption gate.
-        return is_vex_server_live(vex_pid_file())
+        if self._adopted_proc is not None:
+            try:
+                return (
+                    self._adopted_proc.is_running()
+                    and self._adopted_proc.status() != psutil.STATUS_ZOMBIE
+                )
+            except psutil.NoSuchProcess:
+                return False
 
-    async def start_vex_cli(self, server_info: VexServerInfo) -> bool:
+        return False
+
+    def attach_to_running(
+        self, process: psutil.Process, server_info: VexServerInfo
+    ) -> bool:
+        """Track a local process whose identity was verified during discovery."""
+        if self._starting:
+            return False
+        if self.server_info is not None:
+            raise RuntimeError("Disconnect the current instance first.")
+
+        if not process.is_running():
+            return False
+
+        self.server_info = server_info.model_copy()
+        self.cli_pid = process.pid
+        self._proc = None
+        self._adopted_proc = process
+        return True
+
+    async def spawn_vex_cli(self, server_info: VexServerInfo) -> bool:
+        """Spawn and track a local vex-cli server; readiness is checked separately."""
+
+        if self._starting:
+            return False
+        if self._proc is not None or self._adopted_proc is not None:
+            raise RuntimeError("A local process is already tracked; stop it first.")
 
         cmd = [
             sys.executable,
@@ -64,33 +92,42 @@ class VexController:
             str(server_info.api_port),
         ]
 
-        proc = await asyncio.to_thread(start_detached_process, cmd)
-        if proc is None:
-            self.clear()
-            return False
+        # Prevent another start or adoption while the launch is awaiting a process.
+        self._starting = True
+        try:
+            proc = await asyncio.to_thread(start_detached_process, cmd)
+            if proc is None:
+                return False
 
-        self.attach(proc.pid, server_info)
-        self._proc = proc
-        return True
+            self.server_info = server_info
+            self.cli_pid = proc.pid
+            self._proc = proc
+            self._adopted_proc = None
+            return True
+        finally:
+            self._starting = False
+
 
     async def stop_vex_cli(self) -> bool:
-        if self.cli_pid == INACTIVE_PROCESS:
+        """Stop the tracked local process, escalate if necessary."""
+        process = self._proc if self._proc is not None else self._adopted_proc
+
+        if process is None:
             return False
 
-        stopped = await asyncio.to_thread(self._stop_sync)
+        stopped = await asyncio.to_thread(terminate_process, process)
 
-        if stopped:
+        if not stopped:
+            stopped = await asyncio.to_thread(kill_process, process)
+
+        if stopped and (self._proc is process or self._adopted_proc is process):
             self.clear()
+
         return stopped
 
-    def _stop_sync(self) -> bool:
-        try:
-            verify_vex = self._proc is None
-            terminated = terminate_process(self.cli_pid, verify_vex=verify_vex)
-            if terminated and not psutil.pid_exists(self.cli_pid):
-                return True
-
-            # if graceful termination doesn't work then we kill it
-            return kill_process(self.cli_pid, verify_vex=verify_vex)
-        except psutil.Error:
-            return False
+    def clear(self) -> None:
+        """Reset to no-server state once the server is gone."""
+        self.cli_pid = INACTIVE_PROCESS
+        self.server_info = None
+        self._proc = None
+        self._adopted_proc = None

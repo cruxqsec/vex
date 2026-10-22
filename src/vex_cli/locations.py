@@ -33,9 +33,14 @@ def vex_projects_db_path() -> Path:
     return vex_data_directory() / "projects.db"
 
 
-def vex_pid_file() -> Path:
-    """Path to the vex-cli pid file."""
-    return vex_data_directory() / "vex.pid"
+def vex_server_metadata_file() -> Path:
+    """Path to the metadata file of a live local server."""
+    return vex_data_directory() / "vex-server.json"
+
+
+def vex_lock_file() -> Path:
+    """Path to the persistent server singleton lock file."""
+    return vex_data_directory() / "vex.lock"
 
 
 @functools.lru_cache

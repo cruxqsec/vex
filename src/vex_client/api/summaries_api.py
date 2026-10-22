@@ -13,6 +13,17 @@ from vex_cli.models.pydantic import (
 logger = logging.getLogger(__name__)
 
 
+def _request_failure_reason(exc: httpx.RequestError) -> str:
+    # Exception messages can include URLs (and credentials), so use safe descriptions.
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connection timed out"
+    if isinstance(exc, httpx.TimeoutException):
+        return "request timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "could not connect to server"
+    return "HTTP request failed"
+
+
 # ==================== RequestSummary ====================
 
 
@@ -34,18 +45,20 @@ class SummariesApi:
                 return [RequestSummary.model_validate(r) for r in response.json()]
             else:
                 logger.warning(
-                    "GET /api/summary/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/request/ failed to decode or validate response"
+            )
         return []
 
     async def get_request_summary(self, id: UUID) -> RequestSummary | None:
@@ -55,19 +68,22 @@ class SummariesApi:
                 return RequestSummary.model_validate(response.json())
             else:
                 logger.warning(
-                    "GET /api/summary/request/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/request/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/request/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/request/%s failed: %s",
+                id,
+                _request_failure_reason(exc),
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/request/%s failed to decode or validate response", id
+            )
         return None
 
     async def create_request_summary(self, req_summary: RequestSummary) -> RequestSummary | None:
@@ -80,18 +96,18 @@ class SummariesApi:
                 return RequestSummary.model_validate(response.json())
             else:
                 logger.warning(
-                    "POST /api/summary/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "POST /api/summary/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("POST /api/summary/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "POST /api/summary/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/summary/request/ failed to process data")
         return None
 
     async def update_request_summary(self, req_summary: RequestSummary) -> bool:
@@ -104,18 +120,18 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "PUT /api/summary/request/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "PUT /api/summary/request/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("PUT /api/summary/request/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "PUT /api/summary/request/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/summary/request/ failed to process data")
         return False
 
     async def delete_request_summary(self, id: UUID) -> bool:
@@ -125,19 +141,26 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/summary/request/%s returned %d: %s",
+                    "DELETE /api/summary/request/%s returned HTTP %d",
                     id,
                     response.status_code,
-                    response.text,
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception(
+                "DELETE /api/summary/request/%s failed to decode response", id
+            )
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/summary/request/%s failed: %s",
+                id,
+                _request_failure_reason(exc),
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "DELETE /api/summary/request/%s failed to process response", id
+            )
         return False
 
     # ==================== ResponseSummary ====================
@@ -154,18 +177,20 @@ class SummariesApi:
                 return [ResponseSummary.model_validate(r) for r in response.json()]
             else:
                 logger.warning(
-                    "GET /api/summary/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/response/ failed to decode or validate response"
+            )
         return []
 
     async def get_response_summary(self, id: UUID) -> ResponseSummary | None:
@@ -175,19 +200,22 @@ class SummariesApi:
                 return ResponseSummary.model_validate(response.json())
             else:
                 logger.warning(
-                    "GET /api/summary/response/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/response/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/response/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/response/%s failed: %s",
+                id,
+                _request_failure_reason(exc),
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/response/%s failed to decode or validate response", id
+            )
         return None
 
     async def create_response_summary(
@@ -202,18 +230,18 @@ class SummariesApi:
                 return ResponseSummary.model_validate(response.json())
             else:
                 logger.warning(
-                    "POST /api/summary/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "POST /api/summary/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("POST /api/summary/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "POST /api/summary/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/summary/response/ failed to process data")
         return None
 
     async def update_response_summary(self, res_summary: ResponseSummary) -> bool:
@@ -226,18 +254,18 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "PUT /api/summary/response/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "PUT /api/summary/response/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("PUT /api/summary/response/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "PUT /api/summary/response/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/summary/response/ failed to process data")
         return False
 
     async def delete_response_summary(self, id: UUID) -> bool:
@@ -247,19 +275,26 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/summary/response/%s returned %d: %s",
+                    "DELETE /api/summary/response/%s returned HTTP %d",
                     id,
                     response.status_code,
-                    response.text,
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception(
+                "DELETE /api/summary/response/%s failed to decode response", id
+            )
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/summary/response/%s failed: %s",
+                id,
+                _request_failure_reason(exc),
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "DELETE /api/summary/response/%s failed to process response", id
+            )
         return False
 
     # ==================== FlowSummary ====================
@@ -275,19 +310,15 @@ class SummariesApi:
             if response.status_code == 200:
                 return [FlowSummary.model_validate(r) for r in response.json()]
             else:
-                logger.warning(
-                    "GET /api/summary/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/summary/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/summary/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/summary/ failed to decode or validate response")
         return []
 
     async def get_summary(self, id: UUID) -> FlowSummary | None:
@@ -297,19 +328,20 @@ class SummariesApi:
                 return FlowSummary.model_validate(response.json())
             else:
                 logger.warning(
-                    "GET /api/summary/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/%s returned HTTP %d", id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/%s failed to decode response", id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/%s failed: %s", id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/%s failed to decode or validate response", id
+            )
         return None
 
     async def delete_flow(self, flow_id: UUID) -> bool:
@@ -319,19 +351,20 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/summary/%s returned %d: %s",
-                    flow_id,
-                    response.status_code,
-                    response.text,
+                    "DELETE /api/summary/%s returned HTTP %d", flow_id, response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/summary/%s failed to decode response", flow_id)
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/summary/%s failed: %s", flow_id, _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "DELETE /api/summary/%s failed to process response", flow_id
+            )
         return False
 
     async def delete_all_flows(self) -> bool:
@@ -341,18 +374,18 @@ class SummariesApi:
                 return True
             else:
                 logger.warning(
-                    "DELETE /api/summary/ returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "DELETE /api/summary/ returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/summary/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "DELETE /api/summary/ failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("DELETE /api/summary/ failed to process response")
         return False
 
     async def count_flows(self) -> int:
@@ -362,16 +395,18 @@ class SummariesApi:
                 return CountResponse.model_validate(response.json()).count
             else:
                 logger.warning(
-                    "GET /api/summary/count returned %d: %s",
-                    response.status_code,
-                    response.text,
+                    "GET /api/summary/count returned HTTP %d", response.status_code
                 )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+        except httpx.DecodingError:
+            logger.exception("GET /api/summary/count failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning(
+                "GET /api/summary/count failed: %s", _request_failure_reason(exc)
+            )
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception(
+                "GET /api/summary/count failed to decode or validate response"
+            )
         return 0

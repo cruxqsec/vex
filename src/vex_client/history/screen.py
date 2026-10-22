@@ -1,13 +1,7 @@
-import asyncio
 from typing import TYPE_CHECKING, ClassVar, cast
 from uuid import UUID
 
 import httpx
-
-if TYPE_CHECKING:
-    from vex_cli.models.pydantic import FlowSummary, Scope
-    from vex_client.app import VexApp
-
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -16,7 +10,8 @@ from textual.screen import Screen
 from textual.widget import Widget
 from textual.widgets import DataTable, Input
 
-from vex_cli.models.pydantic import RequestSummary, ResponseSummary
+
+from vex_client.history.query import SearchTerm, filter_summaries, parse_search_query
 from vex_client.history.table import (
     VexHTTPTable,
     VexHTTPTableContainer,
@@ -31,20 +26,12 @@ from vex_client.widgets.response_area import ResponseAreaContainer
 from vex_client.widgets.table import VexDataTable
 from vex_client.widgets.text_area import VexTextArea
 
-_SEARCH_FIELD_MAP: dict[str, str] = {
-    "host": "host",
-    "method": "method",
-    "path": "path",
-    "query": "query",
-    "status": "status_code",
-    "mime": "mime",
-    "title": "http_title",
-    "ext": "file_extension",
-    "cookie": "cookie",
-}
+if TYPE_CHECKING:
+    from vex_cli.models.pydantic import Scope
+    from vex_client.app import VexApp
 
 
-class VexHTTPHistoryScreen(Screen):
+class VexHistoryScreen(Screen):
     CSS_PATH = "http_history.tcss"
 
     BINDINGS: ClassVar = [
@@ -73,6 +60,16 @@ class VexHTTPHistoryScreen(Screen):
         Binding("d", "delete_selected_entry", "Delete selected entry", priority=True),
         Binding("ctrl+d", "delete_all_entries", "Delete all entries", priority=True),
     ]
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.applied_search: tuple[SearchTerm, ...] = ()
+        self._selected_summary_uuid: UUID | None = None
+        self._refresh_generation = 0
+        self._refresh_pending = False
+        self._raw_generation = 0
+        self._req_res_hidden = False
+        self._http_table_hidden = False
 
     @property
     def navigation_bar(self) -> VexNavigationBar:
@@ -107,95 +104,74 @@ class VexHTTPHistoryScreen(Screen):
         yield VexLogsPanel()
         yield VexFooter()
 
-    async def on_mount(self) -> None:
+    def on_mount(self) -> None:
         self.navigation_bar.set_navigation_btn_color()
         self.http_table.set_columns(self.size)
 
-        # for hiding table/areas
-        self._req_res_hidden: bool = False
-        self._http_table_hidden: bool = False
-        self._selected_summary_uuid: UUID | None = None
+        self.watch(self.app, "active_scope", self._on_scope_changed, init=False)
+        self.http_table_empty.set_loading(
+            cast("VexApp", self.app).history_manager.is_loading
+        )
+        self.request_refresh()
 
-        app: VexApp = cast("VexApp", self.app)
-        app.history_screen = self
-        self.watch(app, "active_scope", self._on_scope_changed, init=False)
-        self.populate_table()
+    def invalidate_pending_work(self) -> None:
+        """Invalidate callbacks and raw results without changing the visible history."""
+        self._refresh_generation += 1
+        self._refresh_pending = False
+        self._raw_generation += 1
+        if self.is_mounted:
+            self.workers.cancel_group(self, "fetch_raw_summaries")
 
-    def on_unmount(self) -> None:
-        cast("VexApp", self.app).history_screen = None
+    def _clear_selection(self) -> None:
+        self._raw_generation += 1
+        self._selected_summary_uuid = None
+        if self.is_mounted:
+            self.workers.cancel_group(self, "fetch_raw_summaries")
+            self.request_area.clear()
+            self.response_area.clear()
+
+    def clear_screen(self) -> None:
+        """Clear deleted history, preserving the applied search and sort."""
+        self.invalidate_pending_work()
+        self._clear_selection()
+        if self.is_mounted:
+            self.http_table.synchronize_summaries([])
+            self.http_table_empty.set_loading(
+                cast("VexApp", self.app).history_manager.is_loading
+            )
+
+    def reset_project_view(self) -> None:
+        """Reset project-specific UI state, including before the first mount."""
+        self.clear_screen()
+        self.applied_search = ()
+        if self.is_mounted:
+            self.search_bar.value = ""
+            self.http_table.reset_sort(notify=False)
 
     def _on_scope_changed(self, scope: "Scope | None") -> None:
-        self.populate_table()
+        app = cast("VexApp", self.app)
+        if app.active_project is None and not app.server_online:
+            return
+        self.request_refresh()
+
+    def history_loading_changed(self, loading: bool) -> None:
+        if not self.is_mounted:
+            return
+        self.http_table_empty.set_loading(loading)
+        app = cast("VexApp", self.app)
+        if not loading and app.server_online and app.active_project is not None:
+            self.request_refresh()
 
     @on(Input.Submitted, "#http-search-bar")
     def _on_search_submitted(self, event: Input.Submitted) -> None:
         event.stop()
-        self.populate_table()
-
-    def _filter_by_scope(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
-        app = cast("VexApp", self.app)
-        scope = app.active_scope
-        if scope is None:
-            return summaries
-        if not scope.allow_endpoints and not scope.deny_endpoints:
-            return summaries
-        filtered = []
-        for summary in summaries:
-            if summary.host in scope.deny_endpoints:
-                continue
-            if scope.allow_endpoints and summary.host not in scope.allow_endpoints:
-                continue
-            filtered.append(summary)
-        return filtered
-
-    def _parse_query(self, query: str) -> list[tuple[str | None, str]]:
-        terms: list[tuple[str | None, str]] = []
-        for token in query.split():
-            if ":" in token:
-                prefix, _, value = token.partition(":")
-                prefix_lower = prefix.lower()
-                if prefix_lower in _SEARCH_FIELD_MAP and value:
-                    terms.append((prefix_lower, value.lower()))
-            else:
-                terms.append((None, token.lower()))
-        return terms
-
-    def _filter_by_search(self, summaries: "list[FlowSummary]") -> "list[FlowSummary]":
-        query = self.search_bar.value.strip()
-        if not query:
-            return summaries
-        terms = self._parse_query(query)
-        if not terms:
-            return summaries
-        filtered = []
-        for summary in summaries:
-            match = True
-            for field_prefix, value in terms:
-                if field_prefix is not None:
-                    field_name = _SEARCH_FIELD_MAP[field_prefix]
-                    field_value = getattr(summary, field_name, None)
-                    if field_value is None:
-                        match = False
-                        break
-                    if value not in str(field_value).lower():
-                        match = False
-                        break
-                else:
-                    found = False
-                    for field_name in _SEARCH_FIELD_MAP.values():
-                        field_value = getattr(summary, field_name, None)
-                        if (
-                            field_value is not None
-                            and value in str(field_value).lower()
-                        ):
-                            found = True
-                            break
-                    if not found:
-                        match = False
-                        break
-            if match:
-                filtered.append(summary)
-        return filtered
+        try:
+            terms = parse_search_query(event.value)
+        except ValueError as exc:
+            self.notify(str(exc), severity="warning")
+            return
+        self.applied_search = terms
+        self.request_refresh()
 
     async def on_screen_resume(self) -> None:
         self.http_table.focus()
@@ -203,42 +179,34 @@ class VexHTTPHistoryScreen(Screen):
     @on(VexDataTable.SortChanged)
     def _on_sort_changed(self, event: VexDataTable.SortChanged) -> None:
         event.stop()
-        self._populate_from_sort()
+        self.request_refresh()
 
-    @work(name="populate_history", exclusive=True, group="populate_history")
-    async def _populate_from_sort(self) -> None:
-        self.populate_table()
+    def request_refresh(self) -> None:
+        """Coalesce event bursts into one synchronous reconciliation."""
+        if not self.is_mounted or self._refresh_pending:
+            return
+        self._refresh_pending = True
+        self.call_later(self._refresh_table, self._refresh_generation)
 
-    @work(name="populate_history", exclusive=True, group="populate_history")
-    async def populate_table(self) -> None:
-        self.http_table_empty.set_loading(True)
-        self.http_table.clear_table()
-        self.request_area.clear()
-        self.response_area.clear()
-
-        summaries = self._filter_by_scope(
-            list(cast("VexApp", self.app).history_summary_cache.values())
+    def _refresh_table(self, generation: int) -> None:
+        if generation != self._refresh_generation:
+            return
+        self._refresh_pending = False
+        if not self.is_mounted:
+            return
+        app = cast("VexApp", self.app)
+        summaries = filter_summaries(
+            app.history_manager.summaries.values(), app.active_scope, self.applied_search
         )
-        summaries = self._filter_by_search(summaries)
-        summaries = self.http_table.sorted_summaries(summaries)
+        summaries = self.http_table.sort_items(summaries)
+        with self.app.batch_update():
+            self.http_table.synchronize_summaries(summaries)
+            if self._selected_summary_uuid is not None and not any(
+                summary.flow_id == self._selected_summary_uuid for summary in summaries
+            ):
+                self._clear_selection()
+            self.http_table_empty.set_loading(app.history_manager.is_loading)
 
-        BATCH_SIZE = 200
-        try:
-            self.http_table.begin_bulk_insert()
-            for i in range(0, len(summaries), BATCH_SIZE):
-                with self.app.batch_update():
-                    for summary in summaries[i : i + BATCH_SIZE]:
-                        self.http_table.insert_full_summary(summary)
-                await asyncio.sleep(0)
-        finally:
-            self.http_table.end_bulk_insert()
-            self.http_table_empty.set_loading(False)
-
-    def reset(self) -> None:
-        self.http_table.clear_table()
-        self.request_area.clear()
-        self.response_area.clear()
-        self._selected_summary_uuid = None
 
     # ------------------ Selecting summaries ---------------
 
@@ -248,89 +216,77 @@ class VexHTTPHistoryScreen(Screen):
         Select a summary and fetch the corresponding raw request/response.
         Then display them in the text areas.
         """
+        if event.row_key.value is None:
+            return
         summary_id = UUID(event.row_key.value)
-
-        if summary_id is None:
+        if not self.http_table.row_exists(str(summary_id)):
             return
 
+        self._clear_selection()
         self._selected_summary_uuid = summary_id
-        self.fetch_raw_summaries(summary_id)
+        self.fetch_raw_summaries(summary_id, self._raw_generation)
 
-    # ------------------ Live insert path ------------------
-
-    def insert_live_summary(self, message: "RequestSummary | ResponseSummary") -> None:
-        """Insert a live WS flow under the current scope/search predicates.
-
-        When a sort is active (or the response updates a response-sorted
-        column) the row's position can't be honored by append-only add_row,
-        so a full rebuild runs instead, preserving selection.
-        """
-        app = cast("VexApp", self.app)
-
-        if isinstance(message, RequestSummary):
-            flow = app.history_summary_cache.get(message.flow_id)
-            if flow is None:
-                # cache is guaranteed to contain the flow (inserted by
-                # _handle_message just before); defensive only
-                return
-            if not self._filter_by_scope([flow]) or not self._filter_by_search([flow]):
-                return
-            if self.http_table.has_active_sort:
-                self._rebuild_preserving_selection()
-            else:
-                self.http_table.insert_request_summary(message)
-        else:
-            sorted_by_response = (
-                self.http_table.has_active_sort
-                and self.http_table._sort_column_key
-                in self.http_table.RESPONSE_SORT_KEYS
-            )
-            if sorted_by_response:
-                self._rebuild_preserving_selection()
-            else:
-                self.http_table.insert_response_summary(message)
-
-    @work(
-        name="rebuild_preserving_selection",
-        exclusive=True,
-        group="rebuild_preserving_selection",
-    )
-    async def _rebuild_preserving_selection(self) -> None:
-        """Full repopulate that restores highlight and refetches the raw panes."""
-        previous_key = self.http_table.get_highlighted_row_key()
-        selected_uuid = self._selected_summary_uuid
-
-        await self.populate_table()
-
-        if previous_key is not None and self.http_table.row_exists(previous_key):
-            self.http_table.move_cursor(row=self.http_table.get_row_index(previous_key))
-        if selected_uuid is not None and self.http_table.row_exists(str(selected_uuid)):
-            self.fetch_raw_summaries(selected_uuid)
 
     @work(name="fetch_raw_summaries", exclusive=True, group="fetch_raw_summaries")
-    async def fetch_raw_summaries(self, summary_id: UUID) -> None:
+    async def fetch_raw_summaries(self, summary_id: UUID, generation: int) -> None:
         app = cast("VexApp", self.app)
-        api = app.api_client
+        api = app.connection_manager.api_client
+        project_id = app.active_project.id if app.active_project is not None else None
+
+        def is_current() -> bool:
+            return (
+                self.is_mounted
+                and generation == self._raw_generation
+                and summary_id == self._selected_summary_uuid
+                and api is app.connection_manager.api_client
+                and project_id == (
+                    app.active_project.id if app.active_project is not None else None
+                )
+            )
+
+        if not is_current():
+            return
         if api is None:
+            self.notify("Connect to the server to load request/response data.", severity="warning")
             return
 
+        request_error = False
         try:
             raw_request = await api.raw.get_raw_request(summary_id)
         except httpx.HTTPError:
-            app.log_vex("Couldn't fetch request data! Check logs.", severity="error")
+            if not is_current():
+                return
+            app.log_vex(
+                "Could not load request data.", "warning", write_to_log=False
+            )
+            request_error = True
             raw_request = None
 
+        if not is_current():
+            return
+
+        response_error = False
         try:
             raw_response = await api.raw.get_raw_response(summary_id)
         except httpx.HTTPError:
-            app.log_vex("Couldn't fetch response data! Check logs.", severity="error")
+            if not is_current():
+                return
+            app.log_vex(
+                "Could not load response data.", "warning", write_to_log=False
+            )
+            response_error = True
             raw_response = None
+
+        if not is_current():
+            return
 
         if raw_request:
             self.request_area.text = raw_request.data.decode("latin-1")
         else:
-            app.log_vex("Couldn't fetch request data!", severity="error")
-            return
+            if not request_error:
+                app.log_vex(
+                    "Could not load request data.", "warning", write_to_log=False
+                )
 
         if raw_response:
             self.response_area.text = (
@@ -338,7 +294,10 @@ class VexHTTPHistoryScreen(Screen):
             )
         else:
             self.response_area.clear()
-            app.log_vex("Couldn't fetch response data!", severity="error")
+            if not response_error:
+                app.log_vex(
+                    "Could not load response data.", "warning", write_to_log=False
+                )
 
     # -------------- ACTIONS -----------------------
 
@@ -368,7 +327,8 @@ class VexHTTPHistoryScreen(Screen):
             return
 
         app = cast("VexApp", self.app)
-        if app.api_client is None:
+        if app.connection_manager.api_client is None:
+            self.notify("Connect to the server to delete an entry.", severity="warning")
             return
 
         flow_id = UUID(row_key_str)
@@ -376,21 +336,20 @@ class VexHTTPHistoryScreen(Screen):
         async def do_delete(confirmed: bool) -> None:
             if not confirmed:
                 return
+            api = app.connection_manager.api_client
+            if api is None:
+                self.notify("Connect to the server to delete an entry.", severity="warning")
+                return
             try:
-                success = await app.api_client.summaries.delete_flow(flow_id)
+                success = await api.summaries.delete_flow(flow_id)
             except httpx.HTTPError:
-                self.notify(
-                    "Network error deleting entry. Check logs.", severity="error"
-                )
+                self.notify("Could not delete entry.", severity="warning")
                 return
             if success:
-                app.history_summary_cache.pop(flow_id, None)
-                if self.http_table.row_exists(row_key_str):
-                    self.http_table.remove_row(row_key_str)
+                app.history_manager.remove_summary(flow_id)
                 if flow_id == self._selected_summary_uuid:
-                    self.request_area.clear()
-                    self.response_area.clear()
-                    self._selected_summary_uuid = None
+                    self._clear_selection()
+                self.request_refresh()
             else:
                 self.notify("Entry couldn't be deleted", severity="error")
 
@@ -398,22 +357,25 @@ class VexHTTPHistoryScreen(Screen):
 
     def action_delete_all_entries(self) -> None:
         app = cast("VexApp", self.app)
-        if app.api_client is None:
+        if app.connection_manager.api_client is None:
+            self.notify("Connect to the server to delete entries.", severity="warning")
             return
 
         async def do_delete_all(confirmed: bool) -> None:
             if not confirmed:
                 return
+            api = app.connection_manager.api_client
+            if api is None:
+                self.notify("Connect to the server to delete entries.", severity="warning")
+                return
             try:
-                success = await app.api_client.summaries.delete_all_flows()
+                success = await api.summaries.delete_all_flows()
             except httpx.HTTPError:
-                self.notify(
-                    "Network error deleting entries. Check logs.", severity="error"
-                )
+                self.notify("Could not delete entries.", severity="warning")
                 return
             if success:
-                app.history_summary_cache.clear()
-                self.reset()
+                app.history_manager.clear_summaries()
+                self.clear_screen()
             else:
                 self.notify("Entries couldn't be deleted", severity="error")
 

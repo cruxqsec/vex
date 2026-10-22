@@ -72,11 +72,35 @@ class VexProjectsScreen(Screen):
     async def on_mount(self):
         self.navigation_bar.set_navigation_btn_color()
         self.projects_table.set_columns(self.size)
+        self.watch(
+            self.app,
+            "active_project",
+            self._render_active_project,
+            init=True,
+        )
+
+    def _render_active_project(self, project: Project | None) -> None:
+        if project is None:
+            self.active_project_widget.unset_active_project()
+        else:
+            self.active_project_widget.set_active_project(project.name)
+
+    def clear_screen(self) -> None:
+        """Clears the screen elements."""
+        if not self.is_mounted:
+            return
+
+        for group in ("fetch_projects", "populate_projects", "project_sizes"):
+            self.workers.cancel_group(self, group)
+
+        self._projects_cache.clear()
+        self.projects_table.clear_table()
+        self.projects_table.set_loading(False)
 
     async def on_screen_resume(self):
-        # self.projects_table.set_loading(True)
         self._fetch_all_projects()
-        self._check_active_project()
+        app = cast("VexApp", self.app)
+        app.refresh_active_project()
 
         self.set_focus(self.projects_table)
 
@@ -93,7 +117,7 @@ class VexProjectsScreen(Screen):
         if project_id is None:
             return
 
-        api = app.api_client
+        api = app.connection_manager.api_client
 
         if api is None:
             return
@@ -103,16 +127,12 @@ class VexProjectsScreen(Screen):
             successfully_selected: bool = await api.projects.select_project(project_id)
         except httpx.HTTPError:
             self.active_project_widget.unset_active_project()
-            self.notify(
-                "Network error selecting project. Check logs.", severity="error"
-            )
+            self.notify("Could not select project.", severity="warning")
             return
 
         if successfully_selected and project is not None:
-            self.active_project_widget.set_active_project(project.name)
-            app.active_project = project
+            app.set_project(project)
         else:
-            self.active_project_widget.unset_active_project()
             self.notify("Project couldn't be selected", severity="error")
 
     @work(name="fetch_projects", group="fetch_projects", exclusive=True)
@@ -122,7 +142,7 @@ class VexProjectsScreen(Screen):
         updates the cache, and populates the table.
         """
         app = cast("VexApp", self.app)
-        api = app.api_client
+        api = app.connection_manager.api_client
         if api is None:
             app.log_vex("Cannot load projects: no server info available", "error")
             return
@@ -141,7 +161,7 @@ class VexProjectsScreen(Screen):
                     break
                 skip += 50
         except httpx.HTTPError:
-            app.log_vex("Failed to load projects. Check logs.", "error")
+            app.log_vex("Could not load projects.", "warning", write_to_log=False)
             self.projects_table.set_loading(False)
             return
 
@@ -152,46 +172,12 @@ class VexProjectsScreen(Screen):
 
         self.populate_table()
 
-    @work(name="check_active_project", group="check_active_projects", exclusive=True)
-    async def _check_active_project(self):
-        """
-        Worker function that checks if any project is active,
-        if it is then we set it as active project
-        """
-        app = cast("VexApp", self.app)
-        api = app.api_client
-        if api is None:
-            app.log_vex(
-                "Cannot check active project: no server info available", "error"
-            )
-            return
-
-        try:
-            fetched_active_project: (
-                Project | None
-            ) = await api.projects.get_active_project()
-        except httpx.HTTPError:
-            app.log_vex("Failed to check active project. Check logs.", "error")
-            return
-
-        if fetched_active_project is None:
-            self.active_project_widget.unset_active_project()
-            return
-
-        # check if already set so we don't do startup/cleanup if it's the same
-        active_project = app.active_project
-        if active_project and fetched_active_project.id == active_project.id:
-            return
-
-        self.active_project_widget.set_active_project(fetched_active_project.name)
-        app.active_project = fetched_active_project
-
     @work(name="populate_projects", exclusive=True, group="populate_projects")
     async def populate_table(self) -> None:
         self.projects_table.set_loading(True)
         self.projects_table.clear_table()
 
-        projects = self.projects_table.sorted_projects(
+        projects = self.projects_table.sort_items(
             list(self._projects_cache.values())
         )
 
@@ -243,9 +229,7 @@ class VexProjectsScreen(Screen):
             try:
                 created_project = await api.projects.create_project(new_project)
             except httpx.HTTPError:
-                self.notify(
-                    "Network error creating project. Check logs.", severity="error"
-                )
+                self.notify("Could not create project.", severity="warning")
                 return
 
             if created_project:
@@ -278,16 +262,14 @@ class VexProjectsScreen(Screen):
 
             project.name = updated_name
 
-            api = app.api_client
+            api = app.connection_manager.api_client
             if api is None:
                 app.log_vex("Cannot update project: no server info available", "error")
                 return
             try:
                 successfully_updated = await api.projects.update_project(project)
             except httpx.HTTPError:
-                self.notify(
-                    "Network error updating project. Check logs.", severity="error"
-                )
+                self.notify("Could not update project.", severity="warning")
                 return
 
             if successfully_updated:
@@ -296,10 +278,8 @@ class VexProjectsScreen(Screen):
             else:
                 self.notify("Error updating project.", severity="error")
 
-            active_project = app.active_project
-            if active_project and str(active_project.id) == project.id:
-                self.active_project_widget.set_active_project(project.name)
-
+            if app.active_project and app.active_project.id == project.id:
+                app.set_project(project)
 
         self.app.push_screen(CreateUpdateProjectScreen(project_name), update)  # type: ignore
 
@@ -317,15 +297,13 @@ class VexProjectsScreen(Screen):
             if not confirmed:
                 return
 
-            api = app.api_client
+            api = app.connection_manager.api_client
             if api is None:
                 return
             try:
                 is_deleted = await api.projects.delete_project(project_id)
             except httpx.HTTPError:
-                self.notify(
-                    "Network error deleting project. Check logs.", severity="error"
-                )
+                self.notify("Could not delete project.", severity="warning")
                 return
             active_project = app.active_project
 
@@ -336,8 +314,7 @@ class VexProjectsScreen(Screen):
                 self.notify("Project couldn't be deleted", severity="error")
                 return
             if active_project and str(active_project.id) == project_id:
-                self.active_project_widget.unset_active_project()
-                app.active_project = None
+                app.set_project(None)
 
         app.push_screen(ConfirmModal(f'Delete project "{project_name}"?'), do_delete)  # type: ignore
 
@@ -354,7 +331,6 @@ class VexProjectsScreen(Screen):
     @on(Button.Pressed, "#btn-delete")
     async def on_delete(self, event: Button.Pressed) -> None:
         await self.action_delete_project()
-
 
     @on(Button.Pressed, "#btn-import")
     async def on_import(self, event: Button.Pressed) -> None:

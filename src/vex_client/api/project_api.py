@@ -7,6 +7,17 @@ from vex_cli.models.pydantic import Project, ProjectCreate
 logger = logging.getLogger(__name__)
 
 
+def _request_failure_reason(exc: httpx.RequestError) -> str:
+    # Exception messages may contain URLs or other request data.
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connection timed out"
+    if isinstance(exc, httpx.TimeoutException):
+        return "request timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "connection failed"
+    return "request failed"
+
+
 class ProjectsApi:
     """Project API methods sharing one pooled httpx client."""
 
@@ -25,19 +36,15 @@ class ProjectsApi:
                 ]
                 return result
             else:
-                logger.warning(
-                    "GET /api/projects/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/projects/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/projects/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/projects/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/projects/ failed to decode or validate response")
         return []
 
     async def get_project(self, id: str) -> Project | None:
@@ -46,20 +53,15 @@ class ProjectsApi:
             if response.status_code == 200:
                 return Project.model_validate(response.json())
             else:
-                logger.warning(
-                    "GET /api/projects/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/projects/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/projects/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/projects/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/projects/{id} failed to decode or validate response")
         return None
 
     async def create_project(self, new_project: ProjectCreate) -> Project | None:
@@ -71,19 +73,15 @@ class ProjectsApi:
             if response.status_code == 201:
                 return Project.model_validate(response.json())
             else:
-                logger.warning(
-                    "POST /api/projects/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("POST /api/projects/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("POST /api/projects/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("POST /api/projects/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/projects/ failed to decode or validate response")
         return None
 
     async def update_project(self, updated_project: Project) -> bool:
@@ -95,19 +93,15 @@ class ProjectsApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "PUT /api/projects/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("PUT /api/projects/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("PUT /api/projects/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("PUT /api/projects/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/projects/ failed to decode or validate response")
         return False
 
     async def delete_project(self, id: str) -> bool:
@@ -116,20 +110,15 @@ class ProjectsApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "DELETE /api/projects/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("DELETE /api/projects/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/projects/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("DELETE /api/projects/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("DELETE /api/projects/{id} failed to decode or validate response")
         return False
 
     async def select_project(self, id: str) -> bool:
@@ -138,20 +127,15 @@ class ProjectsApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "POST /api/projects/select/%s returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("POST /api/projects/select/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("POST /api/projects/select/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("POST /api/projects/select/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/projects/select/{id} failed to decode or validate response")
         return False
 
     async def get_active_project(self) -> Project | None:
@@ -159,18 +143,14 @@ class ProjectsApi:
             response = await self._client.get("/api/projects/active/")
             if response.status_code == 200 and response.json() is not None:
                 return Project.model_validate(response.json())
-            elif response.status_code != 204:
-                logger.warning(
-                    "GET /api/projects/active/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+            elif not response.is_success:
+                logger.warning("GET /api/projects/active/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/projects/active/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/projects/active/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/projects/active/ failed to decode or validate response")
         return None

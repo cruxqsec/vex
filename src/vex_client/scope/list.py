@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
-
-if TYPE_CHECKING:
-    from vex_client.app import VexApp
+from typing import ClassVar
 
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widget import Widget
 from textual.widgets import (
     ListItem,
     ListView,

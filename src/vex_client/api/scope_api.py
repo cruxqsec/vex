@@ -7,6 +7,17 @@ from vex_cli.models.pydantic import CountResponse, Scope, ScopeCreate
 logger = logging.getLogger(__name__)
 
 
+def _request_failure_reason(exc: httpx.RequestError) -> str:
+    # Exception messages may contain URLs or other request data.
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connection timed out"
+    if isinstance(exc, httpx.TimeoutException):
+        return "request timed out"
+    if isinstance(exc, httpx.ConnectError):
+        return "connection failed"
+    return "request failed"
+
+
 # ==================== Scope ====================
 
 
@@ -27,19 +38,15 @@ class ScopeApi:
             if response.status_code == 200:
                 return [Scope.model_validate(r) for r in response.json()]
             else:
-                logger.warning(
-                    "GET /api/scope/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/scope/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/scope/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/scope/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/scope/ failed to decode or validate response")
         return []
 
     async def get_scope(self, id: int) -> Scope | None:
@@ -48,20 +55,15 @@ class ScopeApi:
             if response.status_code == 200:
                 return Scope.model_validate(response.json())
             else:
-                logger.warning(
-                    "GET /api/scope/%d returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/scope/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/scope/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/scope/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/scope/{id} failed to decode or validate response")
         return None
 
     async def create_scope(self, scope: ScopeCreate) -> Scope | None:
@@ -73,19 +75,15 @@ class ScopeApi:
             if response.status_code == 201:
                 return Scope.model_validate(response.json())
             else:
-                logger.warning(
-                    "POST /api/scope/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("POST /api/scope/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("POST /api/scope/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("POST /api/scope/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/scope/ failed to decode or validate response")
         return None
 
     async def update_scope(self, scope: Scope) -> bool:
@@ -97,19 +95,15 @@ class ScopeApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "PUT /api/scope/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("PUT /api/scope/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("PUT /api/scope/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("PUT /api/scope/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("PUT /api/scope/ failed to decode or validate response")
         return False
 
     async def delete_scope(self, id: int) -> bool:
@@ -118,20 +112,15 @@ class ScopeApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "DELETE /api/scope/%d returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("DELETE /api/scope/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("DELETE /api/scope/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("DELETE /api/scope/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("DELETE /api/scope/{id} failed to decode or validate response")
         return False
 
     # ==================== Scope runtime ====================
@@ -142,20 +131,15 @@ class ScopeApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "POST /api/scope/set/%d returned %d: %s",
-                    id,
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("POST /api/scope/set/{id} returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("POST /api/scope/set/{id} failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("POST /api/scope/set/{id} failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/scope/set/{id} failed to decode or validate response")
         return False
 
     async def unset_scope(self) -> bool:
@@ -164,19 +148,15 @@ class ScopeApi:
             if response.status_code == 202:
                 return True
             else:
-                logger.warning(
-                    "POST /api/scope/unset/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("POST /api/scope/unset/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("POST /api/scope/unset/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("POST /api/scope/unset/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("POST /api/scope/unset/ failed to decode or validate response")
         return False
 
     async def get_active_scope(self) -> Scope | None:
@@ -187,20 +167,16 @@ class ScopeApi:
                 if data is None:
                     return None
                 return Scope.model_validate(data)
-            else:
-                logger.warning(
-                    "GET /api/scope/active/ returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+            elif not response.is_success:
+                logger.warning("GET /api/scope/active/ returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/scope/active/ failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/scope/active/ failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/scope/active/ failed to decode or validate response")
         return None
 
     # ==================== Scope count ====================
@@ -211,17 +187,13 @@ class ScopeApi:
             if response.status_code == 200:
                 return CountResponse.model_validate(response.json()).count
             else:
-                logger.warning(
-                    "GET /api/scope/count returned %d: %s",
-                    response.status_code,
-                    response.text,
-                )
-        except httpx.TimeoutException:
-            logger.exception("Timeout occurred")
+                logger.warning("GET /api/scope/count returned HTTP %d", response.status_code)
+        except httpx.DecodingError:
+            logger.exception("GET /api/scope/count failed to decode response")
             raise
-        except httpx.RequestError:
-            logger.exception("Request failed")
+        except httpx.RequestError as exc:
+            logger.warning("GET /api/scope/count failed: %s", _request_failure_reason(exc))
             raise
         except (ValueError, KeyError):
-            logger.exception("Failed to parse response")
+            logger.exception("GET /api/scope/count failed to decode or validate response")
         return 0
