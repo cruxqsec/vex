@@ -1,5 +1,3 @@
-"""UI-independent history search and scope filtering, preserving input order."""
-
 from collections.abc import Iterable
 from dataclasses import dataclass
 

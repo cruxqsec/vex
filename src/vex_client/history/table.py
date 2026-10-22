@@ -77,8 +77,8 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
         )
 
         history_columns = (
-            ("#", 3),
-            ("Host", 20),
+            ("#", 6),
+            ("Host", 18),
             ("Method", 5),
             ("Path", 20),
             ("Query", 12),
@@ -88,7 +88,7 @@ class VexHTTPTableEmpty(EmptyMessageWidget):
             ("Time(ms)", 8),
             ("Sent at", 12),
             (self.has_cookie_column, 2),
-            ("Ext", 4),
+            ("Ext", 3),
         )
 
         self.table = VexHTTPTable(

@@ -160,11 +160,11 @@ class VexApp(App[str]):
         self.connection_manager: ConnectionManager = ConnectionManager(
             on_state_changed=self._notify_state_changed
         )
-        self._log_history: deque[LogMessage] = deque(maxlen=MAX_LOG_HISTORY)
         self.history_manager = HistoryManager(
             on_summary_received=self._on_history_summary_received,
             on_loading_changed=self._on_history_loading_changed,
         )
+        self._log_history: deque[LogMessage] = deque(maxlen=MAX_LOG_HISTORY)
 
         self.settings: Settings = Settings()
         self._register_themes()
